@@ -1,0 +1,9 @@
+Testing/
+fuzz/corpus/
+fuzz/artifacts/
+build/
+sanitizer-build/
+caesar-build/
+caesar-sanitizer-build/
+caesar-fuzz-build/
+fuzz-build/
