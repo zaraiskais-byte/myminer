@@ -1,3 +1,4 @@
+#include <string>
 #include <cassert>
 #include <caesar/p2p_protocol.hpp>
 
