@@ -255,3 +255,69 @@ add_test(
     NAME CaesarP2PFrameTest
     COMMAND caesar_p2p_frame_test
 )
+
+add_executable(caesar_p2p_hello_test
+    tests/p2p_hello_test.cpp
+)
+target_include_directories(caesar_p2p_hello_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(caesar_p2p_hello_test PRIVATE OpenSSL::Crypto)
+add_test(NAME CaesarP2PHelloTest COMMAND caesar_p2p_hello_test)
+
+add_executable(caesar_p2p_ping_test
+    tests/p2p_ping_test.cpp
+)
+target_include_directories(caesar_p2p_ping_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(caesar_p2p_ping_test PRIVATE OpenSSL::Crypto)
+add_test(NAME CaesarP2PPingTest COMMAND caesar_p2p_ping_test)
+
+add_executable(caesar_p2p_tcp_test
+    tests/p2p_tcp_test.cpp
+)
+target_include_directories(caesar_p2p_tcp_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(caesar_p2p_tcp_test PRIVATE OpenSSL::Crypto)
+add_test(NAME CaesarP2PTcpTest COMMAND caesar_p2p_tcp_test)
+
+add_executable(caesar_p2p_connection_test
+    tests/p2p_connection_test.cpp
+)
+target_include_directories(caesar_p2p_connection_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(caesar_p2p_connection_test PRIVATE OpenSSL::Crypto)
+add_test(NAME CaesarP2PConnectionTest COMMAND caesar_p2p_connection_test)
+
+add_executable(caesar_p2p_peer_manager_test
+    tests/p2p_peer_manager_test.cpp
+)
+target_include_directories(caesar_p2p_peer_manager_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(caesar_p2p_peer_manager_test PRIVATE OpenSSL::Crypto)
+add_test(NAME CaesarP2PPeerManagerTest COMMAND caesar_p2p_peer_manager_test)
+
+
+add_executable(caesar_p2p_server_test tests/p2p_server_test.cpp)
+target_include_directories(caesar_p2p_server_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(caesar_p2p_server_test PRIVATE crypto pthread)
+add_test(NAME caesar_p2p_server_test COMMAND caesar_p2p_server_test)
+
+add_executable(caesar_p2p_handshake_test tests/p2p_handshake_test.cpp)
+target_include_directories(caesar_p2p_handshake_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(caesar_p2p_handshake_test PRIVATE crypto pthread)
+add_test(NAME caesar_p2p_handshake_test COMMAND caesar_p2p_handshake_test)
+
+add_executable(caesar_p2p_server_handshake_test tests/p2p_server_handshake_test.cpp)
+target_include_directories(caesar_p2p_server_handshake_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(caesar_p2p_server_handshake_test PRIVATE crypto pthread)
+add_test(NAME caesar_p2p_server_handshake_test COMMAND caesar_p2p_server_handshake_test)
+
+add_executable(caesar_p2p_server_reject_test tests/p2p_server_reject_test.cpp)
+target_include_directories(caesar_p2p_server_reject_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(caesar_p2p_server_reject_test PRIVATE crypto pthread)
+add_test(NAME caesar_p2p_server_reject_test COMMAND caesar_p2p_server_reject_test)
+
+add_executable(caesar_p2p_server_version_reject_test tests/p2p_server_version_reject_test.cpp)
+target_include_directories(caesar_p2p_server_version_reject_test PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(caesar_p2p_server_version_reject_test PRIVATE crypto pthread)
+add_test(NAME caesar_p2p_server_version_reject_test COMMAND caesar_p2p_server_version_reject_test)
