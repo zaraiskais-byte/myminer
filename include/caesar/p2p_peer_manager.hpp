@@ -1,10 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include <caesar/p2p_connection.hpp>
 
@@ -29,6 +32,7 @@ public:
         if (!connection.valid())
             throw std::runtime_error("Cannot add invalid P2P peer");
 
+        std::lock_guard<std::mutex> lock(mutex_);
         const std::uint64_t id = next_id_++;
 
         peers_.emplace(
@@ -40,17 +44,19 @@ public:
                     port,
                     true
                 },
-                std::move(connection)
+                std::make_shared<P2PConnection>(std::move(connection))
             });
 
         return id;
     }
 
     bool contains(std::uint64_t id) const noexcept {
+        std::lock_guard<std::mutex> lock(mutex_);
         return peers_.find(id) != peers_.end();
     }
 
     std::size_t size() const noexcept {
+        std::lock_guard<std::mutex> lock(mutex_);
         return peers_.size();
     }
 
@@ -64,10 +70,12 @@ public:
     }
 
     void remove_peer(std::uint64_t id) {
+        std::lock_guard<std::mutex> lock(mutex_);
         peers_.erase(id);
     }
 
     void clear() noexcept {
+        std::lock_guard<std::mutex> lock(mutex_);
         peers_.clear();
     }
 
@@ -75,29 +83,48 @@ public:
         std::uint64_t id,
         const P2PFrame& frame) {
 
-        const auto it = peers_.find(id);
+        std::shared_ptr<P2PConnection> connection;
 
-        if (it == peers_.end())
-            throw std::runtime_error("Unknown P2P peer");
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            const auto it = peers_.find(id);
 
-        it->second.connection.send_frame(frame);
+            if (it == peers_.end())
+                throw std::runtime_error("Unknown P2P peer");
+
+            connection = it->second.connection;
+        }
+
+        connection->send_frame(frame);
     }
 
     void broadcast(const P2PFrame& frame) {
 
-        for (auto& [id, peer] : peers_) {
-            (void)id;
-            peer.connection.send_frame(frame);
+        std::vector<std::shared_ptr<P2PConnection>> connections;
+
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+
+            connections.reserve(peers_.size());
+
+            for (const auto& [id, peer] : peers_) {
+                (void)id;
+                connections.push_back(peer.connection);
+            }
         }
+
+        for (const auto& connection : connections)
+            connection->send_frame(frame);
     }
 
 private:
     struct PeerEntry {
         P2PPeerInfo info;
-        P2PConnection connection;
+        std::shared_ptr<P2PConnection> connection;
     };
 
     std::unordered_map<std::uint64_t, PeerEntry> peers_;
+    mutable std::mutex mutex_;
     std::uint64_t next_id_{1};
 };
 

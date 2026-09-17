@@ -3,6 +3,8 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -34,6 +36,8 @@ public:
     void send_frame(const P2PFrame& frame) const {
 
         const auto encoded = frame.serialize_binary();
+
+        std::lock_guard<std::mutex> lock(*send_mutex_);
 
         socket_.send_all(
             encoded.data(),
@@ -75,6 +79,9 @@ public:
 
 private:
     P2PTcpSocket socket_;
+    std::shared_ptr<std::mutex> send_mutex_{
+        std::make_shared<std::mutex>()
+    };
 };
 
 }

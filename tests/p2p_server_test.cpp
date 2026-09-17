@@ -5,6 +5,7 @@
 
 #include <caesar/p2p_server.hpp>
 #include <caesar/p2p_connection.hpp>
+#include <caesar/p2p_handshake.hpp>
 
 int main() {
 
@@ -19,8 +20,10 @@ int main() {
 
     caesar::P2PConnection client;
     client.connect_to("127.0.0.1", port);
+    caesar::P2PHello client_hello;
+    caesar::perform_hello_handshake(client, client_hello, 1);
 
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 500; ++i) {
         if (server.peer_count() == 1)
             break;
 
