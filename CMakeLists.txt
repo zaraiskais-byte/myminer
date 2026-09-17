@@ -217,3 +217,22 @@ add_test(
     NAME CaesarFullBlockConsensusTest
     COMMAND caesar_full_block_consensus_test
 )
+
+add_executable(caesar_p2p_protocol_test
+    tests/p2p_protocol_test.cpp
+)
+
+target_include_directories(caesar_p2p_protocol_test
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_p2p_protocol_test
+    PRIVATE
+        OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarP2PProtocolTest
+    COMMAND caesar_p2p_protocol_test
+)
