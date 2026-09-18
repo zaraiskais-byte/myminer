@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -32,20 +33,26 @@ public:
         if (!connection.valid())
             throw std::runtime_error("Cannot add invalid P2P peer");
 
-        std::lock_guard<std::mutex> lock(mutex_);
-        const std::uint64_t id = next_id_++;
+        std::uint64_t id = 0;
+        std::function<void(std::uint64_t)> callback;
 
-        peers_.emplace(
-            id,
-            PeerEntry{
-                P2PPeerInfo{
-                    id,
-                    address,
-                    port,
-                    true
-                },
-                std::make_shared<P2PConnection>(std::move(connection))
-            });
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+
+            id = next_id_++;
+
+            peers_.emplace(
+                id,
+                PeerEntry{
+                    P2PPeerInfo{id, address, port, true},
+                    std::make_shared<P2PConnection>(std::move(connection))
+                });
+
+            callback = peer_added_callback_;
+        }
+
+        if (callback)
+            callback(id);
 
         return id;
     }
@@ -60,7 +67,8 @@ public:
         return peers_.size();
     }
 
-    const P2PPeerInfo& info(std::uint64_t id) const {
+    P2PPeerInfo info(std::uint64_t id) const {
+        std::lock_guard<std::mutex> lock(mutex_);
         const auto it = peers_.find(id);
 
         if (it == peers_.end())
@@ -117,6 +125,25 @@ public:
             connection->send_frame(frame);
     }
 
+    void set_peer_added_callback(
+        std::function<void(std::uint64_t)> cb) {
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        peer_added_callback_ = std::move(cb);
+    }
+
+    std::shared_ptr<P2PConnection> connection(
+        std::uint64_t id) const {
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto it = peers_.find(id);
+
+        if (it == peers_.end())
+            return nullptr;
+
+        return it->second.connection;
+    }
+
 private:
     struct PeerEntry {
         P2PPeerInfo info;
@@ -126,6 +153,7 @@ private:
     std::unordered_map<std::uint64_t, PeerEntry> peers_;
     mutable std::mutex mutex_;
     std::uint64_t next_id_{1};
+    std::function<void(std::uint64_t)> peer_added_callback_;
 };
 
-}
+} // namespace caesar

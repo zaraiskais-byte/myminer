@@ -244,13 +244,19 @@ inline bool validate_block_consensus(
     if (chain.size() < CZR_DIFFICULTY_WINDOW + 1) {
         const Block& previous = chain.back();
 
+        const std::uint32_t expected_difficulty =
+            (previous.header.height == 0 &&
+             previous.header.difficulty == 0)
+                ? CZR_INITIAL_MINING_DIFFICULTY
+                : previous.header.difficulty;
+
         structural_valid =
             block.validate_basic() &&
             validate_block_link(previous, block) &&
             block.header.timestamp >=
                 previous.header.timestamp &&
             block.header.difficulty ==
-                previous.header.difficulty;
+                expected_difficulty;
     } else {
         structural_valid =
             block.validate_against_chain(chain);
