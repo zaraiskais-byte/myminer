@@ -379,6 +379,26 @@ struct Block {
                 if (is_coinbase_transaction(tx))
                     return false;
 
+                // Genesis marker transaction is protocol-defined and
+                // intentionally has no UTXO inputs.
+                if (tx.inputs.empty()) {
+                    if (tx.outputs.size() != 1)
+                        return false;
+
+                    const auto& output = tx.outputs.front();
+
+                    if (output.amount != 1)
+                        return false;
+
+                    if (output.recipient != "CAESAR_GENESIS_BURN")
+                        return false;
+
+                    if (!tx.witness.empty())
+                        return false;
+
+                    continue;
+                }
+
                 if (!tx.validate())
                     return false;
             }

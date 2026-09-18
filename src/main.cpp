@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <caesar/blockchain_storage.hpp>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -76,35 +77,64 @@ bool validate_chain(const std::vector<Block>& chain) {
 
 int main() {
     try {
-        Block genesis{
-            0,
-            "0",
-            "Caesar CZR Genesis",
-            0
-        };
+        std::cout << "=== Caesar CZR Node ===\n";
 
-        Block block1{
-            1,
-            calculate_hash(genesis),
-            "Caesar CZR Block 1",
-            0
-        };
+        const std::filesystem::path data_dir =
+            std::filesystem::path("data");
 
-        std::vector<Block> chain{genesis, block1};
+        std::filesystem::create_directories(data_dir);
 
-        std::cout << "=== Caesar CZR Cryptographic Foundation ===\n";
-        std::cout << "Hash algorithm: SHA-256\n";
-        std::cout << "Genesis hash: " << calculate_hash(genesis) << '\n';
-        std::cout << "Block 1 hash: " << calculate_hash(block1) << '\n';
-        std::cout << "Chain blocks: " << chain.size() << '\n';
+        const std::filesystem::path chain_file =
+            data_dir / "blockchain.dat";
+
+        caesar::BlockchainStorage storage(chain_file);
+
+        if (!storage.exists()) {
+            std::cout << "Blockchain storage: NEW\n";
+
+            caesar::Block genesis;
+            genesis.header.version = 1;
+            genesis.header.height = 0;
+            genesis.header.previous_hash = {};
+            genesis.header.timestamp = 0;
+            genesis.header.nonce = 0;
+            genesis.header.difficulty = 0;
+
+            caesar::Transaction genesis_tx;
+            genesis_tx.outputs.push_back(
+                caesar::TransactionOutput{
+                    1,
+                    "CAESAR_GENESIS_BURN"
+                });
+
+            genesis.transactions.push_back(genesis_tx);
+            genesis.update_merkle_root();
+
+            storage.save({genesis});
+
+            std::cout << "Genesis created and saved.\n";
+        }
+
+        auto chain = storage.load();
+
+        std::cout << "Blockchain blocks: "
+                  << chain.size() << "\n";
+
         std::cout << "Chain validation: "
-                  << (validate_chain(chain) ? "PASS" : "FAIL")
-                  << '\n';
+                  << (caesar::validate_block_chain(chain)
+                          ? "PASS"
+                          : "FAIL")
+                  << "\n";
 
-        return validate_chain(chain) ? 0 : 1;
-    }
-    catch (const std::exception& e) {
-        std::cerr << "ERROR: " << e.what() << '\n';
+        std::cout << "Storage file: "
+                  << storage.path()
+                  << "\n";
+
+        return 0;
+
+    } catch (const std::exception& e) {
+        std::cerr << "Caesar node error: "
+                  << e.what() << "\n";
         return 1;
     }
 }

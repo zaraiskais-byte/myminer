@@ -7,3 +7,6 @@ caesar-build/
 caesar-sanitizer-build/
 caesar-fuzz-build/
 fuzz-build/
+build-real/
+build-user/
+data/
