@@ -119,27 +119,95 @@ public:
     void append(const Block& block) const {
         std::vector<Block> chain;
 
+        const bool pow_before_load = block.validate_pow();
+
         if (exists())
             chain = load();
 
-        if (!chain.empty()) {
-            bool valid = false;
+        const bool pow_after_load = block.validate_pow();
 
-            if (chain.size() < CZR_DIFFICULTY_WINDOW + 1) {
-                valid =
-                    block.validate_basic() &&
-                    validate_block_link(chain.back(), block);
-            } else {
-                valid = block.validate_against_chain(chain);
-            }
+        if (pow_before_load != pow_after_load)
+            throw std::runtime_error(
+                "PoW changed across storage load: before=" +
+                std::to_string(pow_before_load) +
+                " after=" +
+                std::to_string(pow_after_load));
 
-            if (!valid)
-                throw std::runtime_error(
-                    "block does not extend stored blockchain");
-        } else {
+        if (chain.empty()) {
             if (!block.validate_basic())
                 throw std::runtime_error(
                     "cannot store invalid first block");
+
+            chain.push_back(block);
+            save(chain);
+            return;
+        }
+
+        const Block& previous = chain.back();
+
+        if (block.header.height !=
+            previous.header.height + 1) {
+            throw std::runtime_error(
+                "block height does not extend stored blockchain");
+        }
+
+        if (block.header.previous_hash !=
+            previous.hash()) {
+            throw std::runtime_error(
+                "block previous hash does not match stored tip");
+        }
+
+        if (block.header.timestamp <
+            previous.header.timestamp) {
+            throw std::runtime_error(
+                "block timestamp is before stored tip");
+        }
+
+        const bool pow_after_checks = block.validate_pow();
+        if (pow_after_load != pow_after_checks)
+            throw std::runtime_error(
+                "PoW changed after append checks: after_load=" +
+                std::to_string(pow_after_load) +
+                " after_checks=" +
+                std::to_string(pow_after_checks));
+
+        if (chain.size() < CZR_DIFFICULTY_WINDOW + 1) {
+            const std::uint32_t expected_difficulty =
+                (previous.header.height == 0 &&
+                 previous.header.difficulty == 0)
+                    ? CZR_INITIAL_MINING_DIFFICULTY
+                    : previous.header.difficulty;
+
+            if (block.header.difficulty !=
+                expected_difficulty) {
+                throw std::runtime_error(
+                    "block difficulty does not match bootstrap rule");
+            }
+
+            if (!block.validate_basic()) {
+                const bool v = block.header.version != 0;
+                const bool pow = block.validate_pow();
+                const bool coinbase =
+                    validate_coinbase_position_and_reward(
+                        block.transactions,
+                        block.header.height);
+                const bool merkle = block.validate_merkle_root();
+                const bool witness = block.validate_witness_root();
+
+                throw std::runtime_error(
+                    "block basic validation failed: "
+                    "version=" + std::to_string(v) +
+                    " pow=" + std::to_string(pow) +
+                    " coinbase=" + std::to_string(coinbase) +
+                    " merkle=" + std::to_string(merkle) +
+                    " witness=" + std::to_string(witness) +
+                    " height=" + std::to_string(block.header.height) +
+                    " difficulty=" + std::to_string(block.header.difficulty));
+            }
+        } else {
+            if (!block.validate_against_chain(chain))
+                throw std::runtime_error(
+                    "block consensus validation failed");
         }
 
         chain.push_back(block);

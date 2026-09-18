@@ -321,3 +321,21 @@ target_include_directories(caesar_p2p_server_version_reject_test PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(caesar_p2p_server_version_reject_test PRIVATE crypto pthread)
 add_test(NAME caesar_p2p_server_version_reject_test COMMAND caesar_p2p_server_version_reject_test)
+
+add_executable(caesar_blockchain_storage_test
+    tests/blockchain_storage_test.cpp
+)
+target_include_directories(
+    caesar_blockchain_storage_test
+    PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(
+    caesar_blockchain_storage_test
+    PRIVATE
+    OpenSSL::Crypto
+)
+add_test(
+    NAME CaesarBlockchainStorageTest
+    COMMAND caesar_blockchain_storage_test
+)

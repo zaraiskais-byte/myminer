@@ -221,6 +221,7 @@ inline bool mine_pow(
 constexpr std::size_t CZR_DIFFICULTY_WINDOW = 11;
 constexpr std::uint64_t CZR_TARGET_BLOCK_TIME = 120;
 constexpr std::uint32_t CZR_MIN_DIFFICULTY = 0;
+constexpr std::uint32_t CZR_INITIAL_MINING_DIFFICULTY = 12;
 constexpr std::uint32_t CZR_MAX_DIFFICULTY = 256;
 
 inline std::uint64_t difficulty_median_interval(

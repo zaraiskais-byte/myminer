@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 
@@ -80,6 +81,11 @@ public:
             return false;
 
         block.header.nonce = found_nonce;
+
+        if (block.pow_hash() != found_hash)
+            throw std::runtime_error(
+                "PoW hash changed immediately after mining");
+
         return block.validate_pow();
     }
 };
@@ -233,7 +239,24 @@ inline bool validate_block_consensus(
     if (chain.empty())
         return false;
 
-    if (!block.validate_against_chain(chain))
+    bool structural_valid = false;
+
+    if (chain.size() < CZR_DIFFICULTY_WINDOW + 1) {
+        const Block& previous = chain.back();
+
+        structural_valid =
+            block.validate_basic() &&
+            validate_block_link(previous, block) &&
+            block.header.timestamp >=
+                previous.header.timestamp &&
+            block.header.difficulty ==
+                previous.header.difficulty;
+    } else {
+        structural_valid =
+            block.validate_against_chain(chain);
+    }
+
+    if (!structural_valid)
         return false;
 
     if (!validate_block_against_utxo(
@@ -245,6 +268,32 @@ inline bool validate_block_consensus(
     return validate_total_coinbase_issuance(
         block,
         chain);
+}
+
+inline UTXOSet rebuild_utxo_set(
+    const std::vector<Block>& chain) {
+
+    if (chain.empty())
+        throw std::runtime_error(
+            "cannot rebuild UTXO set from empty chain");
+
+    if (!validate_block_chain(chain))
+        throw std::runtime_error(
+            "cannot rebuild UTXO set from invalid chain");
+
+    UTXOSet result;
+
+    // Genesis marker is not spendable protocol money.
+    for (std::size_t i = 1;
+         i < chain.size();
+         ++i) {
+
+        result = apply_block_transactions(
+            chain[i],
+            result);
+    }
+
+    return result;
 }
 
 inline bool validate_block_against_utxo(
