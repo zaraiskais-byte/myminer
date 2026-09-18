@@ -69,11 +69,11 @@ int main() {
         block1.header.difficulty ==
         caesar::CZR_INITIAL_MINING_DIFFICULTY);
 
-    assert(
-        caesar::BlockBuilder::mine(
-            block1,
-            0,
-            1000000));
+    const bool mined = caesar::BlockBuilder::mine(
+        block1,
+        0,
+        1000000);
+    assert(mined);
 
     assert(block1.validate_pow());
 
