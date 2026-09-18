@@ -379,3 +379,10 @@ add_test(
     NAME caesar_p2p_connection_security_test
     COMMAND caesar_p2p_connection_security_test
 )
+
+add_executable(caesar_node_test tests/node_test.cpp)
+target_include_directories(caesar_node_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_node_test PRIVATE crypto pthread)
+add_test(NAME CaesarNodeTest COMMAND caesar_node_test)
