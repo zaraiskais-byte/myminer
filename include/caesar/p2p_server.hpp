@@ -1,11 +1,14 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 
 #include <caesar/p2p_handshake.hpp>
@@ -16,6 +19,9 @@ namespace caesar {
 
 class P2PServer {
 public:
+    static constexpr std::size_t MAX_CONNECTION_ATTEMPTS_PER_IP = 8;
+    static constexpr std::chrono::seconds CONNECTION_ATTEMPT_WINDOW{10};
+
     P2PServer() = default;
 
     ~P2PServer() {
@@ -87,6 +93,36 @@ public:
     }
 
 private:
+    bool allow_connection_attempt(
+        const std::string& address) {
+
+        const auto now =
+            std::chrono::steady_clock::now();
+
+        std::lock_guard<std::mutex> lock(
+            attempt_mutex_);
+
+        auto& state =
+            connection_attempts_[address];
+
+        if (state.attempts == 0 ||
+            now - state.window_start >=
+                CONNECTION_ATTEMPT_WINDOW) {
+
+            state.window_start = now;
+            state.attempts = 1;
+            return true;
+        }
+
+        if (state.attempts >=
+            MAX_CONNECTION_ATTEMPTS_PER_IP) {
+            return false;
+        }
+
+        ++state.attempts;
+        return true;
+    }
+
     void accept_loop() {
 
         while (running_) {
@@ -103,6 +139,25 @@ private:
 
                 socket.set_timeouts(5000);
 
+                // Security gate: never spend handshake resources when
+                // the peer table is already at its hard capacity.
+                if (peers_.size() >= P2PPeerManager::MAX_PEERS) {
+                    socket.close();
+                    continue;
+                }
+
+                const std::string peer_address =
+                    socket.peer_address();
+
+                if (!allow_connection_attempt(
+                        peer_address)) {
+                    socket.close();
+                    continue;
+                }
+
+                const std::uint16_t peer_port =
+                    socket.peer_port();
+
                 P2PConnection connection(
                     std::move(socket));
 
@@ -117,8 +172,8 @@ private:
 
                 peers_.add_peer(
                     std::move(connection),
-                    "unknown",
-                    0);
+                    peer_address,
+                    peer_port);
 
             } catch (...) {
 
@@ -128,8 +183,17 @@ private:
         }
     }
 
+    struct ConnectionAttemptState {
+        std::chrono::steady_clock::time_point window_start{};
+        std::size_t attempts{0};
+    };
+
     P2PTcpSocket listener_;
     P2PPeerManager peers_;
+
+    mutable std::mutex attempt_mutex_;
+    std::unordered_map<std::string, ConnectionAttemptState>
+        connection_attempts_;
 
     P2PHello local_hello_;
 

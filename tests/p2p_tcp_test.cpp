@@ -35,6 +35,7 @@ int main() {
 
     P2PTcpSocket peer = server.accept_connection();
     assert(peer.valid());
+    assert(peer.peer_address() == "127.0.0.1");
 
     std::uint8_t received[4]{};
     peer.receive_all(received, sizeof(received));

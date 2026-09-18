@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
+#include <cerrno>
+#include <cstring>
 #include <string>
 
 #include <sys/socket.h>
@@ -85,7 +87,7 @@ public:
                 sizeof(server)) < 0) {
             close();
             throw std::runtime_error(
-                "TCP bind failed");
+                std::string("TCP bind failed: ") + std::strerror(errno));
         }
 
         if (::listen(fd_, 8) < 0) {
@@ -109,6 +111,58 @@ public:
                 "TCP accept failed");
 
         return P2PTcpSocket(client_fd);
+    }
+
+    std::string peer_address() const {
+        if (fd_ < 0)
+            throw std::runtime_error(
+                "TCP socket is closed");
+
+        sockaddr_in peer{};
+        socklen_t peer_len = sizeof(peer);
+
+        if (::getpeername(
+                fd_,
+                reinterpret_cast<sockaddr*>(&peer),
+                &peer_len) < 0) {
+            throw std::runtime_error(
+                std::string("TCP getpeername failed: ") +
+                std::strerror(errno));
+        }
+
+        char address[INET_ADDRSTRLEN]{};
+
+        if (::inet_ntop(
+                AF_INET,
+                &peer.sin_addr,
+                address,
+                sizeof(address)) == nullptr) {
+            throw std::runtime_error(
+                std::string("TCP address conversion failed: ") +
+                std::strerror(errno));
+        }
+
+        return std::string(address);
+    }
+
+    std::uint16_t peer_port() const {
+        if (fd_ < 0)
+            throw std::runtime_error(
+                "TCP socket is closed");
+
+        sockaddr_in peer{};
+        socklen_t peer_len = sizeof(peer);
+
+        if (::getpeername(
+                fd_,
+                reinterpret_cast<sockaddr*>(&peer),
+                &peer_len) < 0) {
+            throw std::runtime_error(
+                std::string("TCP getpeername failed: ") +
+                std::strerror(errno));
+        }
+
+        return ntohs(peer.sin_port);
     }
 
     void receive_all(
