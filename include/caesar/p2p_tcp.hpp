@@ -248,7 +248,7 @@ public:
                     fd_,
                     data + sent,
                     size - sent,
-                    0);
+                    MSG_NOSIGNAL);
 
             if (result <= 0)
                 throw std::runtime_error(
