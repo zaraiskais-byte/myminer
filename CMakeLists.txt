@@ -339,3 +339,43 @@ add_test(
     NAME CaesarBlockchainStorageTest
     COMMAND caesar_blockchain_storage_test
 )
+
+add_executable(caesar_p2p_frame_security_test
+    tests/p2p_frame_security_test.cpp
+)
+
+target_include_directories(caesar_p2p_frame_security_test
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_p2p_frame_security_test
+    PRIVATE
+        OpenSSL::Crypto
+        pthread
+)
+
+add_test(
+    NAME caesar_p2p_frame_security_test
+    COMMAND caesar_p2p_frame_security_test
+)
+
+add_executable(caesar_p2p_connection_security_test
+    tests/p2p_connection_security_test.cpp
+)
+
+target_include_directories(caesar_p2p_connection_security_test
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_p2p_connection_security_test
+    PRIVATE
+        OpenSSL::Crypto
+        pthread
+)
+
+add_test(
+    NAME caesar_p2p_connection_security_test
+    COMMAND caesar_p2p_connection_security_test
+)

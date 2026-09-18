@@ -51,6 +51,35 @@ struct BlockHeader {
             bytes_to_binary_string(
                 serialize_binary()));
     }
+
+    static BlockHeader deserialize_binary(
+        const std::vector<std::uint8_t>& data) {
+
+        BinaryReader reader(data);
+        BlockHeader header;
+
+        header.version = reader.read_u32();
+        header.height = reader.read_u64();
+
+        for (auto& byte : header.previous_hash)
+            byte = reader.read_u8();
+
+        for (auto& byte : header.merkle_root)
+            byte = reader.read_u8();
+
+        for (auto& byte : header.witness_root)
+            byte = reader.read_u8();
+
+        header.timestamp = reader.read_u64();
+        header.nonce = reader.read_u64();
+        header.difficulty = reader.read_u32();
+
+        if (!reader.empty())
+            throw std::runtime_error(
+                "trailing bytes after block header");
+
+        return header;
+    }
 };
 
 struct Block {

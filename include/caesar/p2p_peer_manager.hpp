@@ -23,6 +23,8 @@ struct P2PPeerInfo {
 
 class P2PPeerManager {
 public:
+    static constexpr std::size_t MAX_PEERS = 64;
+
     P2PPeerManager() = default;
 
     std::uint64_t add_peer(
@@ -38,6 +40,9 @@ public:
 
         {
             std::lock_guard<std::mutex> lock(mutex_);
+
+            if (peers_.size() >= MAX_PEERS)
+                throw std::runtime_error("P2P peer limit reached");
 
             id = next_id_++;
 

@@ -100,13 +100,57 @@ private:
         return frame;
     }
 
+    static P2PFrame make_get_headers_frame(
+        const std::vector<Hash256>& locator_hashes) {
+
+        if (locator_hashes.empty() || locator_hashes.size() > 32)
+            throw std::runtime_error(
+                "invalid header locator count");
+
+        BinaryWriter writer;
+        writer.write_u32(
+            static_cast<std::uint32_t>(locator_hashes.size()));
+
+        for (const auto& hash : locator_hashes)
+            for (const auto byte : hash)
+                writer.write_u8(byte);
+
+        P2PFrame frame;
+        frame.type = P2PMessageType::GetHeaders;
+        frame.payload = writer.data();
+        return frame;
+    }
+
+    void request_headers(std::uint64_t id) {
+        auto connection = server_.peers().connection(id);
+        if (!connection)
+            return;
+
+        if (!storage_.exists())
+            return;
+
+        const auto chain = storage_.load();
+        if (chain.empty())
+            return;
+
+        std::vector<Hash256> locators;
+        locators.push_back(chain.back().hash());
+
+        connection->send_frame(
+            make_get_headers_frame(locators));
+    }
+
     void on_peer_added(std::uint64_t id) {
         if (!running_)
             return;
 
         std::lock_guard<std::mutex> lock(threads_mutex_);
+
         threads_.emplace_back(
-            [this, id]() { peer_loop(id); });
+            [this, id]() {
+                request_headers(id);
+                peer_loop(id);
+            });
     }
 
     void peer_loop(std::uint64_t id) {
@@ -124,7 +168,7 @@ private:
                 const P2PFrame frame =
                     connection->receive_frame();
 
-                handle_frame(frame);
+                handle_frame(id, frame);
 
             } catch (...) {
                 break;
@@ -135,7 +179,7 @@ private:
             server_.peers().remove_peer(id);
     }
 
-    void handle_frame(const P2PFrame& frame) {
+    void handle_frame(std::uint64_t id, const P2PFrame& frame) {
 
         switch (frame.type) {
 
@@ -143,9 +187,155 @@ private:
                 handle_blocks(frame.payload);
                 break;
 
+            case P2PMessageType::GetHeaders:
+                handle_get_headers(id, frame.payload);
+                break;
+
+            case P2PMessageType::Headers:
+                handle_headers(id, frame.payload);
+                break;
+
             default:
                 break;
         }
+    }
+
+    void handle_headers(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+        (void)id;
+
+        BinaryReader reader(payload);
+
+        const std::uint32_t count =
+            reader.read_u32();
+
+        if (count > 2000)
+            throw std::runtime_error(
+                "too many received headers");
+
+        for (std::uint32_t i = 0; i < count; ++i) {
+            const std::uint32_t size =
+                reader.read_u32();
+
+            if (size != 84)
+                throw std::runtime_error(
+                    "invalid block header size");
+
+            const auto data =
+                reader.read_bytes(size);
+
+            const BlockHeader header =
+                BlockHeader::deserialize_binary(data);
+
+            if (header.version == 0)
+                throw std::runtime_error(
+                    "invalid received header version");
+
+            if (header.difficulty > 256)
+                throw std::runtime_error(
+                    "invalid received header difficulty");
+
+            BlockHeader pow_header = header;
+            pow_header.nonce = 0;
+
+            if (!validate_pow(
+                    pow_header.serialize_binary(),
+                    header.nonce,
+                    header.difficulty))
+                throw std::runtime_error(
+                    "invalid received header proof of work");
+        }
+
+        if (!reader.empty())
+            throw std::runtime_error(
+                "trailing bytes in headers payload");
+    }
+
+    void handle_get_headers(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        BinaryReader reader(payload);
+
+        const std::uint32_t count =
+            reader.read_u32();
+
+        if (count == 0 || count > 32)
+            throw std::runtime_error(
+                "invalid header locator count");
+
+        std::vector<Hash256> locators;
+        locators.reserve(count);
+
+        for (std::uint32_t i = 0; i < count; ++i) {
+
+            Hash256 hash{};
+
+            for (auto& byte : hash)
+                byte = reader.read_u8();
+
+            locators.push_back(hash);
+        }
+
+        if (!reader.empty())
+            throw std::runtime_error(
+                "trailing bytes in getheaders payload");
+
+        if (!storage_.exists())
+            return;
+
+        std::lock_guard<std::mutex> lock(storage_mutex_);
+
+        const auto chain = storage_.load();
+
+        if (chain.empty())
+            return;
+
+        std::size_t start = 0;
+
+        for (const auto& locator : locators) {
+
+            for (std::size_t i = chain.size(); i-- > 0;) {
+
+                if (chain[i].hash() == locator) {
+                    start = i + 1;
+                    break;
+                }
+            }
+
+            if (start != 0)
+                break;
+        }
+
+        constexpr std::size_t MAX_HEADERS = 2000;
+
+        const std::size_t end =
+            std::min(chain.size(), start + MAX_HEADERS);
+
+        BinaryWriter writer;
+
+        writer.write_u32(
+            static_cast<std::uint32_t>(end - start));
+
+        for (std::size_t i = start; i < end; ++i) {
+
+            const auto header =
+                chain[i].header.serialize_binary();
+
+            writer.write_u32(
+                static_cast<std::uint32_t>(header.size()));
+
+            writer.write_bytes(header);
+        }
+
+        P2PFrame response;
+        response.type = P2PMessageType::Headers;
+        response.payload = writer.data();
+
+        auto connection = server_.peers().connection(id);
+        if (connection)
+            connection->send_frame(response);
     }
 
     void handle_blocks(
