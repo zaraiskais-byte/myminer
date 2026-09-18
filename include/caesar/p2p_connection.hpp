@@ -29,6 +29,10 @@ public:
         socket_.connect_to(address, port);
     }
 
+    void set_timeouts(int timeout_ms) {
+        socket_.set_timeouts(timeout_ms);
+    }
+
     bool valid() const noexcept {
         return socket_.valid();
     }

@@ -386,3 +386,18 @@ target_include_directories(caesar_node_test PRIVATE
 )
 target_link_libraries(caesar_node_test PRIVATE crypto pthread)
 add_test(NAME CaesarNodeTest COMMAND caesar_node_test)
+
+add_executable(caesar_two_node_p2p_test
+    tests/two_node_p2p_test.cpp
+)
+target_include_directories(caesar_two_node_p2p_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_two_node_p2p_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarTwoNodeP2PTest
+    COMMAND caesar_two_node_p2p_test
+)

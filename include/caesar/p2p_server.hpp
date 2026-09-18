@@ -66,6 +66,39 @@ public:
             });
     }
 
+    std::uint64_t connect_to_peer(
+        const std::string& address,
+        std::uint16_t port) {
+
+        if (!running_)
+            throw std::runtime_error(
+                "P2P server is not running");
+
+        if (peers_.size() >= P2PPeerManager::MAX_PEERS)
+            throw std::runtime_error(
+                "P2P peer limit reached");
+
+        P2PConnection connection;
+
+        connection.connect_to(address, port);
+
+        if (!connection.valid())
+            throw std::runtime_error(
+                "P2P outbound connection failed");
+
+        connection.set_timeouts(5000);
+
+        perform_hello_handshake(
+            connection,
+            local_hello_,
+            local_hello_.network_id);
+
+        return peers_.add_peer(
+            std::move(connection),
+            address,
+            port);
+    }
+
     void stop() noexcept {
 
         if (!running_)

@@ -99,6 +99,19 @@ public:
         return server_.peer_count();
     }
 
+    std::uint64_t connect_to_peer(
+        const std::string& address,
+        std::uint16_t port) {
+
+        if (!running_)
+            throw std::runtime_error(
+                "cannot connect while node is stopped");
+
+        return server_.connect_to_peer(
+            address,
+            port);
+    }
+
     Mempool& mempool() noexcept {
         return mempool_;
     }
