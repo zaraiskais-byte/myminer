@@ -20,6 +20,7 @@ namespace caesar {
 class P2PServer {
 public:
     static constexpr std::size_t MAX_CONNECTION_ATTEMPTS_PER_IP = 8;
+    static constexpr std::size_t MAX_TRACKED_CONNECTION_IPS = 1024;
     static constexpr std::chrono::seconds CONNECTION_ATTEMPT_WINDOW{10};
 
     P2PServer() = default;
@@ -102,17 +103,34 @@ private:
         std::lock_guard<std::mutex> lock(
             attempt_mutex_);
 
-        auto& state =
-            connection_attempts_[address];
+        for (auto it = connection_attempts_.begin();
+             it != connection_attempts_.end();) {
 
-        if (state.attempts == 0 ||
-            now - state.window_start >=
+            if (now - it->second.window_start >=
                 CONNECTION_ATTEMPT_WINDOW) {
+                it = connection_attempts_.erase(it);
+            } else {
+                ++it;
+            }
+        }
 
-            state.window_start = now;
-            state.attempts = 1;
+        auto it = connection_attempts_.find(address);
+
+        if (it == connection_attempts_.end()) {
+
+            if (connection_attempts_.size() >=
+                MAX_TRACKED_CONNECTION_IPS) {
+                return false;
+            }
+
+            connection_attempts_.emplace(
+                address,
+                ConnectionAttemptState{now, 1});
+
             return true;
         }
+
+        auto& state = it->second;
 
         if (state.attempts >=
             MAX_CONNECTION_ATTEMPTS_PER_IP) {
