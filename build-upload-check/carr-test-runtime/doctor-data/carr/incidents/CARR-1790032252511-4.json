@@ -1,0 +1,45 @@
+{
+  "incident_id": "CARR-1790032252511-4",
+  "created_unix_ms": 1790032252511,
+  "type": "UTXO_INCONSISTENCY",
+  "state": "PLANNED",
+  "severity": "ERROR",
+  "fingerprint": "4|UTXO_STATE_INCONSISTENCY|utxo state inconsistency mismatch|",
+  "diagnosis": {
+    "type": "UTXO_INCONSISTENCY",
+    "code": "UTXO_STATE_INCONSISTENCY",
+    "root_cause": "derived UTXO state is inconsistent with the verified chain",
+    "confidence": 0.920,
+    "evidence": ["UTXO consistency signal"]
+  },
+  "candidates": [
+    {
+      "action": "VERIFY_CHAIN",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "verify chain before deriving replacement UTXO state"
+    },
+    {
+      "action": "REBUILD_UTXO",
+      "risk": 30,
+      "autonomous": true,
+      "rationale": "rebuild derived UTXO state from verified chain data"
+    },
+    {
+      "action": "CREATE_REPLAY_CASE",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "preserve the inconsistency as a replay case"
+    }
+  ],
+  "verification": [
+    {
+      "code": "CHAIN_INTEGRITY",
+      "description": "verify block linkage, heights, hashes and consensus state"
+    },
+    {
+      "code": "UTXO_REBUILD",
+      "description": "compare rebuilt UTXO state against chain-derived state"
+    }
+  ]
+}

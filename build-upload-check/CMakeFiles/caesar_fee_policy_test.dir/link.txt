@@ -1,0 +1,1 @@
+/data/data/com.termux/files/usr/bin/c++ -O3 -DNDEBUG -Xlinker --dependency-file=CMakeFiles/caesar_fee_policy_test.dir/link.d CMakeFiles/caesar_fee_policy_test.dir/tests/fee_policy_test.cpp.o CMakeFiles/caesar_fee_policy_test.dir/src/fee_policy.cpp.o -o caesar_fee_policy_test

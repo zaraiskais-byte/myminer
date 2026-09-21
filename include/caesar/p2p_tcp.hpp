@@ -6,6 +6,8 @@
 #include <cerrno>
 #include <cstring>
 #include <string>
+#include <fcntl.h>
+#include <poll.h>
 
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -195,7 +197,8 @@ public:
 
     void connect_to(
         const std::string& address,
-        std::uint16_t port) {
+        std::uint16_t port,
+        std::uint32_t timeout_ms = 5000) {
 
         close();
 
@@ -221,13 +224,109 @@ public:
                 "Invalid IPv4 address");
         }
 
-        if (::connect(
-                fd_,
-                reinterpret_cast<sockaddr*>(&server),
-                sizeof(server)) < 0) {
+        const int flags = ::fcntl(
+            fd_,
+            F_GETFL,
+            0);
+
+        if (flags < 0) {
             close();
             throw std::runtime_error(
-                "TCP connection failed");
+                "TCP failed to get socket flags");
+        }
+
+        if (::fcntl(
+                fd_,
+                F_SETFL,
+                flags | O_NONBLOCK) < 0) {
+            close();
+            throw std::runtime_error(
+                "TCP failed to enable non-blocking mode");
+        }
+
+        const int result = ::connect(
+            fd_,
+            reinterpret_cast<sockaddr*>(&server),
+            sizeof(server));
+
+        if (result == 0) {
+            if (::fcntl(fd_, F_SETFL, flags) < 0) {
+                close();
+                throw std::runtime_error(
+                    "TCP failed to restore socket mode");
+            }
+            return;
+        }
+
+        if (errno != EINPROGRESS) {
+            const std::string error =
+                std::string("TCP connection failed: ") +
+                std::strerror(errno);
+            close();
+            throw std::runtime_error(error);
+        }
+
+        pollfd pfd{};
+        pfd.fd = fd_;
+        pfd.events = POLLOUT;
+
+        const int poll_result = ::poll(
+            &pfd,
+            1,
+            static_cast<int>(
+                timeout_ms > 2147483647U
+                    ? 2147483647U
+                    : timeout_ms));
+
+        if (poll_result == 0) {
+            close();
+            throw std::runtime_error(
+                "TCP connection timed out");
+        }
+
+        if (poll_result < 0) {
+            const std::string error =
+                std::string("TCP connection wait failed: ") +
+                std::strerror(errno);
+            close();
+            throw std::runtime_error(error);
+        }
+
+        if ((pfd.revents & (POLLOUT | POLLERR | POLLHUP)) == 0) {
+            close();
+            throw std::runtime_error(
+                "TCP connection failed: unexpected poll event");
+        }
+
+        int socket_error = 0;
+        socklen_t socket_error_size =
+            sizeof(socket_error);
+
+        if (::getsockopt(
+                fd_,
+                SOL_SOCKET,
+                SO_ERROR,
+                &socket_error,
+                &socket_error_size) < 0) {
+            const std::string error =
+                std::string("TCP connection status failed: ") +
+                std::strerror(errno);
+            close();
+            throw std::runtime_error(error);
+        }
+
+        if (socket_error != 0) {
+            const std::string error =
+                std::string("TCP connection failed: ") +
+                std::strerror(socket_error);
+            close();
+            throw std::runtime_error(error);
+        }
+
+        if (::fcntl(fd_, F_SETFL, flags) < 0) {
+            close();
+            throw std::runtime_error(
+                "TCP failed to restore socket mode");
         }
     }
 
@@ -248,7 +347,7 @@ public:
                     fd_,
                     data + sent,
                     size - sent,
-                    0);
+                    MSG_NOSIGNAL);
 
             if (result <= 0)
                 throw std::runtime_error(

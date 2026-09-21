@@ -1,0 +1,39 @@
+{
+  "incident_id": "CARR-1790032252511-6",
+  "created_unix_ms": 1790032252511,
+  "type": "PROCESS_CRASH",
+  "state": "PLANNED",
+  "severity": "ERROR",
+  "fingerprint": "1|PROCESS_CRASH|segmentation fault|",
+  "diagnosis": {
+    "type": "PROCESS_CRASH",
+    "code": "PROCESS_CRASH",
+    "root_cause": "caesard process terminated abnormally",
+    "confidence": 0.990,
+    "evidence": ["process termination signal"]
+  },
+  "candidates": [
+    {
+      "action": "RESTART_NODE",
+      "risk": 35,
+      "autonomous": true,
+      "rationale": "restart the node under crash-loop limits"
+    },
+    {
+      "action": "CREATE_REPLAY_CASE",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "preserve crash evidence for reproduction"
+    }
+  ],
+  "verification": [
+    {
+      "code": "CHAIN_INTEGRITY",
+      "description": "verify block linkage, heights, hashes and consensus state"
+    },
+    {
+      "code": "CRASH_LOOP",
+      "description": "confirm restart remains below configured crash-loop threshold"
+    }
+  ]
+}

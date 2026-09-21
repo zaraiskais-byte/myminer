@@ -1,0 +1,156 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -u
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT" || exit 1
+
+case "${1:-help}" in
+  status)
+    echo "===== CAESAR CONTROL / STATUS ====="
+    echo "ROOT: $ROOT"
+    echo
+    echo "--- GIT ---"
+    git status --short --branch 2>&1 || true
+    echo
+    echo "--- CMAKE ---"
+    if [ -f CMakeLists.txt ]; then
+      echo "CMakeLists.txt: OK"
+    else
+      echo "CMakeLists.txt: MISSING"
+    fi
+    echo
+    echo "--- CORE FILES ---"
+    for f in \
+      include/caesar/node.hpp \
+      include/caesar/p2p_tcp.hpp \
+      include/caesar/p2p_connection.hpp \
+      include/caesar/p2p_server.hpp \
+      include/caesar/p2p_relay.hpp \
+      include/caesar/blockchain_storage.hpp \
+      include/caesar/block.hpp \
+      include/caesar/consensus.hpp \
+      include/caesar/transaction.hpp \
+      include/caesar/coinbase.hpp \
+      include/caesar/utxo.hpp \
+      include/caesar/wallet.hpp
+    do
+      if [ -f "$f" ]; then
+        printf 'OK      %s\n' "$f"
+      else
+        printf 'MISSING %s\n' "$f"
+      fi
+    done
+    ;;
+
+  test)
+    echo "===== CAESAR CONTROL / TEST ====="
+    if [ ! -d build ]; then
+      echo "build/ does not exist."
+      echo "Run: cmake -S . -B build"
+      exit 2
+    fi
+
+    echo "--- BUILD ---"
+    cmake --build build -j2
+    build_rc=$?
+
+    if [ "$build_rc" -ne 0 ]; then
+      echo
+      echo "BUILD FAILED: $build_rc"
+      exit "$build_rc"
+    fi
+
+    echo
+    echo "--- CTEST ---"
+    ctest --test-dir build --output-on-failure
+    exit $?
+    ;;
+
+  network)
+    echo "===== CAESAR CONTROL / NETWORK ====="
+    echo "--- LISTENING SOCKETS ---"
+    if command -v ss >/dev/null 2>&1; then
+      ss -lnt 2>&1 || true
+    elif command -v netstat >/dev/null 2>&1; then
+      netstat -lnt 2>&1 || true
+    else
+      echo "ss/netstat not installed"
+    fi
+
+    echo
+    echo "--- CAESAR PROCESSES ---"
+    ps -ef 2>/dev/null | grep -E '[c]aesar|[c]zr|[m]iner' || true
+
+    echo
+    echo "--- PROJECT NETWORK REFERENCES ---"
+    grep -R -n -E '19544|19545|listen_on|connect_to_peer|P2PServer|P2PRelay' \
+      include src tests 2>/dev/null | head -n 120 || true
+    ;;
+
+  report)
+    OUT="caesar-control-report-$(date +%Y%m%d_%H%M%S).txt"
+
+    {
+      echo "===== CAESAR CONTROL REPORT ====="
+      echo "DATE: $(date)"
+      echo "ROOT: $ROOT"
+      echo
+
+      echo "===== GIT STATUS ====="
+      git status --short --branch 2>&1 || true
+      echo
+
+      echo "===== DIFF CHECK ====="
+      git diff --check 2>&1 || true
+      echo
+
+      echo "===== CORE FILES ====="
+      find include/caesar -maxdepth 1 -type f -print 2>/dev/null | sort
+      echo
+
+      echo "===== BUILD DIRECTORY ====="
+      if [ -d build ]; then
+        find build -maxdepth 2 -type f \( -name '*.a' -o -name '*.so' -o -perm -111 \) \
+          -print 2>/dev/null | head -n 200
+      else
+        echo "NO BUILD DIRECTORY"
+      fi
+      echo
+
+      echo "===== CTEST LIST ====="
+      if [ -d build ]; then
+        ctest --test-dir build -N 2>&1 || true
+      fi
+      echo
+
+      echo "===== NETWORK ====="
+      if command -v ss >/dev/null 2>&1; then
+        ss -lnt 2>&1 || true
+      fi
+      echo
+
+      echo "===== PROCESSES ====="
+      ps -ef 2>/dev/null | grep -E '[c]aesar|[c]zr|[m]iner' || true
+    } > "$OUT"
+
+    echo "REPORT: $ROOT/$OUT"
+    ;;
+
+  help|*)
+    cat <<'HELP'
+Caesar Control
+
+Usage:
+  ./caesar-control status
+  ./caesar-control test
+  ./caesar-control network
+  ./caesar-control report
+
+Commands:
+  status   Project/core-file/git status
+  test     Build + CTest
+  network  Network/process diagnostics
+  report   Create a complete diagnostic report
+HELP
+    ;;
+esac

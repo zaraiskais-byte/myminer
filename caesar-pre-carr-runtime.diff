@@ -1,0 +1,901 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 61a8545..9c6b6dc 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -401,3 +401,134 @@ add_test(
+     NAME CaesarTwoNodeP2PTest
+     COMMAND caesar_two_node_p2p_test
+ )
++
++add_executable(caesar_blockchain_sync_test
++    tests/blockchain_sync_test.cpp
++)
++
++target_include_directories(caesar_blockchain_sync_test PRIVATE
++    ${CMAKE_SOURCE_DIR}/include
++)
++
++target_link_libraries(caesar_blockchain_sync_test PRIVATE
++    OpenSSL::Crypto
++)
++
++add_test(
++    NAME CaesarBlockchainSyncTest
++    COMMAND caesar_blockchain_sync_test
++)
++
++add_executable(caesar_p2p_relay_headers_validation_test
++    tests/p2p_relay_headers_validation_test.cpp
++)
++
++target_include_directories(caesar_p2p_relay_headers_validation_test PRIVATE
++    ${CMAKE_SOURCE_DIR}/include
++)
++
++target_link_libraries(caesar_p2p_relay_headers_validation_test PRIVATE
++    OpenSSL::Crypto
++)
++
++add_test(
++    NAME CaesarP2PRelayHeadersValidationTest
++    COMMAND caesar_p2p_relay_headers_validation_test
++)
++
++add_executable(caesar_p2p_relay_disconnected_block_test
++    tests/p2p_relay_disconnected_block_test.cpp
++)
++
++target_include_directories(caesar_p2p_relay_disconnected_block_test PRIVATE
++    ${CMAKE_SOURCE_DIR}/include
++)
++
++target_link_libraries(caesar_p2p_relay_disconnected_block_test PRIVATE
++    OpenSSL::Crypto
++)
++
++add_test(
++    NAME CaesarP2PRelayDisconnectedBlockTest
++    COMMAND caesar_p2p_relay_disconnected_block_test
++)
++
++add_executable(caesar_carr_core_test
++    tools/caesar-doctor/carr_test.cpp
++    tools/caesar-doctor/carr_types.cpp
++    tools/caesar-doctor/carr_diagnosis.cpp
++    tools/caesar-doctor/carr_policy.cpp
++    tools/caesar-doctor/carr_repair.cpp
++    tools/caesar-doctor/carr_journal.cpp
++    tools/caesar-doctor/carr_engine.cpp
++)
++
++target_include_directories(caesar_carr_core_test PRIVATE
++    ${CMAKE_SOURCE_DIR}/tools/caesar-doctor
++)
++
++add_test(
++    NAME CaesarCARRCoreTest
++    COMMAND caesar_carr_core_test
++)
++
++set_tests_properties(
++    CaesarCARRCoreTest
++    PROPERTIES
++        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
++        ENVIRONMENT "CAESAR_CARR_TEST_ROOT=${CMAKE_BINARY_DIR}/carr-test-runtime"
++)
++add_executable(caesar_carr_runtime_test
++    tools/caesar-doctor/carr_runtime_test.cpp
++    tools/caesar-doctor/carr_runtime.cpp
++    tools/caesar-doctor/carr_supervisor.cpp
++    tools/caesar-doctor/carr_engine.cpp
++    tools/caesar-doctor/carr_diagnosis.cpp
++    tools/caesar-doctor/carr_policy.cpp
++    tools/caesar-doctor/carr_repair.cpp
++    tools/caesar-doctor/carr_journal.cpp
++    tools/caesar-doctor/carr_types.cpp
++)
++
++target_include_directories(caesar_carr_runtime_test PRIVATE
++    ${CMAKE_SOURCE_DIR}/tools/caesar-doctor
++)
++
++add_test(
++    NAME CaesarCARRRuntimeTest
++    COMMAND caesar_carr_runtime_test
++)
++
++set_tests_properties(
++    CaesarCARRRuntimeTest
++    PROPERTIES
++        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
++        ENVIRONMENT "CAESAR_CARR_RUNTIME_TEST_ROOT=${CMAKE_BINARY_DIR}/carr-runtime-test"
++)
++
++add_executable(caesar_carr_supervisor_test
++    tools/caesar-doctor/carr_supervisor_test.cpp
++    tools/caesar-doctor/carr_supervisor.cpp
++    tools/caesar-doctor/carr_runtime.cpp
++    tools/caesar-doctor/carr_engine.cpp
++    tools/caesar-doctor/carr_diagnosis.cpp
++    tools/caesar-doctor/carr_policy.cpp
++    tools/caesar-doctor/carr_repair.cpp
++    tools/caesar-doctor/carr_journal.cpp
++    tools/caesar-doctor/carr_types.cpp
++)
++
++target_include_directories(caesar_carr_supervisor_test PRIVATE
++    ${CMAKE_SOURCE_DIR}/tools/caesar-doctor
++)
++
++add_test(
++    NAME CaesarCARRSupervisorTest
++    COMMAND caesar_carr_supervisor_test
++)
++
++set_tests_properties(
++    CaesarCARRSupervisorTest
++    PROPERTIES
++        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
++)
+diff --git a/include/caesar/coinbase.hpp b/include/caesar/coinbase.hpp
+index 00619ad..6b15f22 100644
+--- a/include/caesar/coinbase.hpp
++++ b/include/caesar/coinbase.hpp
+@@ -4,17 +4,14 @@
+ #include <limits>
+ #include <stdexcept>
+ #include <string>
++#include <vector>
+ 
+ #include <caesar/crypto.hpp>
++#include <caesar/serialization.hpp>
+ #include <caesar/transaction.hpp>
+ 
+ namespace caesar {
+ 
+-// Protocol units:
+-// 1 CZR = 100,000,000 atomic units.
+-// These values are protocol candidates and must be finalized
+-// before any public/mainnet launch.
+-
+ constexpr std::uint64_t CZR_ATOMIC_UNITS =
+     100000000ULL;
+ 
+@@ -53,6 +50,23 @@ inline std::uint64_t block_subsidy(
+     return CZR_INITIAL_SUBSIDY >> halvings;
+ }
+ 
++inline Hash256 coinbase_commitment(
++    std::uint64_t height,
++    std::uint64_t extra_nonce = 0) {
++
++    BinaryWriter writer;
++
++    writer.write_string(
++        "CAESAR-COINBASE-V1");
++
++    writer.write_u64(height);
++    writer.write_u64(extra_nonce);
++
++    return sha256(
++        bytes_to_binary_string(
++            writer.data()));
++}
++
+ inline Transaction make_coinbase_transaction(
+     std::uint64_t height,
+     const std::string& recipient,
+@@ -68,12 +82,13 @@ inline Transaction make_coinbase_transaction(
+ 
+     Transaction tx;
+ 
+-    // Coinbase input has no previous UTXO.
+     TransactionInput input;
+ 
+-    input.previous_txid = Hash256{};
++    input.previous_txid =
++        coinbase_commitment(
++            height,
++            extra_nonce);
+ 
+-    // UINT32_MAX marks a coinbase input.
+     input.output_index =
+         std::numeric_limits<std::uint32_t>::max();
+ 
+@@ -84,22 +99,11 @@ inline Transaction make_coinbase_transaction(
+     output.amount =
+         block_subsidy(height);
+ 
+-    output.recipient = recipient;
++    output.recipient =
++        recipient;
+ 
+     tx.outputs.push_back(output);
+ 
+-    // Bind the block height and extra nonce into a
+-    // deterministic second output only through the
+-    // transaction's canonical data.
+-    //
+-    // The extra nonce is represented by an additional
+-    // zero-value metadata-free output only when needed
+-    // in future mining work. For now it is encoded by
+-    // replacing the recipient suffix.
+-    //
+-    // Keep the transaction simple for this protocol stage.
+-    (void)extra_nonce;
+-
+     return tx;
+ }
+ 
+@@ -115,7 +119,7 @@ inline bool is_coinbase_transaction(
+         return false;
+     }
+ 
+-    if (!is_zero_hash(
++    if (is_zero_hash(
+             tx.inputs[0].previous_txid)) {
+ 
+         return false;
+@@ -126,7 +130,8 @@ inline bool is_coinbase_transaction(
+ 
+ inline bool validate_coinbase_transaction(
+     const Transaction& tx,
+-    std::uint64_t height) {
++    std::uint64_t height,
++    std::uint64_t extra_nonce = 0) {
+ 
+     if (!is_coinbase_transaction(tx))
+         return false;
+@@ -149,6 +154,12 @@ inline bool validate_coinbase_transaction(
+     if (output.recipient.empty())
+         return false;
+ 
++    if (tx.inputs[0].previous_txid !=
++        coinbase_commitment(height, extra_nonce)) {
++
++        return false;
++    }
++
+     return true;
+ }
+ 
+diff --git a/include/caesar/p2p_relay.hpp b/include/caesar/p2p_relay.hpp
+index ab0ae15..8a9d958 100644
+--- a/include/caesar/p2p_relay.hpp
++++ b/include/caesar/p2p_relay.hpp
+@@ -3,6 +3,7 @@
+ #include <atomic>
+ #include <cstdint>
+ #include <limits>
++#include <iostream>
+ #include <mutex>
+ #include <stdexcept>
+ #include <thread>
+@@ -121,6 +122,26 @@ private:
+         return frame;
+     }
+ 
++    static P2PFrame make_get_blocks_frame(
++        const std::vector<std::uint64_t>& heights) {
++
++        if (heights.empty() || heights.size() > 1024)
++            throw std::runtime_error(
++                "invalid block height count");
++
++        BinaryWriter writer;
++        writer.write_u32(
++            static_cast<std::uint32_t>(heights.size()));
++
++        for (const auto height : heights)
++            writer.write_u64(height);
++
++        P2PFrame frame;
++        frame.type = P2PMessageType::GetBlocks;
++        frame.payload = writer.data();
++        return frame;
++    }
++
+     void request_headers(std::uint64_t id) {
+         auto connection = server_.peers().connection(id);
+         if (!connection)
+@@ -170,7 +191,17 @@ private:
+ 
+                 handle_frame(id, frame);
+ 
++            } catch (const std::exception& e) {
++                std::cerr
++                    << "[P2P] peer " << id
++                    << " loop error: " << e.what()
++                    << std::endl;
++                break;
+             } catch (...) {
++                std::cerr
++                    << "[P2P] peer " << id
++                    << " loop error: unknown exception"
++                    << std::endl;
+                 break;
+             }
+         }
+@@ -195,6 +226,10 @@ private:
+                 handle_headers(id, frame.payload);
+                 break;
+ 
++            case P2PMessageType::GetBlocks:
++                handle_get_blocks(id, frame.payload);
++                break;
++
+             default:
+                 break;
+         }
+@@ -203,7 +238,6 @@ private:
+     void handle_headers(
+         std::uint64_t id,
+         const std::vector<std::uint8_t>& payload) {
+-        (void)id;
+ 
+         BinaryReader reader(payload);
+ 
+@@ -214,11 +248,14 @@ private:
+             throw std::runtime_error(
+                 "too many received headers");
+ 
++        std::vector<BlockHeader> headers;
++        headers.reserve(count);
++
+         for (std::uint32_t i = 0; i < count; ++i) {
+             const std::uint32_t size =
+                 reader.read_u32();
+ 
+-            if (size != 84)
++            if (size != 128)
+                 throw std::runtime_error(
+                     "invalid block header size");
+ 
+@@ -245,11 +282,93 @@ private:
+                     header.difficulty))
+                 throw std::runtime_error(
+                     "invalid received header proof of work");
++
++            if (!headers.empty()) {
++                const auto& previous = headers.back();
++
++                if (header.height !=
++                    previous.height + 1)
++                    throw std::runtime_error(
++                        "received headers are not sequential");
++
++                if (header.previous_hash !=
++                    previous.hash())
++                    throw std::runtime_error(
++                        "received headers have invalid internal link");
++            }
++
++            headers.push_back(header);
+         }
+ 
+         if (!reader.empty())
+             throw std::runtime_error(
+                 "trailing bytes in headers payload");
++
++        if (headers.empty())
++            return;
++
++        std::uint64_t local_height = 0;
++        Hash256 local_tip_hash{};
++
++        {
++            std::lock_guard<std::mutex> lock(storage_mutex_);
++
++            if (!storage_.exists())
++                return;
++
++            const auto chain = storage_.load();
++
++            if (chain.empty())
++                return;
++
++            local_height =
++                chain.back().header.height;
++
++            local_tip_hash =
++                chain.back().hash();
++        }
++
++        std::vector<std::uint64_t> heights;
++        heights.reserve(
++            std::min<std::size_t>(
++                headers.size(),
++                1024));
++
++        for (const auto& header : headers) {
++
++            if (header.height <= local_height)
++                continue;
++
++            if (heights.empty()) {
++
++                if (header.height !=
++                    local_height + 1)
++                    throw std::runtime_error(
++                        "received headers do not extend local chain");
++
++                if (header.previous_hash !=
++                    local_tip_hash)
++                    throw std::runtime_error(
++                        "received headers have invalid local anchor");
++            }
++
++            heights.push_back(header.height);
++
++            if (heights.size() >= 1024)
++                break;
++        }
++
++        if (heights.empty())
++            return;
++
++        auto connection =
++            server_.peers().connection(id);
++
++        if (!connection)
++            return;
++
++        connection->send_frame(
++            make_get_blocks_frame(heights));
+     }
+ 
+     void handle_get_headers(
+@@ -338,6 +457,94 @@ private:
+             connection->send_frame(response);
+     }
+ 
++    void handle_get_blocks(
++        std::uint64_t id,
++        const std::vector<std::uint8_t>& payload) {
++
++        BinaryReader reader(payload);
++
++        const std::uint32_t count =
++            reader.read_u32();
++
++        if (count == 0 || count > 1024)
++            throw std::runtime_error(
++                "invalid getblocks height count");
++
++        std::vector<std::uint64_t> heights;
++        heights.reserve(count);
++
++        for (std::uint32_t i = 0; i < count; ++i)
++            heights.push_back(reader.read_u64());
++
++        if (!reader.empty())
++            throw std::runtime_error(
++                "trailing bytes in getblocks payload");
++
++        if (!storage_.exists())
++            return;
++
++        std::lock_guard<std::mutex> lock(storage_mutex_);
++
++        const auto chain = storage_.load();
++
++        auto connection = server_.peers().connection(id);
++        if (!connection)
++            return;
++
++        BinaryWriter writer;
++        std::uint32_t found = 0;
++
++        writer.write_u32(0);
++
++        for (const auto requested_height : heights) {
++            if (requested_height >= chain.size())
++                continue;
++
++            const auto& block =
++                chain[static_cast<std::size_t>(
++                    requested_height)];
++
++            const auto encoded =
++                block.serialize_full_binary();
++
++            if (encoded.size() >
++                static_cast<std::size_t>(
++                    std::numeric_limits<std::uint32_t>::max()))
++                throw std::runtime_error(
++                    "serialized block too large");
++
++            writer.write_u32(
++                static_cast<std::uint32_t>(
++                    encoded.size()));
++
++            writer.write_bytes(encoded);
++            ++found;
++        }
++
++        const auto bytes = writer.data();
++
++        if (bytes.size() < sizeof(std::uint32_t))
++            throw std::runtime_error(
++                "invalid blocks response");
++
++        std::vector<std::uint8_t> response_bytes = bytes;
++
++        response_bytes[0] =
++            static_cast<std::uint8_t>(found & 0xffU);
++        response_bytes[1] =
++            static_cast<std::uint8_t>((found >> 8) & 0xffU);
++        response_bytes[2] =
++            static_cast<std::uint8_t>((found >> 16) & 0xffU);
++        response_bytes[3] =
++            static_cast<std::uint8_t>((found >> 24) & 0xffU);
++
++        P2PFrame response;
++        response.type = P2PMessageType::Blocks;
++        response.payload = std::move(response_bytes);
++
++        connection->send_frame(response);
++    }
++
+     void handle_blocks(
+         const std::vector<std::uint8_t>& payload) {
+ 
+@@ -373,6 +580,36 @@ private:
+                         "cannot relay block without local chain");
+ 
+                 const auto chain = storage_.load();
++
++                const auto local_height =
++                    chain.back().header.height;
++
++                if (block.header.height <= local_height) {
++                    const auto local_hash =
++                        chain[block.header.height].hash();
++
++                    if (local_hash == block.hash()) {
++                        std::cerr
++                            << "[P2P] duplicate block ignored"
++                            << " height=" << block.header.height
++                            << " hash="
++                            << hash_to_hex(block.hash())
++                            << std::endl;
++                        continue;
++                    }
++
++                    std::cerr
++                        << "[P2P] conflicting block at existing height"
++                        << " height=" << block.header.height
++                        << " local_hash="
++                        << hash_to_hex(local_hash)
++                        << " received_hash="
++                        << hash_to_hex(block.hash())
++                        << std::endl;
++
++                    continue;
++                }
++
+                 const auto previous_utxos =
+                     rebuild_utxo_set(chain);
+ 
+@@ -380,12 +617,35 @@ private:
+                         block,
+                         chain,
+                         previous_utxos)) {
++
++                    std::cerr
++                        << "[P2P] relay-check CONSENSUS_FAIL"
++                        << " received_height=" << block.header.height
++                        << " local_height=" << chain.back().header.height
++                        << " expected_previous="
++                        << hash_to_hex(chain.back().hash())
++                        << " received_previous="
++                        << hash_to_hex(block.header.previous_hash)
++                        << std::endl;
++
+                     throw std::runtime_error(
+                         "relayed block failed consensus validation");
+                 }
+ 
+                 storage_.append(block);
++            } catch (const std::exception& e) {
++                std::cerr
++                    << "[P2P] rejected relayed block at height "
++                    << block.header.height
++                    << ": " << e.what()
++                    << std::endl;
++                continue;
+             } catch (...) {
++                std::cerr
++                    << "[P2P] rejected relayed block at height "
++                    << block.header.height
++                    << ": unknown exception"
++                    << std::endl;
+                 continue;
+             }
+ 
+diff --git a/include/caesar/p2p_tcp.hpp b/include/caesar/p2p_tcp.hpp
+index e82797f..79de4de 100644
+--- a/include/caesar/p2p_tcp.hpp
++++ b/include/caesar/p2p_tcp.hpp
+@@ -6,6 +6,8 @@
+ #include <cerrno>
+ #include <cstring>
+ #include <string>
++#include <fcntl.h>
++#include <poll.h>
+ 
+ #include <sys/socket.h>
+ #include <sys/time.h>
+@@ -195,7 +197,8 @@ public:
+ 
+     void connect_to(
+         const std::string& address,
+-        std::uint16_t port) {
++        std::uint16_t port,
++        std::uint32_t timeout_ms = 5000) {
+ 
+         close();
+ 
+@@ -221,13 +224,109 @@ public:
+                 "Invalid IPv4 address");
+         }
+ 
+-        if (::connect(
++        const int flags = ::fcntl(
++            fd_,
++            F_GETFL,
++            0);
++
++        if (flags < 0) {
++            close();
++            throw std::runtime_error(
++                "TCP failed to get socket flags");
++        }
++
++        if (::fcntl(
+                 fd_,
+-                reinterpret_cast<sockaddr*>(&server),
+-                sizeof(server)) < 0) {
++                F_SETFL,
++                flags | O_NONBLOCK) < 0) {
++            close();
++            throw std::runtime_error(
++                "TCP failed to enable non-blocking mode");
++        }
++
++        const int result = ::connect(
++            fd_,
++            reinterpret_cast<sockaddr*>(&server),
++            sizeof(server));
++
++        if (result == 0) {
++            if (::fcntl(fd_, F_SETFL, flags) < 0) {
++                close();
++                throw std::runtime_error(
++                    "TCP failed to restore socket mode");
++            }
++            return;
++        }
++
++        if (errno != EINPROGRESS) {
++            const std::string error =
++                std::string("TCP connection failed: ") +
++                std::strerror(errno);
++            close();
++            throw std::runtime_error(error);
++        }
++
++        pollfd pfd{};
++        pfd.fd = fd_;
++        pfd.events = POLLOUT;
++
++        const int poll_result = ::poll(
++            &pfd,
++            1,
++            static_cast<int>(
++                timeout_ms > 2147483647U
++                    ? 2147483647U
++                    : timeout_ms));
++
++        if (poll_result == 0) {
+             close();
+             throw std::runtime_error(
+-                "TCP connection failed");
++                "TCP connection timed out");
++        }
++
++        if (poll_result < 0) {
++            const std::string error =
++                std::string("TCP connection wait failed: ") +
++                std::strerror(errno);
++            close();
++            throw std::runtime_error(error);
++        }
++
++        if ((pfd.revents & (POLLOUT | POLLERR | POLLHUP)) == 0) {
++            close();
++            throw std::runtime_error(
++                "TCP connection failed: unexpected poll event");
++        }
++
++        int socket_error = 0;
++        socklen_t socket_error_size =
++            sizeof(socket_error);
++
++        if (::getsockopt(
++                fd_,
++                SOL_SOCKET,
++                SO_ERROR,
++                &socket_error,
++                &socket_error_size) < 0) {
++            const std::string error =
++                std::string("TCP connection status failed: ") +
++                std::strerror(errno);
++            close();
++            throw std::runtime_error(error);
++        }
++
++        if (socket_error != 0) {
++            const std::string error =
++                std::string("TCP connection failed: ") +
++                std::strerror(socket_error);
++            close();
++            throw std::runtime_error(error);
++        }
++
++        if (::fcntl(fd_, F_SETFL, flags) < 0) {
++            close();
++            throw std::runtime_error(
++                "TCP failed to restore socket mode");
+         }
+     }
+ 
+@@ -248,7 +347,7 @@ public:
+                     fd_,
+                     data + sent,
+                     size - sent,
+-                    0);
++                    MSG_NOSIGNAL);
+ 
+             if (result <= 0)
+                 throw std::runtime_error(
+diff --git a/include/caesar/transaction.hpp b/include/caesar/transaction.hpp
+index fb2920a..df85eca 100644
+--- a/include/caesar/transaction.hpp
++++ b/include/caesar/transaction.hpp
+@@ -295,6 +295,14 @@ struct Transaction {
+         if (inputs.empty() || outputs.empty())
+             return false;
+ 
++        for (const auto& input : inputs) {
++            if (input.output_index ==
++                std::numeric_limits<std::uint32_t>::max()) {
++
++                return false;
++            }
++        }
++
+         std::uint64_t output_sum = 0;
+ 
+         for (const auto& output : outputs) {
+diff --git a/tests/blockchain_storage_test.cpp b/tests/blockchain_storage_test.cpp
+index b204a8c..bd66384 100644
+--- a/tests/blockchain_storage_test.cpp
++++ b/tests/blockchain_storage_test.cpp
+@@ -69,9 +69,31 @@ int main() {
+         block1.header.difficulty ==
+         caesar::CZR_INITIAL_MINING_DIFFICULTY);
+ 
+-    block1.header.nonce = 2170;
+-
+-    assert(block1.validate_pow());
++    std::uint64_t found_nonce = 0;
++    caesar::Hash256 found_hash{};
++
++    const bool mined =
++        caesar::mine_pow(
++            block1.pow_header(),
++            block1.header.difficulty,
++            2170,
++            100000,
++            found_nonce,
++            found_hash);
++
++    if (!mined)
++        throw std::runtime_error(
++            "failed to mine block1 in storage test");
++
++    block1.header.nonce = found_nonce;
++
++    if (block1.pow_hash() != found_hash)
++        throw std::runtime_error(
++            "storage test PoW hash mismatch");
++
++    if (!block1.validate_pow())
++        throw std::runtime_error(
++            "storage test mined block has invalid PoW");
+ 
+     const caesar::UTXOSet previous_utxos =
+         caesar::rebuild_utxo_set(chain);
+diff --git a/tests/coinbase_test.cpp b/tests/coinbase_test.cpp
+index 82b405d..30cc8b5 100644
+--- a/tests/coinbase_test.cpp
++++ b/tests/coinbase_test.cpp
+@@ -67,6 +67,44 @@ int main() {
+         std::cout
+             << "[PASS] Valid coinbase accepted\n";
+ 
++        Transaction next_height =
++            make_coinbase_transaction(
++                2,
++                "CZ1-miner");
++
++        if (coinbase.txid() == next_height.txid()) {
++            std::cerr
++                << "[FAIL] Coinbase TXID reused across heights\n";
++            return EXIT_FAILURE;
++        }
++
++        std::cout
++            << "[PASS] Coinbase TXID is unique across heights\n";
++
++        Transaction altered_marker =
++            make_coinbase_transaction(
++                1,
++                "CZ1-miner",
++                1);
++
++        if (altered_marker.txid() == coinbase.txid()) {
++            std::cerr
++                << "[FAIL] Coinbase extra nonce did not change TXID\n";
++            return EXIT_FAILURE;
++        }
++
++        if (validate_coinbase_transaction(
++                altered_marker,
++                1)) {
++
++            std::cerr
++                << "[FAIL] Non-default coinbase commitment accepted\n";
++            return EXIT_FAILURE;
++        }
++
++        std::cout
++            << "[PASS] Coinbase extra nonce commitment verified\n";
++
+         Transaction oversized =
+             coinbase;
+ 
+@@ -103,7 +141,7 @@ int main() {
+                 2,
+                 "CZ1-miner");
+ 
+-        if (!validate_coinbase_transaction(
++        if (validate_coinbase_transaction(
+                 wrong_height,
+                 1)) {
+ 
+diff --git a/tests/transaction_test.cpp b/tests/transaction_test.cpp
+index 1743163..9d2f80c 100644
+--- a/tests/transaction_test.cpp
++++ b/tests/transaction_test.cpp
+@@ -38,6 +38,19 @@ int main() {
+ 
+         std::cout << "[PASS] Valid transaction accepted\n";
+ 
++        Transaction reserved_index = tx;
++        reserved_index.inputs[0].output_index =
++            UINT32_MAX;
++
++        if (reserved_index.validate()) {
++            std::cerr
++                << "[FAIL] Normal transaction accepted reserved coinbase index\n";
++            return EXIT_FAILURE;
++        }
++
++        std::cout
++            << "[PASS] Coinbase input index reserved\n";
++
+         const auto binary =
+             tx.serialize_binary();
+ 

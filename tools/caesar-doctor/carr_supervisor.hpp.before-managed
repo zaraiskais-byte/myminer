@@ -1,0 +1,42 @@
+#pragma once
+
+#include "carr_runtime.hpp"
+
+#include <cstdint>
+#include <filesystem>
+#include <string>
+#include <vector>
+
+namespace caesar::carr {
+
+struct SupervisorResult {
+    bool started = false;
+    bool recovered = false;
+    bool quarantined = false;
+    std::uint32_t restart_count = 0;
+    int last_exit_code = 0;
+    int last_signal = 0;
+    std::string execution_id;
+    std::string status;
+    std::string detail;
+};
+
+class CARRSupervisor {
+public:
+    CARRSupervisor(
+        std::filesystem::path root,
+        RuntimeLimits limits = {});
+
+    SupervisorResult run(
+        const RuntimeCommand& command);
+
+private:
+    std::filesystem::path root_;
+    RuntimeLimits limits_;
+
+    SupervisorResult run_once(
+        const RuntimeCommand& command,
+        std::uint32_t restart_count);
+};
+
+}

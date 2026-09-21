@@ -1,0 +1,451 @@
+#include "carr_supervisor.hpp"
+
+#include <cerrno>
+#include <chrono>
+#include <csignal>
+#include <cstdint>
+#include <cstring>
+#include <sstream>
+#include <thread>
+#include <utility>
+#include <vector>
+
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+namespace caesar::carr {
+
+namespace {
+
+std::string make_execution_id() {
+    static std::uint64_t sequence = 0;
+
+    const auto now =
+        std::chrono::duration_cast<
+            std::chrono::milliseconds>(
+            std::chrono::system_clock::now()
+                .time_since_epoch())
+            .count();
+
+    ++sequence;
+
+    std::ostringstream out;
+    out << "CARR-SUP-" << now << "-" << sequence;
+    return out.str();
+}
+
+}
+
+CARRSupervisor::CARRSupervisor(
+    std::filesystem::path root,
+    RuntimeLimits limits)
+    : root_(std::move(root)),
+      limits_(limits) {
+}
+
+SupervisorResult CARRSupervisor::start(
+    const RuntimeCommand& command) {
+
+    SupervisorResult result;
+
+    if (command.executable.empty()) {
+        result.status = "INVALID_COMMAND";
+        result.detail = "empty executable";
+        return result;
+    }
+
+    if (running()) {
+        result.status = "ALREADY_RUNNING";
+        result.detail =
+            "supervisor already owns a running process";
+        result.execution_id = execution_id_;
+        return result;
+    }
+
+    execution_id_ = make_execution_id();
+
+    const pid_t pid = fork();
+
+    if (pid < 0) {
+        result.status = "FORK_FAILED";
+        result.detail = std::strerror(errno);
+        result.execution_id = execution_id_;
+        return result;
+    }
+
+    if (pid == 0) {
+        if (!command.working_directory.empty()) {
+            if (chdir(
+                    command.working_directory.c_str()) != 0) {
+                _exit(126);
+            }
+        }
+
+        std::vector<std::string> argument_storage;
+        argument_storage.reserve(
+            command.arguments.size());
+
+        argument_storage.push_back(
+            command.executable);
+
+        for (const auto& argument :
+             command.arguments) {
+            argument_storage.push_back(argument);
+        }
+
+        std::vector<char*> argv;
+        argv.reserve(
+            argument_storage.size() + 1);
+
+        for (auto& argument :
+             argument_storage) {
+            argv.push_back(
+                const_cast<char*>(
+                    argument.c_str()));
+        }
+
+        argv.push_back(nullptr);
+
+        execvp(
+            command.executable.c_str(),
+            argv.data());
+
+        _exit(127);
+    }
+
+    process_id_ =
+        static_cast<int>(pid);
+
+    started_ = true;
+    ready_ = false;
+    stopped_ = false;
+
+    result.started = true;
+    result.execution_id = execution_id_;
+    result.status = "PROCESS_STARTED";
+
+    return result;
+}
+
+SupervisorResult CARRSupervisor::poll() {
+    SupervisorResult result;
+
+    result.execution_id =
+        execution_id_;
+
+    if (!running()) {
+        result.status =
+            started_
+                ? "PROCESS_NOT_RUNNING"
+                : "NOT_STARTED";
+
+        result.ready = ready_;
+        result.stopped = stopped_;
+
+        return result;
+    }
+
+    int status = 0;
+
+    const pid_t waited =
+        waitpid(
+            static_cast<pid_t>(process_id_),
+            &status,
+            WNOHANG);
+
+    if (waited == 0) {
+        ready_ = true;
+
+        result.started = true;
+        result.ready = true;
+        result.execution_id =
+            execution_id_;
+        result.status = "RUNNING";
+
+        return result;
+    }
+
+    if (waited < 0) {
+        if (errno == EINTR) {
+            result.started = true;
+            result.ready = ready_;
+            result.execution_id =
+                execution_id_;
+            result.status =
+                "POLL_INTERRUPTED";
+
+            return result;
+        }
+
+        result.execution_id =
+            execution_id_;
+        result.status =
+            "WAIT_FAILED";
+        result.detail =
+            std::strerror(errno);
+
+        process_id_ = -1;
+        ready_ = false;
+        stopped_ = true;
+
+        return result;
+    }
+
+    process_id_ = -1;
+    ready_ = false;
+    stopped_ = true;
+
+    result.started = true;
+    result.execution_id =
+        execution_id_;
+    result.stopped = true;
+
+    if (WIFSIGNALED(status)) {
+        result.last_signal =
+            WTERMSIG(status);
+
+        result.last_exit_code =
+            128 + result.last_signal;
+
+        result.status =
+            "PROCESS_TERMINATED_BY_SIGNAL";
+
+        return result;
+    }
+
+    if (WIFEXITED(status)) {
+        result.last_exit_code =
+            WEXITSTATUS(status);
+
+        if (result.last_exit_code == 0) {
+            result.recovered = true;
+            result.status =
+                "PROCESS_EXITED_CLEANLY";
+        } else {
+            result.status =
+                "PROCESS_EXITED";
+        }
+
+        return result;
+    }
+
+    result.status =
+        "PROCESS_STATE_UNKNOWN";
+
+    return result;
+}
+
+SupervisorResult CARRSupervisor::stop(
+    int signal_number) {
+
+    SupervisorResult result;
+
+    result.execution_id =
+        execution_id_;
+
+    if (!running()) {
+        result.status =
+            "PROCESS_NOT_RUNNING";
+        return result;
+    }
+
+    if (kill(
+            static_cast<pid_t>(process_id_),
+            signal_number) != 0) {
+
+        result.status =
+            "STOP_SIGNAL_FAILED";
+        result.detail =
+            std::strerror(errno);
+
+        return result;
+    }
+
+    result.started = true;
+    result.execution_id =
+        execution_id_;
+    result.status =
+        "STOP_SIGNAL_SENT";
+
+    return result;
+}
+
+SupervisorResult CARRSupervisor::wait(
+    std::uint32_t timeout_ms) {
+
+    SupervisorResult result;
+
+    result.execution_id =
+        execution_id_;
+
+    if (!running()) {
+        result.ready = ready_;
+        result.stopped = stopped_;
+        result.status =
+            stopped_
+                ? "PROCESS_STOPPED"
+                : "PROCESS_NOT_RUNNING";
+
+        return result;
+    }
+
+    const auto deadline =
+        std::chrono::steady_clock::now() +
+        std::chrono::milliseconds(timeout_ms);
+
+    while (running()) {
+        result = poll();
+
+        if (result.stopped) {
+            return result;
+        }
+
+        if (result.status == "WAIT_FAILED") {
+            return result;
+        }
+
+        if (std::chrono::steady_clock::now() >=
+            deadline) {
+
+            result.status =
+                "WAIT_TIMEOUT";
+
+            return result;
+        }
+
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(
+                limits_.monitor_interval_ms));
+    }
+
+    result.status =
+        "PROCESS_STOPPED";
+
+    result.stopped = true;
+
+    return result;
+}
+
+bool CARRSupervisor::running() const {
+    return process_id_ > 0;
+}
+
+bool CARRSupervisor::ready() const {
+    return ready_;
+}
+
+SupervisorResult CARRSupervisor::run(
+    const RuntimeCommand& command) {
+
+    SupervisorResult final_result;
+
+    std::uint32_t restarts = 0;
+
+    const auto crash_window =
+        std::chrono::seconds(
+            limits_.crash_window_seconds);
+
+    auto window_start =
+        std::chrono::steady_clock::now();
+
+    while (true) {
+        const auto now =
+            std::chrono::steady_clock::now();
+
+        if (now - window_start > crash_window) {
+            restarts = 0;
+            window_start = now;
+        }
+
+        SupervisorResult attempt =
+            run_once(
+                command,
+                restarts);
+
+        final_result =
+            attempt;
+
+        if (attempt.recovered) {
+            return final_result;
+        }
+
+        if (restarts >= limits_.max_restarts) {
+            final_result.quarantined = true;
+            final_result.restart_count =
+                restarts;
+            final_result.status =
+                "CRASH_LOOP_QUARANTINE";
+
+            return final_result;
+        }
+
+        ++restarts;
+
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(
+                limits_.restart_delay_ms));
+    }
+}
+
+SupervisorResult CARRSupervisor::run_once(
+    const RuntimeCommand& command,
+    std::uint32_t restart_count) {
+
+    SupervisorResult result =
+        start(command);
+
+    result.restart_count =
+        restart_count;
+
+    if (!result.started) {
+        return result;
+    }
+
+    const auto startup_deadline =
+        std::chrono::steady_clock::now() +
+        std::chrono::milliseconds(
+            limits_.startup_grace_ms);
+
+    while (
+        std::chrono::steady_clock::now() <
+        startup_deadline) {
+
+        SupervisorResult state =
+            poll();
+
+        state.restart_count =
+            restart_count;
+
+        if (state.stopped) {
+            return state;
+        }
+
+        if (state.status == "WAIT_FAILED") {
+            return state;
+        }
+
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(
+                limits_.monitor_interval_ms));
+    }
+
+    result.started = true;
+    result.ready = running();
+    result.execution_id =
+        execution_id_;
+    result.restart_count =
+        restart_count;
+
+    if (running()) {
+        result.status =
+            "READY_AFTER_STARTUP_GRACE";
+    } else {
+        result.status =
+            "PROCESS_STOPPED_DURING_STARTUP";
+    }
+
+    return result;
+}
+
+}

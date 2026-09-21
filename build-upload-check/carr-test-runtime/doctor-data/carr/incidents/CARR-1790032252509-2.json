@@ -1,0 +1,61 @@
+{
+  "incident_id": "CARR-1790032252509-2",
+  "created_unix_ms": 1790032252509,
+  "type": "INVALID_PEER_DATA",
+  "state": "PLANNED",
+  "severity": "ERROR",
+  "fingerprint": "2|INVALID_PEER_BLOCK|relayed block failed consensus validation|",
+  "diagnosis": {
+    "type": "INVALID_PEER_DATA",
+    "code": "INVALID_PEER_BLOCK",
+    "root_cause": "peer supplied a block rejected by local consensus validation",
+    "confidence": 0.980,
+    "evidence": ["local consensus validation rejected peer data"]
+  },
+  "candidates": [
+    {
+      "action": "QUARANTINE_PEER",
+      "risk": 10,
+      "autonomous": true,
+      "rationale": "isolate the peer that supplied invalid chain data"
+    },
+    {
+      "action": "ABORT_SYNC",
+      "risk": 15,
+      "autonomous": true,
+      "rationale": "stop the current synchronization attempt"
+    },
+    {
+      "action": "VERIFY_CHAIN",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "verify local chain before recovery"
+    },
+    {
+      "action": "RESTART_SYNC",
+      "risk": 25,
+      "autonomous": true,
+      "rationale": "restart synchronization from verified state"
+    },
+    {
+      "action": "CREATE_REPLAY_CASE",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "preserve deterministic reproduction evidence"
+    }
+  ],
+  "verification": [
+    {
+      "code": "CHAIN_INTEGRITY",
+      "description": "verify block linkage, heights, hashes and consensus state"
+    },
+    {
+      "code": "PEER_QUARANTINE",
+      "description": "confirm offending peer is isolated"
+    },
+    {
+      "code": "SYNC_REPLAY",
+      "description": "replay the synchronization request from verified state"
+    }
+  ]
+}

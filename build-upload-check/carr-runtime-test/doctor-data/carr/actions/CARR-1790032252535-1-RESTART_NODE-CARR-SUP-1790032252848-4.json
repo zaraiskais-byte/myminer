@@ -1,0 +1,13 @@
+{
+  "incident_id": "CARR-1790032252535-1",
+  "execution_id": "CARR-SUP-1790032252848-4",
+  "action": "RESTART_NODE",
+  "allowed": true,
+  "executed": true,
+  "verified": false,
+  "status": "CRASH_LOOP_QUARANTINE",
+  "detail": "",
+  "restart_count": 2,
+  "signal_number": 11,
+  "exit_code": 139
+}

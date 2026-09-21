@@ -1,0 +1,9 @@
+=== Caesar CZR Node ===
+Node: RUNNING
+Node: READY
+P2P port: 19444
+Blockchain height: 0
+Peers: 0
+Storage: build-carr-v1/caesard-smoke-data/blockchain.dat
+Node is running. Press Ctrl+C to stop.
+Node: STOPPED

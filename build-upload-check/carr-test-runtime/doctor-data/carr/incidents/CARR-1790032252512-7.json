@@ -1,0 +1,39 @@
+{
+  "incident_id": "CARR-1790032252512-7",
+  "created_unix_ms": 1790032252512,
+  "type": "UNKNOWN",
+  "state": "PLANNED",
+  "severity": "ERROR",
+  "fingerprint": "0|UNKNOWN_FAILURE|unclassified failure|",
+  "diagnosis": {
+    "type": "UNKNOWN",
+    "code": "UNKNOWN_FAILURE",
+    "root_cause": "available evidence does not establish a safe causal classification",
+    "confidence": 0.200,
+    "evidence": ["no deterministic diagnosis rule matched"]
+  },
+  "candidates": [
+    {
+      "action": "VERIFY_CHAIN",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "perform read-only chain verification"
+    },
+    {
+      "action": "CREATE_REPLAY_CASE",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "preserve unknown failure for later diagnosis"
+    }
+  ],
+  "verification": [
+    {
+      "code": "CHAIN_INTEGRITY",
+      "description": "verify block linkage, heights, hashes and consensus state"
+    },
+    {
+      "code": "REPLAY_CAPTURE",
+      "description": "confirm deterministic reproduction data was preserved"
+    }
+  ]
+}

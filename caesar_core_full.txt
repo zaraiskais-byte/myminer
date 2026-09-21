@@ -1,0 +1,2254 @@
+===== CMAKE =====
+cmake_minimum_required(VERSION 3.20)
+
+project(CaesarCZR VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+find_package(OpenSSL REQUIRED)
+
+option(CAESAR_ENABLE_SANITIZERS
+    "Enable Clang AddressSanitizer and UndefinedBehaviorSanitizer"
+    OFF)
+
+if(CAESAR_ENABLE_SANITIZERS)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR
+            "CAESAR_ENABLE_SANITIZERS requires Clang")
+    endif()
+
+    add_compile_options(
+        -fsanitize=address,undefined
+        -fno-omit-frame-pointer
+        -fno-sanitize-recover=all
+    )
+
+    add_link_options(
+        -fsanitize=address,undefined
+    )
+
+    message(STATUS
+        "CAESAR SANITIZERS: AddressSanitizer + UndefinedBehaviorSanitizer")
+endif()
+
+
+add_executable(caesard
+    src/main.cpp
+)
+
+target_include_directories(caesard PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesard PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_foundation_test
+    tests/foundation_test.cpp
+)
+
+target_include_directories(caesar_foundation_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_foundation_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_protocol_data_test
+    tests/protocol_data_test.cpp
+)
+
+target_include_directories(caesar_protocol_data_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_protocol_data_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_mempool_validation_test tests/mempool_validation_test.cpp)
+target_include_directories(caesar_mempool_validation_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_mempool_validation_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_mempool_test tests/mempool_test.cpp)
+target_include_directories(caesar_mempool_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_mempool_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_block_test tests/block_test.cpp)
+target_include_directories(caesar_block_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_block_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_block_builder_test tests/block_builder_test.cpp)
+target_include_directories(caesar_block_builder_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_block_builder_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_coinbase_test tests/coinbase_test.cpp)
+target_include_directories(caesar_coinbase_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_coinbase_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_consensus_test tests/consensus_test.cpp)
+target_include_directories(caesar_consensus_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_consensus_test PRIVATE OpenSSL::Crypto)
+
+enable_testing()
+add_test(NAME CaesarConsensusTest COMMAND caesar_consensus_test)
+add_test(NAME CaesarCoinbaseTest COMMAND caesar_coinbase_test)
+add_test(NAME CaesarBlockBuilderTest COMMAND caesar_block_builder_test)
+add_test(NAME CaesarBlockTest COMMAND caesar_block_test)
+add_test(NAME CaesarMempoolTest COMMAND caesar_mempool_test)
+add_test(NAME CaesarMempoolValidationTest COMMAND caesar_mempool_validation_test)
+add_test(NAME CaesarFoundationTest COMMAND caesar_foundation_test)
+add_test(NAME CaesarProtocolDataTest COMMAND caesar_protocol_data_test)
+
+add_executable(caesar_transaction_test
+    tests/transaction_test.cpp
+)
+
+target_include_directories(caesar_transaction_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_transaction_test PRIVATE OpenSSL::Crypto)
+
+add_test(NAME CaesarTransactionTest COMMAND caesar_transaction_test)
+
+add_executable(caesar_signature_test
+    tests/signature_test.cpp
+)
+
+target_include_directories(caesar_signature_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_signature_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_transaction_signature_test
+    tests/transaction_signature_test.cpp
+)
+
+target_include_directories(caesar_transaction_signature_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_transaction_signature_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_wallet_test
+    tests/wallet_test.cpp
+)
+
+target_include_directories(caesar_wallet_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_wallet_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_ownership_test
+    tests/ownership_test.cpp
+)
+
+target_include_directories(caesar_ownership_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_ownership_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_address_test
+    tests/address_test.cpp
+)
+
+target_include_directories(caesar_address_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_address_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_key_encoding_test tests/key_encoding_test.cpp)
+target_include_directories(caesar_key_encoding_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_key_encoding_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_serialization_test tests/serialization_test.cpp)
+target_include_directories(caesar_serialization_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_serialization_test PRIVATE OpenSSL::Crypto)
+
+add_executable(caesar_difficulty_consensus_test
+    tests/difficulty_consensus_test.cpp
+)
+
+target_include_directories(caesar_difficulty_consensus_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME caesar_difficulty_consensus_test
+    COMMAND caesar_difficulty_consensus_test
+)
+
+add_executable(caesar_utxo_test
+    tests/utxo_test.cpp
+)
+
+target_include_directories(caesar_utxo_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(caesar_utxo_test PRIVATE OpenSSL::Crypto)
+
+add_test(NAME CaesarUTXOTest COMMAND caesar_utxo_test)
+add_test(NAME CaesarSerializationTest COMMAND caesar_serialization_test)
+add_test(NAME CaesarKeyEncodingTest COMMAND caesar_key_encoding_test)
+add_test(NAME CaesarAddressTest COMMAND caesar_address_test)
+add_test(NAME CaesarOwnershipTest COMMAND caesar_ownership_test)
+add_test(NAME CaesarWalletTest COMMAND caesar_wallet_test)
+add_test(NAME CaesarTransactionSignatureTest COMMAND caesar_transaction_signature_test)
+add_test(NAME CaesarSignatureTest COMMAND caesar_signature_test)
+
+
+add_executable(caesar_difficulty_block_validation_test
+    tests/difficulty_block_validation_test.cpp
+)
+
+target_include_directories(caesar_difficulty_block_validation_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME caesar_difficulty_block_validation_test
+    COMMAND caesar_difficulty_block_validation_test
+)
+
+
+add_executable(caesar_difficulty_blockchain_validation_test
+    tests/difficulty_blockchain_validation_test.cpp
+)
+
+target_include_directories(caesar_difficulty_blockchain_validation_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_difficulty_blockchain_validation_test PRIVATE
+    OpenSSL::Crypto
+)
+
+add_test(
+    NAME caesar_difficulty_blockchain_validation_test
+    COMMAND caesar_difficulty_blockchain_validation_test
+)
+
+add_executable(caesar_full_block_consensus_test
+    tests/full_block_consensus_test.cpp
+)
+
+target_include_directories(caesar_full_block_consensus_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_full_block_consensus_test PRIVATE
+    OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarFullBlockConsensusTest
+    COMMAND caesar_full_block_consensus_test
+)
+
+add_executable(caesar_p2p_protocol_test
+    tests/p2p_protocol_test.cpp
+)
+
+target_include_directories(caesar_p2p_protocol_test
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_p2p_protocol_test
+    PRIVATE
+        OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarP2PProtocolTest
+    COMMAND caesar_p2p_protocol_test
+)
+
+add_executable(caesar_p2p_frame_test
+    tests/p2p_frame_test.cpp
+)
+
+target_include_directories(caesar_p2p_frame_test
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_p2p_frame_test
+    PRIVATE
+        OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarP2PFrameTest
+    COMMAND caesar_p2p_frame_test
+)
+
+add_executable(caesar_p2p_hello_test
+    tests/p2p_hello_test.cpp
+===== NODE =====
+#pragma once
+
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <filesystem>
+#include <mutex>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include <caesar/block_builder.hpp>
+#include <caesar/blockchain_storage.hpp>
+#include <caesar/mempool.hpp>
+#include <caesar/p2p_relay.hpp>
+#include <caesar/p2p_server.hpp>
+
+namespace caesar {
+
+class CaesarNode {
+public:
+    explicit CaesarNode(
+        std::filesystem::path data_dir,
+        std::uint16_t p2p_port = 18444,
+        std::uint32_t network_id = 1)
+        : data_dir_(std::move(data_dir)),
+          chain_path_(data_dir_ / "blockchain.dat"),
+          storage_(chain_path_),
+          p2p_port_(p2p_port),
+          network_id_(network_id),
+          relay_(server_, storage_) {}
+
+    ~CaesarNode() {
+        stop();
+    }
+
+    CaesarNode(const CaesarNode&) = delete;
+    CaesarNode& operator=(const CaesarNode&) = delete;
+
+    void start() {
+        std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+
+        if (running_)
+            throw std::runtime_error(
+                "Caesar node already running");
+
+        ensure_chain();
+
+        const auto chain = storage_.load();
+
+        server_.start(
+            p2p_port_,
+            "0.0.0.0",
+            network_id_,
+            chain.back().header.height);
+
+        try {
+            relay_.start();
+        } catch (...) {
+            server_.stop();
+            throw;
+        }
+
+        running_ = true;
+    }
+
+    void stop() noexcept {
+        std::lock_guard<std::mutex> lock(lifecycle_mutex_);
+
+        if (!running_)
+            return;
+
+        running_ = false;
+
+        relay_.stop();
+        server_.stop();
+    }
+
+    bool running() const noexcept {
+        return running_;
+    }
+
+    std::vector<Block> chain() const {
+        std::lock_guard<std::mutex> lock(chain_mutex_);
+        return storage_.load();
+    }
+
+    std::size_t height() const {
+        const auto current = chain();
+        if (current.empty())
+            return 0;
+
+        return static_cast<std::size_t>(
+            current.back().header.height);
+    }
+
+    std::size_t peer_count() const noexcept {
+        return server_.peer_count();
+    }
+
+    std::uint64_t connect_to_peer(
+        const std::string& address,
+        std::uint16_t port) {
+
+        if (!running_)
+            throw std::runtime_error(
+                "cannot connect while node is stopped");
+
+        return server_.connect_to_peer(
+            address,
+            port);
+    }
+
+    Mempool& mempool() noexcept {
+        return mempool_;
+    }
+
+    const Mempool& mempool() const noexcept {
+        return mempool_;
+    }
+
+    void mine_one_block(
+        const std::string& miner_recipient,
+        std::uint64_t max_attempts = 1000000) {
+
+        if (!running_)
+            throw std::runtime_error(
+                "cannot mine while node is stopped");
+
+        if (miner_recipient.empty())
+            throw std::runtime_error(
+                "miner recipient is empty");
+
+        std::lock_guard<std::mutex> lock(chain_mutex_);
+
+        auto current_chain = storage_.load();
+
+        if (current_chain.empty())
+            throw std::runtime_error(
+                "cannot mine on empty blockchain");
+
+        const Block& previous =
+            current_chain.back();
+
+        const UTXOSet previous_utxos =
+            rebuild_utxo_set(current_chain);
+
+        const auto now =
+            std::chrono::duration_cast<
+                std::chrono::seconds>(
+                std::chrono::system_clock::now()
+                    .time_since_epoch())
+                .count();
+
+        const std::uint64_t timestamp =
+            static_cast<std::uint64_t>(
+                now < 0 ? 0 : now);
+
+        const std::uint64_t block_timestamp =
+            timestamp < previous.header.timestamp
+                ? previous.header.timestamp
+                : timestamp;
+
+        const std::uint32_t difficulty =
+            (previous.header.height == 0 &&
+             previous.header.difficulty == 0)
+                ? CZR_INITIAL_MINING_DIFFICULTY
+                : previous.header.difficulty;
+
+        Block candidate =
+            BlockBuilder::build(
+                previous,
+                mempool_,
+                miner_recipient,
+                block_timestamp,
+                difficulty);
+
+        if (!BlockBuilder::mine(
+                candidate,
+                0,
+                max_attempts)) {
+            throw std::runtime_error(
+                "mining failed");
+        }
+
+        if (!validate_block_consensus(
+                candidate,
+                current_chain,
+                previous_utxos)) {
+            throw std::runtime_error(
+                "mined block failed consensus");
+        }
+
+        storage_.append(candidate);
+
+        mempool_.clear();
+
+        relay_.announce_block(candidate);
+    }
+
+private:
+    void ensure_chain() {
+        std::lock_guard<std::mutex> lock(chain_mutex_);
+
+        std::filesystem::create_directories(
+            data_dir_);
+
+        if (storage_.exists()) {
+            (void)storage_.load();
+            return;
+        }
+
+        Block genesis;
+
+        genesis.header.version = 1;
+        genesis.header.height = 0;
+        genesis.header.previous_hash = {};
+        genesis.header.timestamp = 0;
+        genesis.header.nonce = 0;
+        genesis.header.difficulty = 0;
+
+        Transaction genesis_tx;
+
+        genesis_tx.outputs.push_back(
+            TransactionOutput{
+                1,
+                "CAESAR_GENESIS_BURN"
+            });
+
+        genesis.transactions.push_back(
+            genesis_tx);
+
+        genesis.update_merkle_root();
+
+        storage_.save({genesis});
+    }
+
+    std::filesystem::path data_dir_;
+    std::filesystem::path chain_path_;
+
+    mutable std::mutex chain_mutex_;
+    mutable std::mutex lifecycle_mutex_;
+
+    BlockchainStorage storage_;
+    Mempool mempool_;
+
+    P2PServer server_;
+    P2PRelay relay_;
+
+    std::uint16_t p2p_port_;
+    std::uint32_t network_id_;
+
+    std::atomic<bool> running_{false};
+};
+
+} // namespace caesar
+===== STORAGE =====
+#pragma once
+
+#include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <limits>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include <caesar/block.hpp>
+#include <caesar/crypto.hpp>
+
+namespace caesar {
+
+class BlockchainStorage {
+public:
+    explicit BlockchainStorage(std::filesystem::path path)
+        : path_(std::move(path)) {}
+
+    const std::filesystem::path& path() const noexcept {
+        return path_;
+    }
+
+    bool exists() const {
+        return std::filesystem::exists(path_);
+    }
+
+    void save(const std::vector<Block>& chain) const {
+        if (chain.empty())
+            throw std::runtime_error("cannot save empty blockchain");
+
+        if (!validate_block_chain(chain))
+            throw std::runtime_error("refusing to save invalid blockchain");
+
+        const auto temp = path_.string() + ".tmp";
+
+        {
+            std::ofstream out(
+                temp,
+                std::ios::binary | std::ios::trunc);
+
+            if (!out)
+                throw std::runtime_error(
+                    "failed to create blockchain storage");
+
+            write_u32(out, MAGIC);
+            write_u32(out, FORMAT_VERSION);
+            write_u64(out, static_cast<std::uint64_t>(chain.size()));
+
+            for (const auto& block : chain)
+                write_block(out, block);
+
+            out.flush();
+
+            if (!out)
+                throw std::runtime_error(
+                    "failed while writing blockchain storage");
+        }
+
+        std::error_code ec;
+        std::filesystem::rename(temp, path_, ec);
+
+        if (ec) {
+            std::filesystem::remove(path_, ec);
+            ec.clear();
+            std::filesystem::rename(temp, path_, ec);
+        }
+
+        if (ec) {
+            std::filesystem::remove(temp, ec);
+            throw std::runtime_error(
+                "failed to replace blockchain storage");
+        }
+    }
+
+    std::vector<Block> load() const {
+        std::ifstream in(
+            path_,
+            std::ios::binary);
+
+        if (!in)
+            throw std::runtime_error(
+                "failed to open blockchain storage");
+
+        const auto magic = read_u32(in);
+        const auto version = read_u32(in);
+        const auto count = read_u64(in);
+
+        if (magic != MAGIC)
+            throw std::runtime_error(
+                "invalid blockchain storage magic");
+
+        if (version != FORMAT_VERSION)
+            throw std::runtime_error(
+                "unsupported blockchain storage version");
+
+        if (count == 0 || count > MAX_BLOCKS)
+            throw std::runtime_error(
+                "invalid blockchain block count");
+
+        std::vector<Block> chain;
+        chain.reserve(static_cast<std::size_t>(count));
+
+        for (std::uint64_t i = 0; i < count; ++i)
+            chain.push_back(read_block(in));
+
+        if (in.peek() != std::ifstream::traits_type::eof())
+            throw std::runtime_error(
+                "trailing bytes after blockchain storage");
+
+        if (!validate_block_chain(chain))
+            throw std::runtime_error(
+                "stored blockchain failed validation");
+
+        return chain;
+    }
+
+    void append(const Block& block) const {
+        std::vector<Block> chain;
+
+        const bool pow_before_load = block.validate_pow();
+
+        if (exists())
+            chain = load();
+
+        const bool pow_after_load = block.validate_pow();
+
+        if (pow_before_load != pow_after_load)
+            throw std::runtime_error(
+                "PoW changed across storage load: before=" +
+                std::to_string(pow_before_load) +
+                " after=" +
+                std::to_string(pow_after_load));
+
+        if (chain.empty()) {
+            if (!block.validate_basic())
+                throw std::runtime_error(
+                    "cannot store invalid first block");
+
+            chain.push_back(block);
+            save(chain);
+            return;
+        }
+
+        const Block& previous = chain.back();
+
+        if (block.header.height !=
+            previous.header.height + 1) {
+            throw std::runtime_error(
+                "block height does not extend stored blockchain");
+        }
+
+        if (block.header.previous_hash !=
+            previous.hash()) {
+            throw std::runtime_error(
+                "block previous hash does not match stored tip");
+        }
+
+        if (block.header.timestamp <
+            previous.header.timestamp) {
+            throw std::runtime_error(
+                "block timestamp is before stored tip");
+        }
+
+        const bool pow_after_checks = block.validate_pow();
+        if (pow_after_load != pow_after_checks)
+            throw std::runtime_error(
+                "PoW changed after append checks: after_load=" +
+                std::to_string(pow_after_load) +
+                " after_checks=" +
+                std::to_string(pow_after_checks));
+
+        if (chain.size() < CZR_DIFFICULTY_WINDOW + 1) {
+            const std::uint32_t expected_difficulty =
+                (previous.header.height == 0 &&
+                 previous.header.difficulty == 0)
+                    ? CZR_INITIAL_MINING_DIFFICULTY
+                    : previous.header.difficulty;
+
+            if (block.header.difficulty !=
+                expected_difficulty) {
+                throw std::runtime_error(
+                    "block difficulty does not match bootstrap rule");
+            }
+
+            if (!block.validate_basic()) {
+                const bool v = block.header.version != 0;
+                const bool pow = block.validate_pow();
+                const bool coinbase =
+                    validate_coinbase_position_and_reward(
+                        block.transactions,
+                        block.header.height);
+                const bool merkle = block.validate_merkle_root();
+                const bool witness = block.validate_witness_root();
+
+                throw std::runtime_error(
+                    "block basic validation failed: "
+                    "version=" + std::to_string(v) +
+                    " pow=" + std::to_string(pow) +
+                    " coinbase=" + std::to_string(coinbase) +
+                    " merkle=" + std::to_string(merkle) +
+                    " witness=" + std::to_string(witness) +
+                    " height=" + std::to_string(block.header.height) +
+                    " difficulty=" + std::to_string(block.header.difficulty));
+            }
+        } else {
+            if (!block.validate_against_chain(chain))
+                throw std::runtime_error(
+                    "block consensus validation failed");
+        }
+
+        chain.push_back(block);
+        save(chain);
+    }
+
+private:
+    static constexpr std::uint32_t MAGIC = 0x435A5231U;
+    static constexpr std::uint32_t FORMAT_VERSION = 1;
+    static constexpr std::uint64_t MAX_BLOCKS = 10000000ULL;
+    static constexpr std::uint64_t MAX_BLOCK_BYTES = 16ULL * 1024ULL * 1024ULL;
+
+    std::filesystem::path path_;
+
+    static void write_u32(
+        std::ofstream& out,
+        std::uint32_t value) {
+
+        for (unsigned i = 0; i < 4; ++i)
+            out.put(
+                static_cast<char>(
+                    (value >> (i * 8)) & 0xffU));
+
+        if (!out)
+            throw std::runtime_error(
+                "failed writing uint32");
+    }
+
+    static void write_u64(
+        std::ofstream& out,
+        std::uint64_t value) {
+
+        for (unsigned i = 0; i < 8; ++i)
+            out.put(
+                static_cast<char>(
+                    (value >> (i * 8)) & 0xffULL));
+
+        if (!out)
+            throw std::runtime_error(
+                "failed writing uint64");
+    }
+
+    static std::uint32_t read_u32(
+        std::ifstream& in) {
+
+        std::uint32_t value = 0;
+
+        for (unsigned i = 0; i < 4; ++i) {
+            const int c = in.get();
+
+            if (c == std::ifstream::traits_type::eof())
+                throw std::runtime_error(
+                    "unexpected end of blockchain storage");
+
+            value |=
+                static_cast<std::uint32_t>(
+                    static_cast<unsigned char>(c))
+                << (i * 8);
+        }
+
+        return value;
+    }
+
+    static std::uint64_t read_u64(
+        std::ifstream& in) {
+
+        std::uint64_t value = 0;
+
+        for (unsigned i = 0; i < 8; ++i) {
+            const int c = in.get();
+
+            if (c == std::ifstream::traits_type::eof())
+                throw std::runtime_error(
+                    "unexpected end of blockchain storage");
+
+            value |=
+                static_cast<std::uint64_t>(
+                    static_cast<unsigned char>(c))
+                << (i * 8);
+        }
+
+        return value;
+    }
+
+    static void write_block(
+        std::ofstream& out,
+        const Block& block) {
+
+        const auto data = block.serialize_full_binary();
+
+        if (data.empty() ||
+            data.size() > MAX_BLOCK_BYTES) {
+
+            throw std::runtime_error(
+                "block exceeds storage size limit");
+        }
+
+        if (data.size() > std::numeric_limits<std::uint32_t>::max())
+            throw std::runtime_error(
+                "block is too large for storage format");
+
+        const auto checksum =
+            sha256(bytes_to_binary_string(data));
+
+        write_u32(
+            out,
+            static_cast<std::uint32_t>(data.size()));
+
+        out.write(
+            reinterpret_cast<const char*>(data.data()),
+            static_cast<std::streamsize>(data.size()));
+
+        for (const auto byte : checksum)
+            out.put(static_cast<char>(byte));
+
+        if (!out)
+            throw std::runtime_error(
+                "failed writing blockchain block");
+    }
+
+    static Block read_block(
+        std::ifstream& in) {
+
+        const auto size = read_u32(in);
+
+        if (size == 0 || size > MAX_BLOCK_BYTES)
+            throw std::runtime_error(
+                "invalid stored block size");
+
+        std::vector<std::uint8_t> data(size);
+
+        in.read(
+            reinterpret_cast<char*>(data.data()),
+            static_cast<std::streamsize>(data.size()));
+
+        if (in.gcount() !=
+            static_cast<std::streamsize>(data.size())) {
+
+            throw std::runtime_error(
+                "truncated stored block");
+        }
+
+        Hash256 stored_checksum{};
+
+        in.read(
+            reinterpret_cast<char*>(stored_checksum.data()),
+            static_cast<std::streamsize>(stored_checksum.size()));
+
+        if (in.gcount() !=
+            static_cast<std::streamsize>(stored_checksum.size())) {
+
+            throw std::runtime_error(
+                "truncated stored block checksum");
+        }
+
+        const auto actual_checksum =
+            sha256(bytes_to_binary_string(data));
+
+        if (stored_checksum != actual_checksum)
+            throw std::runtime_error(
+                "stored block checksum mismatch");
+
+        return Block::deserialize_full(data);
+    }
+};
+
+} // namespace caesar
+===== RELAY =====
+#pragma once
+
+#include <atomic>
+#include <cstdint>
+#include <limits>
+#include <iostream>
+#include <mutex>
+#include <stdexcept>
+#include <thread>
+#include <vector>
+
+#include <caesar/block.hpp>
+#include <caesar/blockchain_storage.hpp>
+#include <caesar/p2p_connection.hpp>
+#include <caesar/p2p_frame.hpp>
+#include <caesar/p2p_peer_manager.hpp>
+#include <caesar/p2p_protocol.hpp>
+#include <caesar/p2p_server.hpp>
+#include <caesar/serialization.hpp>
+
+namespace caesar {
+
+// Wire format for Blocks payload:
+//   [u32 count]
+//   count * [u32 block_size][block_size bytes (Block::serialize_full_binary)]
+class P2PRelay {
+public:
+    P2PRelay(
+        P2PServer& server,
+        BlockchainStorage& storage)
+        : server_(server),
+          storage_(storage) {}
+
+    ~P2PRelay() { stop(); }
+
+    P2PRelay(const P2PRelay&) = delete;
+    P2PRelay& operator=(const P2PRelay&) = delete;
+
+    void start() {
+        if (running_)
+            return;
+
+        running_ = true;
+
+        server_.peers().set_peer_added_callback(
+            [this](std::uint64_t id) {
+                on_peer_added(id);
+            });
+    }
+
+    void stop() noexcept {
+        if (!running_)
+            return;
+
+        running_ = false;
+
+        server_.peers().set_peer_added_callback({});
+
+        std::vector<std::thread> threads;
+
+        {
+            std::lock_guard<std::mutex> lock(threads_mutex_);
+            threads.swap(threads_);
+        }
+
+        for (auto& t : threads) {
+            if (t.joinable())
+                t.join();
+        }
+    }
+
+    void announce_block(const Block& block) {
+        server_.peers().broadcast(
+            make_blocks_frame(block));
+    }
+
+private:
+    static P2PFrame make_blocks_frame(
+        const Block& block) {
+
+        const auto encoded =
+            block.serialize_full_binary();
+
+        if (encoded.size() >
+            static_cast<std::size_t>(
+                std::numeric_limits<std::uint32_t>::max())) {
+            throw std::runtime_error(
+                "serialized block too large");
+        }
+
+        BinaryWriter writer;
+        writer.write_u32(1);
+        writer.write_u32(
+            static_cast<std::uint32_t>(
+                encoded.size()));
+        writer.write_bytes(encoded);
+
+        P2PFrame frame;
+        frame.type = P2PMessageType::Blocks;
+        frame.payload = writer.data();
+        return frame;
+    }
+
+    static P2PFrame make_get_headers_frame(
+        const std::vector<Hash256>& locator_hashes) {
+
+        if (locator_hashes.empty() || locator_hashes.size() > 32)
+            throw std::runtime_error(
+                "invalid header locator count");
+
+        BinaryWriter writer;
+        writer.write_u32(
+            static_cast<std::uint32_t>(locator_hashes.size()));
+
+        for (const auto& hash : locator_hashes)
+            for (const auto byte : hash)
+                writer.write_u8(byte);
+
+        P2PFrame frame;
+        frame.type = P2PMessageType::GetHeaders;
+        frame.payload = writer.data();
+        return frame;
+    }
+
+    static P2PFrame make_get_blocks_frame(
+        const std::vector<std::uint64_t>& heights) {
+
+        if (heights.empty() || heights.size() > 1024)
+            throw std::runtime_error(
+                "invalid block height count");
+
+        BinaryWriter writer;
+        writer.write_u32(
+            static_cast<std::uint32_t>(heights.size()));
+
+        for (const auto height : heights)
+            writer.write_u64(height);
+
+        P2PFrame frame;
+        frame.type = P2PMessageType::GetBlocks;
+        frame.payload = writer.data();
+        return frame;
+    }
+
+    void request_headers(std::uint64_t id) {
+        auto connection = server_.peers().connection(id);
+        if (!connection)
+            return;
+
+        if (!storage_.exists())
+            return;
+
+        const auto chain = storage_.load();
+        if (chain.empty())
+            return;
+
+        std::vector<Hash256> locators;
+        locators.push_back(chain.back().hash());
+
+        connection->send_frame(
+            make_get_headers_frame(locators));
+    }
+
+    void on_peer_added(std::uint64_t id) {
+        if (!running_)
+            return;
+
+        std::lock_guard<std::mutex> lock(threads_mutex_);
+
+        threads_.emplace_back(
+            [this, id]() {
+                request_headers(id);
+                peer_loop(id);
+            });
+    }
+
+    void peer_loop(std::uint64_t id) {
+
+        auto connection =
+            server_.peers().connection(id);
+
+        if (!connection)
+            return;
+
+        while (running_ &&
+               server_.peers().contains(id)) {
+
+            try {
+                const P2PFrame frame =
+                    connection->receive_frame();
+
+                handle_frame(id, frame);
+
+            } catch (const std::exception& e) {
+                std::cerr
+                    << "[P2P] peer " << id
+                    << " loop error: " << e.what()
+                    << std::endl;
+                break;
+            } catch (...) {
+                std::cerr
+                    << "[P2P] peer " << id
+                    << " loop error: unknown exception"
+                    << std::endl;
+                break;
+            }
+        }
+
+        if (server_.peers().contains(id))
+            server_.peers().remove_peer(id);
+    }
+
+    void handle_frame(std::uint64_t id, const P2PFrame& frame) {
+
+        switch (frame.type) {
+
+            case P2PMessageType::Blocks:
+                handle_blocks(frame.payload);
+                break;
+
+            case P2PMessageType::GetHeaders:
+                handle_get_headers(id, frame.payload);
+                break;
+
+            case P2PMessageType::Headers:
+                handle_headers(id, frame.payload);
+                break;
+
+            case P2PMessageType::GetBlocks:
+                handle_get_blocks(id, frame.payload);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    void handle_headers(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        BinaryReader reader(payload);
+
+        const std::uint32_t count =
+            reader.read_u32();
+
+        if (count > 2000)
+            throw std::runtime_error(
+                "too many received headers");
+
+        std::vector<BlockHeader> headers;
+        headers.reserve(count);
+
+        for (std::uint32_t i = 0; i < count; ++i) {
+            const std::uint32_t size =
+                reader.read_u32();
+
+            if (size != 128)
+                throw std::runtime_error(
+                    "invalid block header size");
+
+            const auto data =
+                reader.read_bytes(size);
+
+            const BlockHeader header =
+                BlockHeader::deserialize_binary(data);
+
+            if (header.version == 0)
+                throw std::runtime_error(
+                    "invalid received header version");
+
+            if (header.difficulty > 256)
+                throw std::runtime_error(
+                    "invalid received header difficulty");
+
+            BlockHeader pow_header = header;
+            pow_header.nonce = 0;
+
+            if (!validate_pow(
+                    pow_header.serialize_binary(),
+                    header.nonce,
+                    header.difficulty))
+                throw std::runtime_error(
+                    "invalid received header proof of work");
+
+            if (!headers.empty()) {
+                const auto& previous = headers.back();
+
+                if (header.height !=
+                    previous.height + 1)
+                    throw std::runtime_error(
+                        "received headers are not sequential");
+            }
+
+            headers.push_back(header);
+        }
+
+        if (!reader.empty())
+            throw std::runtime_error(
+                "trailing bytes in headers payload");
+
+        if (headers.empty())
+            return;
+
+        std::uint64_t local_height = 0;
+        Hash256 local_tip_hash{};
+
+        {
+            std::lock_guard<std::mutex> lock(storage_mutex_);
+
+            if (!storage_.exists())
+                return;
+
+            const auto chain = storage_.load();
+
+            if (chain.empty())
+                return;
+
+            local_height =
+                chain.back().header.height;
+
+            local_tip_hash =
+                chain.back().hash();
+        }
+
+        std::vector<std::uint64_t> heights;
+        heights.reserve(
+            std::min<std::size_t>(
+                headers.size(),
+                1024));
+
+        for (const auto& header : headers) {
+
+            if (header.height <= local_height)
+                continue;
+
+            if (heights.empty()) {
+
+                if (header.height !=
+                    local_height + 1)
+                    throw std::runtime_error(
+                        "received headers do not extend local chain");
+
+                if (header.previous_hash !=
+                    local_tip_hash)
+                    throw std::runtime_error(
+                        "received headers have invalid local anchor");
+            }
+
+            heights.push_back(header.height);
+
+            if (heights.size() >= 1024)
+                break;
+        }
+
+        if (heights.empty())
+            return;
+
+        auto connection =
+            server_.peers().connection(id);
+
+        if (!connection)
+            return;
+
+        connection->send_frame(
+            make_get_blocks_frame(heights));
+    }
+
+    void handle_get_headers(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        BinaryReader reader(payload);
+
+        const std::uint32_t count =
+            reader.read_u32();
+
+        if (count == 0 || count > 32)
+            throw std::runtime_error(
+                "invalid header locator count");
+
+        std::vector<Hash256> locators;
+        locators.reserve(count);
+
+        for (std::uint32_t i = 0; i < count; ++i) {
+
+            Hash256 hash{};
+
+            for (auto& byte : hash)
+                byte = reader.read_u8();
+
+            locators.push_back(hash);
+        }
+
+        if (!reader.empty())
+            throw std::runtime_error(
+                "trailing bytes in getheaders payload");
+
+        if (!storage_.exists())
+            return;
+
+        std::lock_guard<std::mutex> lock(storage_mutex_);
+
+        const auto chain = storage_.load();
+
+        if (chain.empty())
+            return;
+
+        std::size_t start = 0;
+
+        for (const auto& locator : locators) {
+
+            for (std::size_t i = chain.size(); i-- > 0;) {
+
+                if (chain[i].hash() == locator) {
+                    start = i + 1;
+                    break;
+                }
+            }
+
+            if (start != 0)
+                break;
+        }
+
+        constexpr std::size_t MAX_HEADERS = 2000;
+
+        const std::size_t end =
+            std::min(chain.size(), start + MAX_HEADERS);
+
+        BinaryWriter writer;
+
+        writer.write_u32(
+            static_cast<std::uint32_t>(end - start));
+
+        for (std::size_t i = start; i < end; ++i) {
+
+            const auto header =
+                chain[i].header.serialize_binary();
+
+            writer.write_u32(
+                static_cast<std::uint32_t>(header.size()));
+
+            writer.write_bytes(header);
+        }
+
+        P2PFrame response;
+        response.type = P2PMessageType::Headers;
+        response.payload = writer.data();
+
+        auto connection = server_.peers().connection(id);
+        if (connection)
+            connection->send_frame(response);
+    }
+
+    void handle_get_blocks(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        BinaryReader reader(payload);
+
+        const std::uint32_t count =
+            reader.read_u32();
+
+        if (count == 0 || count > 1024)
+            throw std::runtime_error(
+                "invalid getblocks height count");
+
+        std::vector<std::uint64_t> heights;
+        heights.reserve(count);
+
+        for (std::uint32_t i = 0; i < count; ++i)
+            heights.push_back(reader.read_u64());
+
+        if (!reader.empty())
+            throw std::runtime_error(
+                "trailing bytes in getblocks payload");
+
+        if (!storage_.exists())
+            return;
+
+        std::lock_guard<std::mutex> lock(storage_mutex_);
+
+        const auto chain = storage_.load();
+
+        auto connection = server_.peers().connection(id);
+        if (!connection)
+            return;
+
+        BinaryWriter writer;
+        std::uint32_t found = 0;
+
+        writer.write_u32(0);
+
+        for (const auto requested_height : heights) {
+            if (requested_height >= chain.size())
+                continue;
+
+            const auto& block =
+                chain[static_cast<std::size_t>(
+                    requested_height)];
+
+            const auto encoded =
+                block.serialize_full_binary();
+
+            if (encoded.size() >
+                static_cast<std::size_t>(
+                    std::numeric_limits<std::uint32_t>::max()))
+                throw std::runtime_error(
+                    "serialized block too large");
+
+            writer.write_u32(
+                static_cast<std::uint32_t>(
+                    encoded.size()));
+
+            writer.write_bytes(encoded);
+            ++found;
+        }
+
+        const auto bytes = writer.data();
+
+===== BLOCK BUILDER =====
+#pragma once
+
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
+#include <vector>
+
+#include <caesar/block.hpp>
+#include <caesar/mempool.hpp>
+#include <caesar/ownership.hpp>
+#include <caesar/utxo.hpp>
+
+namespace caesar {
+
+class BlockBuilder {
+public:
+    static Block build(
+        const Block& previous,
+        const Mempool& mempool,
+        const std::string& miner_recipient,
+        std::uint64_t timestamp,
+        std::uint32_t difficulty,
+        std::uint64_t nonce = 0) {
+
+        if (miner_recipient.empty())
+            throw std::runtime_error(
+                "miner recipient is empty");
+
+        Block block;
+
+        block.header.version = 1;
+        block.header.height =
+            previous.header.height + 1;
+        block.header.previous_hash =
+            previous.hash();
+        block.header.timestamp =
+            timestamp;
+        block.header.difficulty =
+            difficulty;
+        block.header.nonce =
+            nonce;
+
+        // Coinbase MUST be transaction zero.
+        block.transactions.push_back(
+            make_coinbase_transaction(
+                block.header.height,
+                miner_recipient));
+
+        for (const auto& entry :
+             mempool.transactions()) {
+
+            block.transactions.push_back(
+                entry.second);
+        }
+
+        block.update_merkle_root();
+
+        return block;
+    }
+
+    static bool mine(
+        Block& block,
+        std::uint64_t start_nonce,
+        std::uint64_t max_attempts) {
+
+        if (block.header.difficulty > 256)
+            return false;
+
+        std::uint64_t found_nonce = 0;
+        Hash256 found_hash{};
+
+        const bool found = mine_pow(
+            block.pow_header(),
+            block.header.difficulty,
+            start_nonce,
+            max_attempts,
+            found_nonce,
+            found_hash);
+
+        if (!found)
+            return false;
+
+        block.header.nonce = found_nonce;
+
+        if (block.pow_hash() != found_hash)
+            throw std::runtime_error(
+                "PoW hash changed immediately after mining");
+
+        return block.validate_pow();
+    }
+};
+
+inline UTXOSet apply_block_transactions(
+    const Block& block,
+    const UTXOSet& previous_utxos) {
+
+    if (!block.validate_basic())
+        throw std::runtime_error(
+            "cannot apply invalid block");
+
+    UTXOSet result =
+        previous_utxos;
+
+    // Coinbase creates new value and therefore is
+    // deliberately handled separately from normal
+    // UTXO spending.
+    const Transaction& coinbase =
+        block.transactions.front();
+
+    const Hash256 coinbase_txid =
+        coinbase.txid();
+
+    for (std::size_t i = 0;
+         i < coinbase.outputs.size();
+         ++i) {
+
+        if (!result.add(
+                OutPoint{
+                    coinbase_txid,
+                    static_cast<std::uint32_t>(i)
+                },
+                coinbase.outputs[i])) {
+
+            throw std::runtime_error(
+                "failed to add coinbase UTXO");
+        }
+    }
+
+    for (std::size_t tx_index = 1;
+         tx_index < block.transactions.size();
+         ++tx_index) {
+
+        const auto& tx =
+            block.transactions[tx_index];
+
+        if (!validate_transaction_witness(
+                tx,
+                result)) {
+
+            throw std::runtime_error(
+                "block transaction failed UTXO validation");
+        }
+
+        for (const auto& input :
+             tx.inputs) {
+
+            const OutPoint point{
+                input.previous_txid,
+                input.output_index
+            };
+
+            if (!result.spend(point)) {
+                throw std::runtime_error(
+                    "failed to spend transaction input");
+            }
+        }
+
+        const Hash256 txid =
+            tx.txid();
+
+        for (std::size_t i = 0;
+             i < tx.outputs.size();
+             ++i) {
+
+            if (i >
+                static_cast<std::size_t>(
+                    std::numeric_limits<std::uint32_t>::max())) {
+
+                throw std::runtime_error(
+                    "transaction output index overflow");
+            }
+
+            const OutPoint point{
+                txid,
+                static_cast<std::uint32_t>(i)
+            };
+
+            if (!result.add(
+                    point,
+                    tx.outputs[i])) {
+
+                throw std::runtime_error(
+                    "failed to add transaction output");
+            }
+        }
+    }
+
+    return result;
+}
+
+
+inline bool validate_total_coinbase_issuance(
+    const Block& block,
+    const std::vector<Block>& chain) {
+
+    std::uint64_t total_issued = 0;
+
+    auto add_issuance = [&](const Block& candidate) -> bool {
+        if (candidate.transactions.empty())
+            return true;
+
+        if (!is_coinbase_transaction(
+                candidate.transactions.front())) {
+            return true;
+        }
+
+        const auto& coinbase =
+            candidate.transactions.front();
+
+        for (const auto& output : coinbase.outputs) {
+            if (output.amount >
+                CZR_MAX_SUPPLY - total_issued) {
+                return false;
+            }
+
+            total_issued += output.amount;
+        }
+
+        return true;
+    };
+
+    for (const auto& previous : chain) {
+        if (!add_issuance(previous))
+            return false;
+    }
+
+    return add_issuance(block);
+}
+
+inline bool validate_block_against_utxo(
+    const Block& block,
+    const UTXOSet& previous_utxos);
+
+inline bool validate_block_consensus(
+    const Block& block,
+    const std::vector<Block>& chain,
+    const UTXOSet& previous_utxos) {
+
+    if (chain.empty())
+        return false;
+
+    bool structural_valid = false;
+
+    if (chain.size() < CZR_DIFFICULTY_WINDOW + 1) {
+        const Block& previous = chain.back();
+
+        const std::uint32_t expected_difficulty =
+            (previous.header.height == 0 &&
+             previous.header.difficulty == 0)
+                ? CZR_INITIAL_MINING_DIFFICULTY
+                : previous.header.difficulty;
+
+        structural_valid =
+            block.validate_basic() &&
+            validate_block_link(previous, block) &&
+            block.header.timestamp >=
+                previous.header.timestamp &&
+            block.header.difficulty ==
+                expected_difficulty;
+    } else {
+        structural_valid =
+            block.validate_against_chain(chain);
+    }
+
+    if (!structural_valid)
+        return false;
+
+    if (!validate_block_against_utxo(
+            block,
+            previous_utxos)) {
+        return false;
+    }
+
+    return validate_total_coinbase_issuance(
+        block,
+        chain);
+}
+
+inline UTXOSet rebuild_utxo_set(
+    const std::vector<Block>& chain) {
+
+    if (chain.empty())
+        throw std::runtime_error(
+            "cannot rebuild UTXO set from empty chain");
+
+    if (!validate_block_chain(chain))
+        throw std::runtime_error(
+            "cannot rebuild UTXO set from invalid chain");
+
+    UTXOSet result;
+
+    // Genesis marker is not spendable protocol money.
+    for (std::size_t i = 1;
+         i < chain.size();
+         ++i) {
+
+        result = apply_block_transactions(
+            chain[i],
+            result);
+    }
+
+    return result;
+}
+
+inline bool validate_block_against_utxo(
+    const Block& block,
+    const UTXOSet& previous_utxos) {
+
+    try {
+        (void)apply_block_transactions(
+            block,
+            previous_utxos);
+
+        return true;
+    }
+    catch (...) {
+        return false;
+    }
+}
+
+} // namespace caesar
+===== BLOCK =====
+#pragma once
+
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+#include <caesar/coinbase.hpp>
+#include <caesar/consensus.hpp>
+#include <caesar/crypto.hpp>
+#include <caesar/serialization.hpp>
+#include <caesar/transaction.hpp>
+
+namespace caesar {
+
+struct BlockHeader {
+    std::uint32_t version{1};
+    std::uint64_t height{0};
+    Hash256 previous_hash{};
+    Hash256 merkle_root{};
+    Hash256 witness_root{};
+    std::uint64_t timestamp{0};
+    std::uint64_t nonce{0};
+    std::uint32_t difficulty{0};
+
+    std::vector<std::uint8_t> serialize_binary() const {
+        BinaryWriter writer;
+
+        writer.write_u32(version);
+        writer.write_u64(height);
+
+        for (std::uint8_t byte : previous_hash)
+            writer.write_u8(byte);
+
+        for (std::uint8_t byte : merkle_root)
+            writer.write_u8(byte);
+
+        for (std::uint8_t byte : witness_root)
+            writer.write_u8(byte);
+
+        writer.write_u64(timestamp);
+        writer.write_u64(nonce);
+        writer.write_u32(difficulty);
+
+        return writer.data();
+    }
+
+    Hash256 hash() const {
+        return sha256(
+            bytes_to_binary_string(
+                serialize_binary()));
+    }
+
+    static BlockHeader deserialize_binary(
+        const std::vector<std::uint8_t>& data) {
+
+        BinaryReader reader(data);
+        BlockHeader header;
+
+        header.version = reader.read_u32();
+        header.height = reader.read_u64();
+
+        for (auto& byte : header.previous_hash)
+            byte = reader.read_u8();
+
+        for (auto& byte : header.merkle_root)
+            byte = reader.read_u8();
+
+        for (auto& byte : header.witness_root)
+            byte = reader.read_u8();
+
+        header.timestamp = reader.read_u64();
+        header.nonce = reader.read_u64();
+        header.difficulty = reader.read_u32();
+
+        if (!reader.empty())
+            throw std::runtime_error(
+                "trailing bytes after block header");
+
+        return header;
+    }
+};
+
+struct Block {
+    BlockHeader header;
+    std::vector<Transaction> transactions;
+
+    Hash256 calculate_merkle_root() const {
+        std::vector<Hash256> txids;
+        txids.reserve(transactions.size());
+
+        for (const auto& tx : transactions)
+            txids.push_back(tx.txid());
+
+        return merkle_root(std::move(txids));
+    }
+
+    Hash256 calculate_witness_root() const {
+        std::vector<Hash256> witness_ids;
+        witness_ids.reserve(transactions.size());
+
+        for (const auto& tx : transactions) {
+            witness_ids.push_back(tx.wtxid());
+        }
+
+        return merkle_root(std::move(witness_ids));
+    }
+
+    void update_merkle_root() {
+        header.merkle_root =
+            calculate_merkle_root();
+
+        header.witness_root =
+            calculate_witness_root();
+    }
+
+    bool validate_witness_root() const {
+        return header.witness_root ==
+               calculate_witness_root();
+    }
+
+    std::vector<std::uint8_t> serialize_binary() const {
+        BinaryWriter writer;
+
+        writer.write_bytes(
+            header.serialize_binary());
+
+        if (transactions.size() >
+            static_cast<std::size_t>(
+                std::numeric_limits<std::uint32_t>::max())) {
+
+            throw std::runtime_error(
+                "too many block transactions");
+        }
+
+        writer.write_u32(
+            static_cast<std::uint32_t>(
+                transactions.size()));
+
+        for (const auto& tx : transactions)
+            writer.write_bytes(
+                tx.serialize_binary());
+
+        return writer.data();
+    }
+
+    std::vector<std::uint8_t> serialize_full_binary() const {
+        BinaryWriter writer;
+        writer.write_bytes(header.serialize_binary());
+
+        if (transactions.size() >
+            static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()))
+            throw std::runtime_error("too many block transactions");
+
+        writer.write_u32(static_cast<std::uint32_t>(transactions.size()));
+
+        for (const auto& tx : transactions) {
+            const auto serialized_tx =
+                tx.serialize_full_binary();
+
+            if (serialized_tx.size() >
+                static_cast<std::size_t>(
+                    std::numeric_limits<std::uint32_t>::max()))
+                throw std::runtime_error(
+                    "serialized transaction too large");
+
+            writer.write_u32(
+                static_cast<std::uint32_t>(
+                    serialized_tx.size()));
+
+            writer.write_bytes(serialized_tx);
+        }
+
+        return writer.data();
+    }
+
+    static Block deserialize_full(
+        const std::vector<std::uint8_t>& data) {
+
+        BinaryReader reader(data);
+        Block block;
+
+        block.header.version = reader.read_u32();
+        block.header.height = reader.read_u64();
+
+        for (std::uint8_t& byte : block.header.previous_hash)
+            byte = reader.read_u8();
+
+        for (std::uint8_t& byte : block.header.merkle_root)
+            byte = reader.read_u8();
+
+        for (std::uint8_t& byte : block.header.witness_root)
+            byte = reader.read_u8();
+
+        block.header.timestamp = reader.read_u64();
+        block.header.nonce = reader.read_u64();
+        block.header.difficulty = reader.read_u32();
+
+        const std::uint32_t transaction_count =
+            reader.read_u32();
+
+        if (transaction_count > 1000000)
+            throw std::runtime_error(
+                "too many block transactions");
+
+        block.transactions.reserve(transaction_count);
+
+        for (std::uint32_t i = 0;
+             i < transaction_count;
+             ++i) {
+
+            const std::uint32_t transaction_size =
+                reader.read_u32();
+
+            if (transaction_size > 1000000)
+                throw std::runtime_error(
+                    "serialized transaction too large");
+
+            const auto transaction_data =
+                reader.read_bytes(transaction_size);
+
+            block.transactions.push_back(
+                Transaction::deserialize_full(
+                    transaction_data));
+        }
+
+        if (!reader.empty())
+            throw std::runtime_error(
+                "trailing bytes after full block");
+
+        return block;
+    }
+
+    Hash256 hash() const {
+        return header.hash();
+    }
+
+    std::vector<std::uint8_t> pow_header() const {
+        BlockHeader mining_header = header;
+        mining_header.nonce = 0;
+        return mining_header.serialize_binary();
+    }
+
+    Hash256 pow_hash() const {
+        return calculate_pow_hash(pow_header(), header.nonce);
+    }
+
+    bool validate_pow() const {
+        return caesar::validate_pow(
+            pow_header(),
+            header.nonce,
+            header.difficulty);
+    }
+
+    bool validate_merkle_root() const {
+        return header.merkle_root ==
+               calculate_merkle_root();
+    }
+
+
+    bool validate_difficulty_against_history(
+        std::uint32_t previous_difficulty,
+        const std::vector<std::uint64_t>& intervals) const {
+
+        const std::uint32_t expected =
+            adjust_difficulty_window(
+                previous_difficulty,
+                intervals);
+
+        return header.difficulty == expected;
+    }
+
+    bool validate_against_history(
+        std::uint32_t previous_difficulty,
+        const std::vector<std::uint64_t>& intervals) const {
+
+        if (!validate_basic())
+            return false;
+
+        return validate_difficulty_against_history(
+            previous_difficulty,
+            intervals);
+    }
+
+    bool validate_against_chain_history(
+        const std::vector<Block>& chain) const {
+
+        if (chain.size() < CZR_DIFFICULTY_WINDOW + 1)
+            return false;
+
+        if (!validate_basic())
+            return false;
+
+        const std::size_t previous_index = chain.size() - 1;
+
+        const Block& previous = chain[previous_index];
+
+        std::vector<std::uint64_t> intervals;
+        intervals.reserve(CZR_DIFFICULTY_WINDOW);
+
+        const std::size_t first =
+            previous_index + 1 - CZR_DIFFICULTY_WINDOW;
+
+        for (std::size_t i = first;
+             i <= previous_index;
+             ++i) {
+
+            if (i == 0)
+                return false;
+
+            const std::uint64_t current_time =
+                chain[i].header.timestamp;
+
+            const std::uint64_t previous_time =
+                chain[i - 1].header.timestamp;
+
+            if (current_time < previous_time)
+                return false;
+
+            intervals.push_back(
+                current_time - previous_time);
+        }
+
+        return validate_difficulty_against_history(
+            previous.header.difficulty,
+            intervals);
+    }
+
+
+
+
+    bool validate_against_chain(
+        const std::vector<Block>& chain) const {
+
+        if (chain.empty())
+            return false;
+
+        const Block& previous = chain.back();
+
+        if (header.height != previous.header.height + 1)
+            return false;
+
+        if (header.previous_hash != previous.hash())
+            return false;
+
+        if (header.timestamp < previous.header.timestamp)
+            return false;
+
+        if (chain.size() < CZR_DIFFICULTY_WINDOW + 1)
+            return false;
+
+        std::vector<std::uint64_t> intervals;
+        intervals.reserve(CZR_DIFFICULTY_WINDOW);
+
+        const std::size_t previous_index =
+            chain.size() - 1;
+
+        const std::size_t first =
+            previous_index + 1 - CZR_DIFFICULTY_WINDOW;
+
+        for (std::size_t i = first;
+             i <= previous_index;
+             ++i) {
+
+            if (i == 0)
+                return false;
+
+            const std::uint64_t current_time =
+                chain[i].header.timestamp;
+
+            const std::uint64_t previous_time =
+                chain[i - 1].header.timestamp;
+
+            if (current_time < previous_time)
+                return false;
+
+            intervals.push_back(
+                current_time - previous_time);
+        }
+
+        if (!validate_basic())
+            return false;
+
+        return validate_difficulty_against_history(
+            previous.header.difficulty,
+            intervals);
+    }
+
+    bool validate_basic() const {
+        if (header.version == 0)
+            return false;
+
+        if (!validate_pow())
+            return false;
+
+        if (header.height == 0) {
+            for (std::uint8_t byte :
+                 header.previous_hash) {
+
+                if (byte != 0)
+                    return false;
+            }
+
+            // Genesis is the only block without a normal
+            // protocol coinbase.
+            for (const auto& tx : transactions) {
+                if (is_coinbase_transaction(tx))
+                    return false;
+
+                // Genesis marker transaction is protocol-defined and
+                // intentionally has no UTXO inputs.
+                if (tx.inputs.empty()) {
+                    if (tx.outputs.size() != 1)
+                        return false;
+
+                    const auto& output = tx.outputs.front();
+
+                    if (output.amount != 1)
+                        return false;
+
+                    if (output.recipient != "CAESAR_GENESIS_BURN")
+                        return false;
+
+                    if (!tx.witness.empty())
+                        return false;
+
+                    continue;
+                }
+
+                if (!tx.validate())
+                    return false;
+            }
+
+            return !transactions.empty() &&
+                   validate_merkle_root() && validate_witness_root();
+        }
+
+        if (!validate_coinbase_position_and_reward(
+                transactions,
+                header.height)) {
+
+            return false;
+        }
+
+        for (std::size_t i = 1;
+             i < transactions.size();
+             ++i) {
+
+            if (!transactions[i].validate())
+                return false;
+        }
+
+        return validate_merkle_root() && validate_witness_root();
+    }
+};
+
+inline bool validate_block_link(
+    const Block& previous,
+    const Block& current) {
+
+    if (!previous.validate_basic() ||
+        !current.validate_basic()) {
+
+        return false;
+    }
+
+    if (current.header.height !=
+        previous.header.height + 1) {
+
+        return false;
+    }
+
+    if (current.header.previous_hash !=
+        previous.hash()) {
+
+        return false;
+    }
+
+    return true;
+}
+
+inline bool validate_block_chain(
+    const std::vector<Block>& chain) {
+
+    if (chain.empty())
+        return false;
+
+    const Block& genesis =
+        chain.front();
+
+    if (!genesis.validate_basic())
+        return false;
+
+    if (genesis.header.height != 0)
+        return false;
+
+    for (std::size_t i = 1;
+         i < chain.size();
+         ++i) {
+
+        if (!validate_block_link(
+                chain[i - 1],
+                chain[i])) {
+
+            return false;
+        }
+    }
+
+    return true;
+}
+
+} // namespace caesar

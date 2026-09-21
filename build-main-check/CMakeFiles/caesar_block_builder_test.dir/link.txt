@@ -1,0 +1,1 @@
+/data/data/com.termux/files/usr/bin/c++ -O3 -DNDEBUG -Xlinker --dependency-file=CMakeFiles/caesar_block_builder_test.dir/link.d CMakeFiles/caesar_block_builder_test.dir/tests/block_builder_test.cpp.o -o caesar_block_builder_test  /data/data/com.termux/files/usr/lib/libcrypto.so

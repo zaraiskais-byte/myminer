@@ -1,0 +1,1 @@
+/data/data/com.termux/files/usr/bin/c++ -O3 -DNDEBUG -Xlinker --dependency-file=CMakeFiles/caesar_blockchain_storage_test.dir/link.d CMakeFiles/caesar_blockchain_storage_test.dir/tests/blockchain_storage_test.cpp.o -o caesar_blockchain_storage_test  /data/data/com.termux/files/usr/lib/libcrypto.so

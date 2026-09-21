@@ -1,0 +1,57 @@
+{
+  "incident_id": "CARR-1790022427840-3",
+  "created_unix_ms": 1790022427840,
+  "type": "SYNC_STALLED",
+  "state": "PLANNED",
+  "severity": "ERROR",
+  "fingerprint": "3|SYNC_STALLED|sync timeout|",
+  "diagnosis": {
+    "type": "SYNC_STALLED",
+    "code": "SYNC_STALLED",
+    "root_cause": "chain synchronization stopped making verified progress",
+    "confidence": 0.940,
+    "evidence": ["synchronization progress timeout"]
+  },
+  "candidates": [
+    {
+      "action": "VERIFY_CHAIN",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "verify local chain before retrying sync"
+    },
+    {
+      "action": "ABORT_SYNC",
+      "risk": 15,
+      "autonomous": true,
+      "rationale": "terminate the stalled synchronization attempt"
+    },
+    {
+      "action": "RECONNECT_PEER",
+      "risk": 20,
+      "autonomous": true,
+      "rationale": "re-establish the peer transport"
+    },
+    {
+      "action": "RESTART_SYNC",
+      "risk": 25,
+      "autonomous": true,
+      "rationale": "restart synchronization from verified state"
+    },
+    {
+      "action": "CREATE_REPLAY_CASE",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "preserve deterministic reproduction evidence"
+    }
+  ],
+  "verification": [
+    {
+      "code": "CHAIN_INTEGRITY",
+      "description": "verify block linkage, heights, hashes and consensus state"
+    },
+    {
+      "code": "SYNC_PROGRESS",
+      "description": "confirm synchronization advances monotonically"
+    }
+  ]
+}

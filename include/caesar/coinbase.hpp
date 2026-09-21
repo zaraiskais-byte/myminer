@@ -4,16 +4,14 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include <caesar/crypto.hpp>
+#include <caesar/economics.hpp>
+#include <caesar/serialization.hpp>
 #include <caesar/transaction.hpp>
 
 namespace caesar {
-
-// Protocol units:
-// 1 CZR = 100,000,000 atomic units.
-// These values are protocol candidates and must be finalized
-// before any public/mainnet launch.
 
 constexpr std::uint64_t CZR_ATOMIC_UNITS =
     100000000ULL;
@@ -44,13 +42,29 @@ inline std::uint64_t block_subsidy(
     if (height == 0)
         return 0;
 
-    const std::uint64_t halvings =
-        height / CZR_HALVING_INTERVAL;
+    const EconomicsPolicy policy =
+        czr_economics_policy();
 
-    if (halvings >= 64)
-        return 0;
+    return economics_block_reward(
+        policy,
+        height);
+}
 
-    return CZR_INITIAL_SUBSIDY >> halvings;
+inline Hash256 coinbase_commitment(
+    std::uint64_t height,
+    std::uint64_t extra_nonce = 0) {
+
+    BinaryWriter writer;
+
+    writer.write_string(
+        "CAESAR-COINBASE-V1");
+
+    writer.write_u64(height);
+    writer.write_u64(extra_nonce);
+
+    return sha256(
+        bytes_to_binary_string(
+            writer.data()));
 }
 
 inline Transaction make_coinbase_transaction(
@@ -68,12 +82,13 @@ inline Transaction make_coinbase_transaction(
 
     Transaction tx;
 
-    // Coinbase input has no previous UTXO.
     TransactionInput input;
 
-    input.previous_txid = Hash256{};
+    input.previous_txid =
+        coinbase_commitment(
+            height,
+            extra_nonce);
 
-    // UINT32_MAX marks a coinbase input.
     input.output_index =
         std::numeric_limits<std::uint32_t>::max();
 
@@ -84,21 +99,10 @@ inline Transaction make_coinbase_transaction(
     output.amount =
         block_subsidy(height);
 
-    output.recipient = recipient;
+    output.recipient =
+        recipient;
 
     tx.outputs.push_back(output);
-
-    // Bind the block height and extra nonce into a
-    // deterministic second output only through the
-    // transaction's canonical data.
-    //
-    // The extra nonce is represented by an additional
-    // zero-value metadata-free output only when needed
-    // in future mining work. For now it is encoded by
-    // replacing the recipient suffix.
-    //
-    // Keep the transaction simple for this protocol stage.
-    (void)extra_nonce;
 
     return tx;
 }
@@ -115,7 +119,7 @@ inline bool is_coinbase_transaction(
         return false;
     }
 
-    if (!is_zero_hash(
+    if (is_zero_hash(
             tx.inputs[0].previous_txid)) {
 
         return false;
@@ -126,7 +130,8 @@ inline bool is_coinbase_transaction(
 
 inline bool validate_coinbase_transaction(
     const Transaction& tx,
-    std::uint64_t height) {
+    std::uint64_t height,
+    std::uint64_t extra_nonce = 0) {
 
     if (!is_coinbase_transaction(tx))
         return false;
@@ -148,6 +153,12 @@ inline bool validate_coinbase_transaction(
 
     if (output.recipient.empty())
         return false;
+
+    if (tx.inputs[0].previous_txid !=
+        coinbase_commitment(height, extra_nonce)) {
+
+        return false;
+    }
 
     return true;
 }

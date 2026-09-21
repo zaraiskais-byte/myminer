@@ -38,6 +38,19 @@ int main() {
 
         std::cout << "[PASS] Valid transaction accepted\n";
 
+        Transaction reserved_index = tx;
+        reserved_index.inputs[0].output_index =
+            UINT32_MAX;
+
+        if (reserved_index.validate()) {
+            std::cerr
+                << "[FAIL] Normal transaction accepted reserved coinbase index\n";
+            return EXIT_FAILURE;
+        }
+
+        std::cout
+            << "[PASS] Coinbase input index reserved\n";
+
         const auto binary =
             tx.serialize_binary();
 

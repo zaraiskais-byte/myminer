@@ -401,3 +401,201 @@ add_test(
     NAME CaesarTwoNodeP2PTest
     COMMAND caesar_two_node_p2p_test
 )
+
+add_executable(caesar_blockchain_sync_test
+    tests/blockchain_sync_test.cpp
+)
+
+target_include_directories(caesar_blockchain_sync_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_blockchain_sync_test PRIVATE
+    OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarBlockchainSyncTest
+    COMMAND caesar_blockchain_sync_test
+)
+
+add_executable(caesar_p2p_relay_headers_validation_test
+    tests/p2p_relay_headers_validation_test.cpp
+)
+
+target_include_directories(caesar_p2p_relay_headers_validation_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_p2p_relay_headers_validation_test PRIVATE
+    OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarP2PRelayHeadersValidationTest
+    COMMAND caesar_p2p_relay_headers_validation_test
+)
+
+add_executable(caesar_p2p_relay_disconnected_block_test
+    tests/p2p_relay_disconnected_block_test.cpp
+)
+
+target_include_directories(caesar_p2p_relay_disconnected_block_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_p2p_relay_disconnected_block_test PRIVATE
+    OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarP2PRelayDisconnectedBlockTest
+    COMMAND caesar_p2p_relay_disconnected_block_test
+)
+
+add_executable(caesar_carr_core_test
+    tools/caesar-doctor/carr_test.cpp
+    tools/caesar-doctor/carr_types.cpp
+    tools/caesar-doctor/carr_diagnosis.cpp
+    tools/caesar-doctor/carr_policy.cpp
+    tools/caesar-doctor/carr_repair.cpp
+    tools/caesar-doctor/carr_journal.cpp
+    tools/caesar-doctor/carr_engine.cpp
+)
+
+target_include_directories(caesar_carr_core_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/tools/caesar-doctor
+)
+
+add_test(
+    NAME CaesarCARRCoreTest
+    COMMAND caesar_carr_core_test
+)
+
+set_tests_properties(
+    CaesarCARRCoreTest
+    PROPERTIES
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        ENVIRONMENT "CAESAR_CARR_TEST_ROOT=${CMAKE_BINARY_DIR}/carr-test-runtime"
+)
+add_executable(caesar_carr_runtime_test
+    tools/caesar-doctor/carr_runtime_test.cpp
+    tools/caesar-doctor/carr_runtime.cpp
+    tools/caesar-doctor/carr_supervisor.cpp
+    tools/caesar-doctor/carr_engine.cpp
+    tools/caesar-doctor/carr_diagnosis.cpp
+    tools/caesar-doctor/carr_policy.cpp
+    tools/caesar-doctor/carr_repair.cpp
+    tools/caesar-doctor/carr_journal.cpp
+    tools/caesar-doctor/carr_types.cpp
+)
+
+target_include_directories(caesar_carr_runtime_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/tools/caesar-doctor
+)
+
+add_test(
+    NAME CaesarCARRRuntimeTest
+    COMMAND caesar_carr_runtime_test
+)
+
+set_tests_properties(
+    CaesarCARRRuntimeTest
+    PROPERTIES
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        ENVIRONMENT "CAESAR_CARR_RUNTIME_TEST_ROOT=${CMAKE_BINARY_DIR}/carr-runtime-test"
+)
+
+add_executable(caesar_carr_supervisor_test
+    tools/caesar-doctor/carr_supervisor_test.cpp
+    tools/caesar-doctor/carr_supervisor.cpp
+    tools/caesar-doctor/carr_runtime.cpp
+    tools/caesar-doctor/carr_engine.cpp
+    tools/caesar-doctor/carr_diagnosis.cpp
+    tools/caesar-doctor/carr_policy.cpp
+    tools/caesar-doctor/carr_repair.cpp
+    tools/caesar-doctor/carr_journal.cpp
+    tools/caesar-doctor/carr_types.cpp
+)
+
+target_include_directories(caesar_carr_supervisor_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/tools/caesar-doctor
+)
+
+add_test(
+    NAME CaesarCARRSupervisorTest
+    COMMAND caesar_carr_supervisor_test
+)
+
+set_tests_properties(
+    CaesarCARRSupervisorTest
+    PROPERTIES
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+add_executable(caesar_carr_caesard_integration_test
+    tools/caesar-doctor/carr_caesard_integration_test.cpp
+    tools/caesar-doctor/carr_supervisor.cpp
+)
+
+target_include_directories(caesar_carr_caesard_integration_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/tools/caesar-doctor
+)
+
+add_dependencies(
+    caesar_carr_caesard_integration_test
+    caesard
+)
+
+add_test(
+    NAME CaesarCARRCaesardIntegrationTest
+    COMMAND caesar_carr_caesard_integration_test
+)
+
+set_tests_properties(
+    CaesarCARRCaesardIntegrationTest
+    PROPERTIES
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        ENVIRONMENT "CAESARD_EXECUTABLE=$<TARGET_FILE:caesard>;CAESAR_CARR_CAESARD_TEST_ROOT=${CMAKE_BINARY_DIR}/carr-caesard-runtime"
+)
+
+
+add_executable(caesar_fee_policy_test
+    tests/fee_policy_test.cpp
+    src/fee_policy.cpp
+)
+
+target_include_directories(caesar_fee_policy_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME CaesarFeePolicyTest
+    COMMAND caesar_fee_policy_test
+)
+
+set_tests_properties(
+    CaesarFeePolicyTest
+    PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+add_executable(caesar_economics_test
+    tests/economics_test.cpp
+    src/economics.cpp
+)
+
+target_include_directories(caesar_economics_test PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+
+add_test(
+    NAME CaesarEconomicsTest
+    COMMAND caesar_economics_test
+)
+
+set_tests_properties(
+    CaesarEconomicsTest
+    PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)

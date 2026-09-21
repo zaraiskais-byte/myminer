@@ -1,0 +1,13 @@
+{
+  "incident_id": "CARR-1790025210524-1",
+  "execution_id": "CARR-ACT-1790025210938-7",
+  "action": "CREATE_REPLAY_CASE",
+  "allowed": true,
+  "executed": true,
+  "verified": true,
+  "status": "RECORDED",
+  "detail": "replay case created",
+  "restart_count": 0,
+  "signal_number": 0,
+  "exit_code": 0
+}

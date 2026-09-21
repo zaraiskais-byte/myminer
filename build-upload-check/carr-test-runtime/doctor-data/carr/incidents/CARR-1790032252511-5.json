@@ -1,0 +1,45 @@
+{
+  "incident_id": "CARR-1790032252511-5",
+  "created_unix_ms": 1790032252511,
+  "type": "STORAGE_FAILURE",
+  "state": "PLANNED",
+  "severity": "ERROR",
+  "fingerprint": "5|STORAGE_FAILURE|storage io error|",
+  "diagnosis": {
+    "type": "STORAGE_FAILURE",
+    "code": "STORAGE_FAILURE",
+    "root_cause": "blockchain storage reported an I/O or integrity failure",
+    "confidence": 0.930,
+    "evidence": ["storage integrity or I/O signal"]
+  },
+  "candidates": [
+    {
+      "action": "VERIFY_CHAIN",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "verify readable chain state before recovery"
+    },
+    {
+      "action": "RECOVER_STORAGE",
+      "risk": 45,
+      "autonomous": true,
+      "rationale": "perform bounded storage recovery"
+    },
+    {
+      "action": "CREATE_REPLAY_CASE",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "preserve storage failure evidence"
+    }
+  ],
+  "verification": [
+    {
+      "code": "CHAIN_INTEGRITY",
+      "description": "verify block linkage, heights, hashes and consensus state"
+    },
+    {
+      "code": "STORAGE_INTEGRITY",
+      "description": "verify recovered storage before accepting new blocks"
+    }
+  ]
+}

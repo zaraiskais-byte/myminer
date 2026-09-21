@@ -1,0 +1,1 @@
+/data/data/com.termux/files/usr/bin/c++ -O3 -DNDEBUG -Xlinker --dependency-file=CMakeFiles/caesar_p2p_server_handshake_test.dir/link.d CMakeFiles/caesar_p2p_server_handshake_test.dir/tests/p2p_server_handshake_test.cpp.o -o caesar_p2p_server_handshake_test  -lcrypto -lpthread

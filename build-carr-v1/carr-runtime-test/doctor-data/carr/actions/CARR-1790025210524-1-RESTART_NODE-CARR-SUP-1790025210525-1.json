@@ -1,0 +1,13 @@
+{
+  "incident_id": "CARR-1790025210524-1",
+  "execution_id": "CARR-SUP-1790025210525-1",
+  "action": "RESTART_NODE",
+  "allowed": true,
+  "executed": true,
+  "verified": true,
+  "status": "RECOVERED",
+  "detail": "",
+  "restart_count": 0,
+  "signal_number": 0,
+  "exit_code": 0
+}

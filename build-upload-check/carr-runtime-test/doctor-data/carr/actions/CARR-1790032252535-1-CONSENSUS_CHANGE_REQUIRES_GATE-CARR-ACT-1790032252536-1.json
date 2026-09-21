@@ -1,0 +1,13 @@
+{
+  "incident_id": "CARR-1790032252535-1",
+  "execution_id": "CARR-ACT-1790032252536-1",
+  "action": "CONSENSUS_CHANGE_REQUIRES_GATE",
+  "allowed": false,
+  "executed": false,
+  "verified": false,
+  "status": "POLICY_BLOCKED",
+  "detail": "action is not autonomous",
+  "restart_count": 0,
+  "signal_number": 0,
+  "exit_code": 0
+}

@@ -1,0 +1,1 @@
+/data/data/com.termux/files/usr/bin/c++ -g -Xlinker --dependency-file=CMakeFiles/caesar_mempool_test.dir/link.d CMakeFiles/caesar_mempool_test.dir/tests/mempool_test.cpp.o -o caesar_mempool_test  /data/data/com.termux/files/usr/lib/libcrypto.so

@@ -295,6 +295,14 @@ struct Transaction {
         if (inputs.empty() || outputs.empty())
             return false;
 
+        for (const auto& input : inputs) {
+            if (input.output_index ==
+                std::numeric_limits<std::uint32_t>::max()) {
+
+                return false;
+            }
+        }
+
         std::uint64_t output_sum = 0;
 
         for (const auto& output : outputs) {

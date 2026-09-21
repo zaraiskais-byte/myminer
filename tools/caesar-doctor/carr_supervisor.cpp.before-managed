@@ -1,0 +1,246 @@
+#include "carr_supervisor.hpp"
+
+#include <cerrno>
+#include <chrono>
+#include <cstring>
+#include <atomic>
+#include <sstream>
+#include <thread>
+#include <vector>
+
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+namespace caesar::carr {
+namespace {
+
+std::string make_execution_id() {
+    static std::atomic<std::uint64_t> sequence{0};
+
+    const auto now =
+        std::chrono::duration_cast<
+            std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count();
+
+    const auto seq = ++sequence;
+
+    std::ostringstream out;
+    out << "CARR-SUP-" << now << "-" << seq;
+    return out.str();
+}
+
+bool append_argument(
+    std::vector<char*>& argv,
+    std::vector<std::string>& storage,
+    const std::string& value) {
+
+    storage.push_back(value);
+    argv.push_back(
+        const_cast<char*>(storage.back().c_str()));
+
+    return true;
+}
+
+}
+
+CARRSupervisor::CARRSupervisor(
+    std::filesystem::path root,
+    RuntimeLimits limits)
+    : root_(std::move(root)),
+      limits_(limits) {
+}
+
+SupervisorResult CARRSupervisor::run(
+    const RuntimeCommand& command) {
+
+    SupervisorResult result;
+    result.execution_id = make_execution_id();
+
+    if (command.executable.empty()) {
+        result.status = "INVALID_COMMAND";
+        result.detail = "node executable is empty";
+        return result;
+    }
+
+    std::uint32_t restarts = 0;
+
+    while (true) {
+        SupervisorResult attempt =
+            run_once(command, restarts);
+
+        result.started =
+            result.started || attempt.started;
+
+        result.last_exit_code =
+            attempt.last_exit_code;
+
+        result.last_signal =
+            attempt.last_signal;
+
+        if (!attempt.execution_id.empty()) {
+            result.execution_id =
+                attempt.execution_id;
+        }
+
+        result.restart_count =
+            restarts;
+
+        if (attempt.recovered) {
+            result.recovered = true;
+            result.status = attempt.status;
+            result.detail = attempt.detail;
+            return result;
+        }
+
+        if (restarts >= limits_.max_restarts) {
+            result.quarantined = true;
+            result.status =
+                "CRASH_LOOP_QUARANTINE";
+            result.detail =
+                "maximum restart count reached";
+            return result;
+        }
+
+        ++restarts;
+
+        if (limits_.restart_delay_ms != 0) {
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(
+                    limits_.restart_delay_ms));
+        }
+    }
+}
+
+SupervisorResult CARRSupervisor::run_once(
+    const RuntimeCommand& command,
+    std::uint32_t restart_count) {
+
+    SupervisorResult result;
+    result.restart_count = restart_count;
+    result.execution_id = make_execution_id();
+
+    const pid_t pid = ::fork();
+
+    if (pid < 0) {
+        result.status = "FORK_FAILED";
+        result.detail = std::strerror(errno);
+        return result;
+    }
+
+    if (pid == 0) {
+        if (!command.working_directory.empty()) {
+            if (::chdir(
+                    command.working_directory.c_str()) != 0) {
+                _exit(126);
+            }
+        }
+
+        std::vector<char*> argv;
+        std::vector<std::string> storage;
+
+        storage.reserve(
+            command.arguments.size() + 1);
+        argv.reserve(
+            command.arguments.size() + 2);
+
+        append_argument(
+            argv,
+            storage,
+            command.executable);
+
+        for (const auto& argument :
+             command.arguments) {
+            append_argument(
+                argv,
+                storage,
+                argument);
+        }
+
+        argv.push_back(nullptr);
+
+        ::execvp(
+            command.executable.c_str(),
+            argv.data());
+
+        _exit(127);
+    }
+
+    result.started = true;
+
+    for (;;) {
+        int status = 0;
+
+        const pid_t waited =
+            ::waitpid(
+                pid,
+                &status,
+                WNOHANG);
+
+        if (waited == pid) {
+            if (WIFSIGNALED(status)) {
+                result.last_signal =
+                    WTERMSIG(status);
+                result.last_exit_code =
+                    128 + result.last_signal;
+
+                std::ostringstream detail;
+                detail
+                    << "process terminated by signal "
+                    << result.last_signal
+                    << " exit_code="
+                    << result.last_exit_code;
+
+                result.status =
+                    "PROCESS_TERMINATED_BY_SIGNAL";
+                result.detail = detail.str();
+
+                return result;
+            }
+
+            if (WIFEXITED(status)) {
+                result.last_exit_code =
+                    WEXITSTATUS(status);
+
+                if (result.last_exit_code == 0) {
+                    result.recovered = true;
+                    result.status = "RECOVERED";
+                    result.detail =
+                        "process exited successfully";
+                } else {
+                    std::ostringstream detail;
+                    detail
+                        << "process exited with code "
+                        << result.last_exit_code;
+
+                    result.status =
+                        "PROCESS_EXITED";
+                    result.detail = detail.str();
+                }
+
+                return result;
+            }
+
+            result.status = "PROCESS_STATE_UNKNOWN";
+            result.detail =
+                "waitpid returned an unrecognized process state";
+            return result;
+        }
+
+        if (waited < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+
+            result.status = "WAIT_FAILED";
+            result.detail = std::strerror(errno);
+            return result;
+        }
+
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(
+                limits_.monitor_interval_ms));
+    }
+}
+}

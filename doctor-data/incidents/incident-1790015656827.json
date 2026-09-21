@@ -1,0 +1,29 @@
+{
+  "id": 1790015656827,
+  "pid": 2904,
+  "exit_code": 139,
+  "signal": 11,
+  "restart_number": 4,
+  "reason": "abnormal-process-exit",
+  "timestamp": "2026-09-21T18:34:16Z",
+  "evidence": {
+  "timestamp": "2026-09-21T18:34:16Z",
+  "process": {
+    "pid": 2904,
+    "executable": "sh",
+    "command_line": "sh -c kill -SEGV $$"
+  },
+  "repository": {
+    "root": "/data/data/com.termux/files/home/caesar-czr-real.old",
+    "head": "a3174b392b06265a4ecbf9e40e53b4c481e52b2c",
+    "modified": [" M CMakeLists.txt", " M include/caesar/coinbase.hpp", " M include/caesar/p2p_relay.hpp", " M include/caesar/p2p_tcp.hpp", " M include/caesar/transaction.hpp", " M tests/blockchain_storage_test.cpp", " M tests/coinbase_test.cpp", " M tests/transaction_test.cpp"],
+    "untracked": ["16", "24", "8", "backup_header_link_20260921_175558/", "backup_sync_reorg_20260920_015047/", "backup_sync_reorg_20260920_231817/", "build-main-check/", "caesar-control", "caesar-control-report-20260921_001918.txt", "caesar-doctor", "caesar_atomic_batch_debug", "caesar_atomic_single_valid_debug", "caesar_core_critical.txt", "caesar_core_dump.txt", "caesar_core_full.txt", "caesar_remaining_core.txt", "check_block_roundtrip", "check_block_roundtrip.cpp", "check_coinbase.cpp", "check_consensus", "check_consensus.cpp", "check_relay_block", "check_relay_block.cpp", "check_roundtrip_data/", "doctor-data/", "doctor-test/", "include/caesar/blockchain_storage.hpp.before_reorg", "include/caesar/coinbase.hpp.before_commitment", "include/caesar/coinbase.hpp.coinbase_stage_backup", "include/caesar/node.hpp.before_reorg", "include/caesar/p2p_relay.hpp.before_duplicate_fix", "include/caesar/p2p_relay.hpp.before_relay_state_diag", "include/caesar/p2p_relay.hpp.before_relay_state_diag2", "include/caesar/p2p_relay.hpp.before_reorg", "include/caesar/p2p_relay.hpp.before_sync_diagnostics", "include/caesar/p2p_relay.hpp.sync_diagnostic_pass", "include/caesar/p2p_relay.hpp.sync_stage_backup", "include/caesar/transaction.hpp.coinbase_stage_backup", "tests/blockchain_storage_test.cpp.bak", "tests/blockchain_sync_test.cpp", "tests/blockchain_sync_test.cpp.before_explicit_checks", "tests/p2p_relay_atomic_batch_test.cpp", "tests/p2p_relay_atomic_batch_test.cpp.before_local_validation", "tests/p2p_relay_atomic_single_valid_test.cpp", "tests/p2p_relay_atomic_single_valid_test.cpp.before_cleanup", "tests/p2p_relay_disconnected_block_test.cpp", "tests/p2p_relay_headers_validation_test.cpp", "tools/"]
+  },
+  "build": {
+    "cmake_present": true,
+    "build_directory_present": true,
+    "caesard_present": false
+  }
+}
+
+}

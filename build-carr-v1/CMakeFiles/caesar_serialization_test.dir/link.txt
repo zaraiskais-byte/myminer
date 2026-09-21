@@ -1,0 +1,1 @@
+/data/data/com.termux/files/usr/bin/c++ -g -Xlinker --dependency-file=CMakeFiles/caesar_serialization_test.dir/link.d CMakeFiles/caesar_serialization_test.dir/tests/serialization_test.cpp.o -o caesar_serialization_test  /data/data/com.termux/files/usr/lib/libcrypto.so

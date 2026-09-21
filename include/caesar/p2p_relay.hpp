@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 #include <limits>
+#include <iostream>
 #include <mutex>
 #include <stdexcept>
 #include <thread>
@@ -121,6 +122,26 @@ private:
         return frame;
     }
 
+    static P2PFrame make_get_blocks_frame(
+        const std::vector<std::uint64_t>& heights) {
+
+        if (heights.empty() || heights.size() > 1024)
+            throw std::runtime_error(
+                "invalid block height count");
+
+        BinaryWriter writer;
+        writer.write_u32(
+            static_cast<std::uint32_t>(heights.size()));
+
+        for (const auto height : heights)
+            writer.write_u64(height);
+
+        P2PFrame frame;
+        frame.type = P2PMessageType::GetBlocks;
+        frame.payload = writer.data();
+        return frame;
+    }
+
     void request_headers(std::uint64_t id) {
         auto connection = server_.peers().connection(id);
         if (!connection)
@@ -170,7 +191,17 @@ private:
 
                 handle_frame(id, frame);
 
+            } catch (const std::exception& e) {
+                std::cerr
+                    << "[P2P] peer " << id
+                    << " loop error: " << e.what()
+                    << std::endl;
+                break;
             } catch (...) {
+                std::cerr
+                    << "[P2P] peer " << id
+                    << " loop error: unknown exception"
+                    << std::endl;
                 break;
             }
         }
@@ -195,6 +226,10 @@ private:
                 handle_headers(id, frame.payload);
                 break;
 
+            case P2PMessageType::GetBlocks:
+                handle_get_blocks(id, frame.payload);
+                break;
+
             default:
                 break;
         }
@@ -203,7 +238,6 @@ private:
     void handle_headers(
         std::uint64_t id,
         const std::vector<std::uint8_t>& payload) {
-        (void)id;
 
         BinaryReader reader(payload);
 
@@ -214,11 +248,14 @@ private:
             throw std::runtime_error(
                 "too many received headers");
 
+        std::vector<BlockHeader> headers;
+        headers.reserve(count);
+
         for (std::uint32_t i = 0; i < count; ++i) {
             const std::uint32_t size =
                 reader.read_u32();
 
-            if (size != 84)
+            if (size != 128)
                 throw std::runtime_error(
                     "invalid block header size");
 
@@ -245,11 +282,93 @@ private:
                     header.difficulty))
                 throw std::runtime_error(
                     "invalid received header proof of work");
+
+            if (!headers.empty()) {
+                const auto& previous = headers.back();
+
+                if (header.height !=
+                    previous.height + 1)
+                    throw std::runtime_error(
+                        "received headers are not sequential");
+
+                if (header.previous_hash !=
+                    previous.hash())
+                    throw std::runtime_error(
+                        "received headers have invalid internal link");
+            }
+
+            headers.push_back(header);
         }
 
         if (!reader.empty())
             throw std::runtime_error(
                 "trailing bytes in headers payload");
+
+        if (headers.empty())
+            return;
+
+        std::uint64_t local_height = 0;
+        Hash256 local_tip_hash{};
+
+        {
+            std::lock_guard<std::mutex> lock(storage_mutex_);
+
+            if (!storage_.exists())
+                return;
+
+            const auto chain = storage_.load();
+
+            if (chain.empty())
+                return;
+
+            local_height =
+                chain.back().header.height;
+
+            local_tip_hash =
+                chain.back().hash();
+        }
+
+        std::vector<std::uint64_t> heights;
+        heights.reserve(
+            std::min<std::size_t>(
+                headers.size(),
+                1024));
+
+        for (const auto& header : headers) {
+
+            if (header.height <= local_height)
+                continue;
+
+            if (heights.empty()) {
+
+                if (header.height !=
+                    local_height + 1)
+                    throw std::runtime_error(
+                        "received headers do not extend local chain");
+
+                if (header.previous_hash !=
+                    local_tip_hash)
+                    throw std::runtime_error(
+                        "received headers have invalid local anchor");
+            }
+
+            heights.push_back(header.height);
+
+            if (heights.size() >= 1024)
+                break;
+        }
+
+        if (heights.empty())
+            return;
+
+        auto connection =
+            server_.peers().connection(id);
+
+        if (!connection)
+            return;
+
+        connection->send_frame(
+            make_get_blocks_frame(heights));
     }
 
     void handle_get_headers(
@@ -338,6 +457,94 @@ private:
             connection->send_frame(response);
     }
 
+    void handle_get_blocks(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        BinaryReader reader(payload);
+
+        const std::uint32_t count =
+            reader.read_u32();
+
+        if (count == 0 || count > 1024)
+            throw std::runtime_error(
+                "invalid getblocks height count");
+
+        std::vector<std::uint64_t> heights;
+        heights.reserve(count);
+
+        for (std::uint32_t i = 0; i < count; ++i)
+            heights.push_back(reader.read_u64());
+
+        if (!reader.empty())
+            throw std::runtime_error(
+                "trailing bytes in getblocks payload");
+
+        if (!storage_.exists())
+            return;
+
+        std::lock_guard<std::mutex> lock(storage_mutex_);
+
+        const auto chain = storage_.load();
+
+        auto connection = server_.peers().connection(id);
+        if (!connection)
+            return;
+
+        BinaryWriter writer;
+        std::uint32_t found = 0;
+
+        writer.write_u32(0);
+
+        for (const auto requested_height : heights) {
+            if (requested_height >= chain.size())
+                continue;
+
+            const auto& block =
+                chain[static_cast<std::size_t>(
+                    requested_height)];
+
+            const auto encoded =
+                block.serialize_full_binary();
+
+            if (encoded.size() >
+                static_cast<std::size_t>(
+                    std::numeric_limits<std::uint32_t>::max()))
+                throw std::runtime_error(
+                    "serialized block too large");
+
+            writer.write_u32(
+                static_cast<std::uint32_t>(
+                    encoded.size()));
+
+            writer.write_bytes(encoded);
+            ++found;
+        }
+
+        const auto bytes = writer.data();
+
+        if (bytes.size() < sizeof(std::uint32_t))
+            throw std::runtime_error(
+                "invalid blocks response");
+
+        std::vector<std::uint8_t> response_bytes = bytes;
+
+        response_bytes[0] =
+            static_cast<std::uint8_t>(found & 0xffU);
+        response_bytes[1] =
+            static_cast<std::uint8_t>((found >> 8) & 0xffU);
+        response_bytes[2] =
+            static_cast<std::uint8_t>((found >> 16) & 0xffU);
+        response_bytes[3] =
+            static_cast<std::uint8_t>((found >> 24) & 0xffU);
+
+        P2PFrame response;
+        response.type = P2PMessageType::Blocks;
+        response.payload = std::move(response_bytes);
+
+        connection->send_frame(response);
+    }
+
     void handle_blocks(
         const std::vector<std::uint8_t>& payload) {
 
@@ -373,6 +580,36 @@ private:
                         "cannot relay block without local chain");
 
                 const auto chain = storage_.load();
+
+                const auto local_height =
+                    chain.back().header.height;
+
+                if (block.header.height <= local_height) {
+                    const auto local_hash =
+                        chain[block.header.height].hash();
+
+                    if (local_hash == block.hash()) {
+                        std::cerr
+                            << "[P2P] duplicate block ignored"
+                            << " height=" << block.header.height
+                            << " hash="
+                            << hash_to_hex(block.hash())
+                            << std::endl;
+                        continue;
+                    }
+
+                    std::cerr
+                        << "[P2P] conflicting block at existing height"
+                        << " height=" << block.header.height
+                        << " local_hash="
+                        << hash_to_hex(local_hash)
+                        << " received_hash="
+                        << hash_to_hex(block.hash())
+                        << std::endl;
+
+                    continue;
+                }
+
                 const auto previous_utxos =
                     rebuild_utxo_set(chain);
 
@@ -380,12 +617,35 @@ private:
                         block,
                         chain,
                         previous_utxos)) {
+
+                    std::cerr
+                        << "[P2P] relay-check CONSENSUS_FAIL"
+                        << " received_height=" << block.header.height
+                        << " local_height=" << chain.back().header.height
+                        << " expected_previous="
+                        << hash_to_hex(chain.back().hash())
+                        << " received_previous="
+                        << hash_to_hex(block.header.previous_hash)
+                        << std::endl;
+
                     throw std::runtime_error(
                         "relayed block failed consensus validation");
                 }
 
                 storage_.append(block);
+            } catch (const std::exception& e) {
+                std::cerr
+                    << "[P2P] rejected relayed block at height "
+                    << block.header.height
+                    << ": " << e.what()
+                    << std::endl;
+                continue;
             } catch (...) {
+                std::cerr
+                    << "[P2P] rejected relayed block at height "
+                    << block.header.height
+                    << ": unknown exception"
+                    << std::endl;
                 continue;
             }
 

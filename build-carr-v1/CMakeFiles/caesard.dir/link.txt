@@ -1,0 +1,1 @@
+/data/data/com.termux/files/usr/bin/c++ -g -Xlinker --dependency-file=CMakeFiles/caesard.dir/link.d CMakeFiles/caesard.dir/src/main.cpp.o -o caesard  /data/data/com.termux/files/usr/lib/libcrypto.so

@@ -1,0 +1,143 @@
+===== CAESAR CONTROL REPORT =====
+DATE: Mon Sep 21 00:19:18 EET 2026
+ROOT: /data/data/com.termux/files/home/caesar-czr-real
+
+===== GIT STATUS =====
+## main...origin/main
+ M CMakeLists.txt
+ M include/caesar/coinbase.hpp
+ M include/caesar/p2p_relay.hpp
+ M include/caesar/p2p_tcp.hpp
+ M include/caesar/transaction.hpp
+ M tests/coinbase_test.cpp
+ M tests/transaction_test.cpp
+?? backup_sync_reorg_20260920_015047/
+?? backup_sync_reorg_20260920_231817/
+?? caesar-control
+?? caesar-control-report-20260921_001918.txt
+?? caesar_core_critical.txt
+?? caesar_core_dump.txt
+?? caesar_core_full.txt
+?? caesar_remaining_core.txt
+?? check_block_roundtrip
+?? check_block_roundtrip.cpp
+?? check_coinbase.cpp
+?? check_consensus
+?? check_consensus.cpp
+?? check_relay_block
+?? check_relay_block.cpp
+?? check_roundtrip_data/
+?? include/caesar/blockchain_storage.hpp.before_reorg
+?? include/caesar/coinbase.hpp.before_commitment
+?? include/caesar/coinbase.hpp.coinbase_stage_backup
+?? include/caesar/node.hpp.before_reorg
+?? include/caesar/p2p_relay.hpp.before_duplicate_fix
+?? include/caesar/p2p_relay.hpp.before_relay_state_diag
+?? include/caesar/p2p_relay.hpp.before_relay_state_diag2
+?? include/caesar/p2p_relay.hpp.before_reorg
+?? include/caesar/p2p_relay.hpp.before_sync_diagnostics
+?? include/caesar/p2p_relay.hpp.sync_diagnostic_pass
+?? include/caesar/p2p_relay.hpp.sync_stage_backup
+?? include/caesar/transaction.hpp.coinbase_stage_backup
+?? tests/blockchain_sync_test.cpp
+?? tests/blockchain_sync_test.cpp.before_explicit_checks
+
+===== DIFF CHECK =====
+
+===== CORE FILES =====
+include/caesar/address.hpp
+include/caesar/block.hpp
+include/caesar/block_builder.hpp
+include/caesar/blockchain_storage.hpp
+include/caesar/blockchain_storage.hpp.before_reorg
+include/caesar/coinbase.hpp
+include/caesar/coinbase.hpp.before_commitment
+include/caesar/coinbase.hpp.coinbase_stage_backup
+include/caesar/consensus.hpp
+include/caesar/consensus_v1_backup.hpp
+include/caesar/crypto.hpp
+include/caesar/key_encoding.hpp
+include/caesar/mempool.hpp
+include/caesar/mempool_validation.hpp
+include/caesar/node.hpp
+include/caesar/node.hpp.before_reorg
+include/caesar/ownership.hpp
+include/caesar/p2p_connection.hpp
+include/caesar/p2p_frame.hpp
+include/caesar/p2p_handshake.hpp
+include/caesar/p2p_hello.hpp
+include/caesar/p2p_peer_manager.hpp
+include/caesar/p2p_ping.hpp
+include/caesar/p2p_protocol.hpp
+include/caesar/p2p_relay.hpp
+include/caesar/p2p_relay.hpp.before_duplicate_fix
+include/caesar/p2p_relay.hpp.before_relay_state_diag
+include/caesar/p2p_relay.hpp.before_relay_state_diag2
+include/caesar/p2p_relay.hpp.before_reorg
+include/caesar/p2p_relay.hpp.before_sync_diagnostics
+include/caesar/p2p_relay.hpp.sync_diagnostic_pass
+include/caesar/p2p_relay.hpp.sync_stage_backup
+include/caesar/p2p_server.hpp
+include/caesar/p2p_tcp.hpp
+include/caesar/serialization.hpp
+include/caesar/signature.hpp
+include/caesar/transaction.hpp
+include/caesar/transaction.hpp.coinbase_stage_backup
+include/caesar/transaction_signature.hpp
+include/caesar/utxo.hpp
+include/caesar/wallet.hpp
+include/caesar/witness.hpp
+
+===== BUILD DIRECTORY =====
+
+===== CTEST LIST =====
+Test project /data/data/com.termux/files/home/caesar-czr-real/build
+  Test  #1: CaesarConsensusTest
+  Test  #2: CaesarCoinbaseTest
+  Test  #3: CaesarBlockBuilderTest
+  Test  #4: CaesarBlockTest
+  Test  #5: CaesarMempoolTest
+  Test  #6: CaesarMempoolValidationTest
+  Test  #7: CaesarFoundationTest
+  Test  #8: CaesarProtocolDataTest
+  Test  #9: CaesarTransactionTest
+  Test #10: caesar_difficulty_consensus_test
+  Test #11: CaesarUTXOTest
+  Test #12: CaesarSerializationTest
+  Test #13: CaesarKeyEncodingTest
+  Test #14: CaesarAddressTest
+  Test #15: CaesarOwnershipTest
+  Test #16: CaesarWalletTest
+  Test #17: CaesarTransactionSignatureTest
+  Test #18: CaesarSignatureTest
+  Test #19: caesar_difficulty_block_validation_test
+  Test #20: caesar_difficulty_blockchain_validation_test
+  Test #21: CaesarFullBlockConsensusTest
+  Test #22: CaesarP2PProtocolTest
+  Test #23: CaesarP2PFrameTest
+  Test #24: CaesarP2PHelloTest
+  Test #25: CaesarP2PPingTest
+  Test #26: CaesarP2PTcpTest
+  Test #27: CaesarP2PConnectionTest
+  Test #28: CaesarP2PPeerManagerTest
+  Test #29: caesar_p2p_server_test
+  Test #30: caesar_p2p_handshake_test
+  Test #31: caesar_p2p_server_handshake_test
+  Test #32: caesar_p2p_server_reject_test
+  Test #33: caesar_p2p_server_version_reject_test
+  Test #34: CaesarBlockchainStorageTest
+  Test #35: caesar_p2p_frame_security_test
+  Test #36: caesar_p2p_connection_security_test
+  Test #37: CaesarNodeTest
+  Test #38: CaesarTwoNodeP2PTest
+  Test #39: CaesarBlockchainSyncTest
+
+Total Tests: 39
+
+===== NETWORK =====
+Cannot open netlink socket: Permission denied
+State  Recv-Q Send-Q Local Address:Port  Peer Address:Port
+LISTEN 0      0            0.0.0.0:47500      0.0.0.0:*
+
+===== PROCESSES =====
+u0_a160  18718 18532  5  2022 pts/0    00:00:00 /data/data/com.termux/files/usr/bin/bash ./caesar-control report

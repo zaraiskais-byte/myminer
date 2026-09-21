@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include <caesar/coinbase.hpp>
+#include <caesar/economics.hpp>
 
 using namespace caesar;
 
@@ -27,6 +28,37 @@ int main() {
         std::cout
             << "[PASS] Initial subsidy verified\n";
 
+        const EconomicsPolicy economics_policy =
+            czr_economics_policy();
+
+        if (economics_policy.max_supply !=
+                CZR_MAX_SUPPLY ||
+            economics_policy.initial_reward !=
+                CZR_INITIAL_SUBSIDY ||
+            economics_policy.halving_interval !=
+                CZR_HALVING_INTERVAL) {
+
+            std::cerr
+                << "[FAIL] Coinbase constants diverge from economics policy\n";
+            return EXIT_FAILURE;
+        }
+
+        std::cout
+            << "[PASS] Coinbase constants match economics policy\n";
+
+        if (block_subsidy(1) !=
+            economics_block_reward(
+                economics_policy,
+                1)) {
+
+            std::cerr
+                << "[FAIL] Coinbase reward diverges from economics reward\n";
+            return EXIT_FAILURE;
+        }
+
+        std::cout
+            << "[PASS] Coinbase reward is economics-derived\n";
+
         const auto first_halving =
             block_subsidy(
                 CZR_HALVING_INTERVAL);
@@ -41,6 +73,22 @@ int main() {
 
         std::cout
             << "[PASS] Halving rule verified\n";
+
+        const std::uint64_t second_halving_height =
+            CZR_HALVING_INTERVAL * 2;
+
+        if (block_subsidy(second_halving_height) !=
+            economics_block_reward(
+                economics_policy,
+                second_halving_height)) {
+
+            std::cerr
+                << "[FAIL] Second-halving reward diverges from economics\n";
+            return EXIT_FAILURE;
+        }
+
+        std::cout
+            << "[PASS] Second-halving reward matches economics\n";
 
         Transaction coinbase =
             make_coinbase_transaction(
@@ -66,6 +114,44 @@ int main() {
 
         std::cout
             << "[PASS] Valid coinbase accepted\n";
+
+        Transaction next_height =
+            make_coinbase_transaction(
+                2,
+                "CZ1-miner");
+
+        if (coinbase.txid() == next_height.txid()) {
+            std::cerr
+                << "[FAIL] Coinbase TXID reused across heights\n";
+            return EXIT_FAILURE;
+        }
+
+        std::cout
+            << "[PASS] Coinbase TXID is unique across heights\n";
+
+        Transaction altered_marker =
+            make_coinbase_transaction(
+                1,
+                "CZ1-miner",
+                1);
+
+        if (altered_marker.txid() == coinbase.txid()) {
+            std::cerr
+                << "[FAIL] Coinbase extra nonce did not change TXID\n";
+            return EXIT_FAILURE;
+        }
+
+        if (validate_coinbase_transaction(
+                altered_marker,
+                1)) {
+
+            std::cerr
+                << "[FAIL] Non-default coinbase commitment accepted\n";
+            return EXIT_FAILURE;
+        }
+
+        std::cout
+            << "[PASS] Coinbase extra nonce commitment verified\n";
 
         Transaction oversized =
             coinbase;
@@ -103,7 +189,7 @@ int main() {
                 2,
                 "CZ1-miner");
 
-        if (!validate_coinbase_transaction(
+        if (validate_coinbase_transaction(
                 wrong_height,
                 1)) {
 

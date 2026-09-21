@@ -1,0 +1,61 @@
+{
+  "incident_id": "CARR-1790022427836-1",
+  "created_unix_ms": 1790022427837,
+  "type": "INVALID_PEER_DATA",
+  "state": "PLANNED",
+  "severity": "ERROR",
+  "fingerprint": "2|BAD_PEER_HEADER_CHAIN|received headers have invalid internal link|",
+  "diagnosis": {
+    "type": "INVALID_PEER_DATA",
+    "code": "BAD_PEER_HEADER_CHAIN",
+    "root_cause": "peer supplied headers whose internal previous_hash link is invalid",
+    "confidence": 0.990,
+    "evidence": ["header internal-link validation failure"]
+  },
+  "candidates": [
+    {
+      "action": "QUARANTINE_PEER",
+      "risk": 10,
+      "autonomous": true,
+      "rationale": "isolate the peer that supplied invalid chain data"
+    },
+    {
+      "action": "ABORT_SYNC",
+      "risk": 15,
+      "autonomous": true,
+      "rationale": "stop the current synchronization attempt"
+    },
+    {
+      "action": "VERIFY_CHAIN",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "verify local chain before recovery"
+    },
+    {
+      "action": "RESTART_SYNC",
+      "risk": 25,
+      "autonomous": true,
+      "rationale": "restart synchronization from verified state"
+    },
+    {
+      "action": "CREATE_REPLAY_CASE",
+      "risk": 5,
+      "autonomous": true,
+      "rationale": "preserve deterministic reproduction evidence"
+    }
+  ],
+  "verification": [
+    {
+      "code": "CHAIN_INTEGRITY",
+      "description": "verify block linkage, heights, hashes and consensus state"
+    },
+    {
+      "code": "PEER_QUARANTINE",
+      "description": "confirm offending peer is isolated"
+    },
+    {
+      "code": "SYNC_REPLAY",
+      "description": "replay the synchronization request from verified state"
+    }
+  ]
+}

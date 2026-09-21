@@ -1,0 +1,1 @@
+/data/data/com.termux/files/usr/bin/c++ -O3 -DNDEBUG -Xlinker --dependency-file=CMakeFiles/caesar_wallet_test.dir/link.d CMakeFiles/caesar_wallet_test.dir/tests/wallet_test.cpp.o -o caesar_wallet_test  /data/data/com.termux/files/usr/lib/libcrypto.so

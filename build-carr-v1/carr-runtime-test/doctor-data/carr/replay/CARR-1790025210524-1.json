@@ -1,0 +1,8 @@
+{
+  "incident_id": "CARR-1790025210524-1",
+  "created_unix_ms": 1790025210939,
+  "type": "PROCESS_CRASH",
+  "fingerprint": "1|PROCESS_CRASH|segmentation fault|",
+  "diagnosis_code": "PROCESS_CRASH",
+  "root_cause": "caesard process terminated abnormally"
+}
