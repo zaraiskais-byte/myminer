@@ -2,6 +2,18 @@ cmake_minimum_required(VERSION 3.20)
 
 project(CaesarCZR VERSION 0.1.0 LANGUAGES CXX)
 
+# Android/Termux: use the platform-compatible libunwind explicitly for
+# C++ exception cleanup/unwinding.  This is a linker setting, not a
+# compiler flag, and is intentionally limited to Android.
+if(ANDROID)
+    find_library(CAESAR_UNWIND_LIBRARY
+        NAMES unwind
+        REQUIRED
+    )
+    link_libraries(${CAESAR_UNWIND_LIBRARY})
+endif()
+
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
