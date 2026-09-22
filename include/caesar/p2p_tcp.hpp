@@ -87,15 +87,30 @@ public:
                 fd_,
                 reinterpret_cast<sockaddr*>(&server),
                 sizeof(server)) < 0) {
+            const int bind_errno = errno;
             close();
             throw std::runtime_error(
-                std::string("TCP bind failed: ") + std::strerror(errno));
+                std::string("TCP bind failed: ") +
+                std::strerror(bind_errno));
         }
 
         if (::listen(fd_, 8) < 0) {
             close();
             throw std::runtime_error(
                 "TCP listen failed");
+        }
+
+        const int flags =
+            ::fcntl(fd_, F_GETFL, 0);
+
+        if (flags < 0 ||
+            ::fcntl(
+                fd_,
+                F_SETFL,
+                flags | O_NONBLOCK) < 0) {
+            close();
+            throw std::runtime_error(
+                "TCP listener non-blocking setup failed");
         }
     }
 
@@ -385,6 +400,32 @@ public:
                 sizeof(tv)) < 0) {
             throw std::runtime_error(
                 "Failed to set send timeout");
+        }
+    }
+
+    void clear_timeouts() const {
+        if (fd_ < 0)
+            throw std::runtime_error("Invalid TCP socket");
+
+        timeval tv{};
+        if (::setsockopt(
+                fd_,
+                SOL_SOCKET,
+                SO_RCVTIMEO,
+                &tv,
+                sizeof(tv)) < 0) {
+            throw std::runtime_error(
+                "Failed to clear receive timeout");
+        }
+
+        if (::setsockopt(
+                fd_,
+                SOL_SOCKET,
+                SO_SNDTIMEO,
+                &tv,
+                sizeof(tv)) < 0) {
+            throw std::runtime_error(
+                "Failed to clear send timeout");
         }
     }
 

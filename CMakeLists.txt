@@ -419,6 +419,23 @@ add_test(
     COMMAND caesar_blockchain_sync_test
 )
 
+add_executable(caesar_p2p_reorg_test
+    tests/p2p_reorg_test.cpp
+)
+
+target_include_directories(caesar_p2p_reorg_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_p2p_reorg_test PRIVATE
+    OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarP2PReorgTest
+    COMMAND caesar_p2p_reorg_test
+)
+
 add_executable(caesar_p2p_relay_headers_validation_test
     tests/p2p_relay_headers_validation_test.cpp
 )
@@ -598,4 +615,14 @@ set_tests_properties(
     CaesarEconomicsTest
     PROPERTIES
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
+
+add_executable(caesar_p2p_reorg_fixture
+    tests/p2p_reorg_fixture.cpp
+)
+target_include_directories(caesar_p2p_reorg_fixture PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_p2p_reorg_fixture PRIVATE
+    OpenSSL::Crypto
 )

@@ -116,6 +116,42 @@ public:
         return chain;
     }
 
+    bool replace_chain(
+        const std::vector<Block>& candidate) const {
+
+        if (candidate.empty())
+            throw std::runtime_error(
+                "cannot replace blockchain with empty chain");
+
+        if (!validate_block_chain(candidate))
+            throw std::runtime_error(
+                "refusing to replace blockchain with invalid chain");
+
+        std::vector<Block> current;
+
+        if (exists())
+            current = load();
+
+        if (current.empty()) {
+            save(candidate);
+            return true;
+        }
+
+        const ChainWork candidate_work =
+            calculate_chain_work(candidate);
+
+        const ChainWork current_work =
+            calculate_chain_work(current);
+
+        // Fork choice is strictly greater cumulative PoW work.
+        // Equal-work and lower-work candidates do not reorg the node.
+        if (candidate_work <= current_work)
+            return false;
+
+        save(candidate);
+        return true;
+    }
+
     void append(const Block& block) const {
         std::vector<Block> chain;
 

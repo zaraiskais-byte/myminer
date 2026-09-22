@@ -33,8 +33,16 @@ public:
         socket_.set_timeouts(timeout_ms);
     }
 
+    void clear_timeouts() {
+        socket_.clear_timeouts();
+    }
+
     bool valid() const noexcept {
         return socket_.valid();
+    }
+
+    void close() noexcept {
+        socket_.close();
     }
 
     void send_frame(const P2PFrame& frame) const {

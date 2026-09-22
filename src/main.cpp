@@ -67,15 +67,39 @@ bool parse_uint32(
 int main(int argc, char** argv) {
     try {
         bool mine_one_block = false;
+        std::uint32_t mine_after_ms = 0;
+        bool mine_after_delay = false;
         std::filesystem::path data_dir = "data";
         std::uint16_t p2p_port = 18444;
         std::uint32_t network_id = 1;
+        std::string connect_host;
+        std::uint16_t connect_port = 0;
+        bool connect_to_peer = false;
 
         for (int i = 1; i < argc; ++i) {
             const std::string arg = argv[i];
 
             if (arg == "--mine") {
                 mine_one_block = true;
+                continue;
+            }
+
+            if (arg == "--mine-after-ms") {
+                if (++i >= argc) {
+                    std::cerr
+                        << "Missing value for --mine-after-ms\n";
+                    return 2;
+                }
+
+                if (!parse_uint32(
+                        argv[i],
+                        mine_after_ms)) {
+                    std::cerr
+                        << "Invalid --mine-after-ms value\n";
+                    return 2;
+                }
+
+                mine_after_delay = true;
                 continue;
             }
 
@@ -108,6 +132,27 @@ int main(int argc, char** argv) {
                 continue;
             }
 
+            if (arg == "--connect") {
+                if (i + 2 >= argc) {
+                    std::cerr
+                        << "Missing HOST PORT for --connect\\n";
+                    return 2;
+                }
+
+                connect_host = argv[++i];
+
+                if (!parse_uint16(
+                        argv[++i],
+                        connect_port)) {
+                    std::cerr
+                        << "Invalid --connect port value\\n";
+                    return 2;
+                }
+
+                connect_to_peer = true;
+                continue;
+            }
+
             if (arg == "--network-id") {
                 if (++i >= argc) {
                     std::cerr
@@ -128,8 +173,10 @@ int main(int argc, char** argv) {
 
             std::cerr
                 << "Usage: caesard [--mine]"
+                << " [--mine-after-ms N]"
                 << " [--data-dir PATH]"
                 << " [--port PORT]"
+                << " [--connect HOST PORT]"
                 << " [--network-id ID]\n";
 
             return 2;
@@ -181,7 +228,58 @@ int main(int argc, char** argv) {
 
         std::cout.flush();
 
-        if (mine_one_block) {
+        if (connect_to_peer) {
+            std::cout
+                << "Connecting to peer: "
+                << connect_host
+                << ":"
+                << connect_port
+                << "\\n";
+
+            const auto peer_id =
+                node.connect_to_peer(
+                    connect_host,
+                    connect_port);
+
+            if (peer_id == 0) {
+                throw std::runtime_error(
+                    "peer connection failed");
+            }
+
+            std::cout
+                << "Connected to peer. "
+                << "Peer ID: "
+                << peer_id
+                << "\\n";
+
+            std::cout
+                << "Peers: "
+                << node.peer_count()
+                << "\\n";
+
+            std::cout.flush();
+        }
+
+        if (mine_one_block || mine_after_delay) {
+            if (mine_after_delay) {
+                std::cout
+                    << "Mining scheduled after "
+                    << mine_after_ms
+                    << " ms...\n";
+
+                std::cout.flush();
+
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(
+                        mine_after_ms));
+
+                if (!node.running() ||
+                    g_shutdown_requested) {
+                    throw std::runtime_error(
+                        "mining cancelled before start");
+                }
+            }
+
             std::cout
                 << "Mining one block...\n";
 
@@ -196,6 +294,22 @@ int main(int argc, char** argv) {
                 << "New blockchain height: "
                 << node.height()
                 << "\n";
+
+            if (mine_after_delay) {
+                std::cout
+                    << "Node is running. "
+                    << "Press Ctrl+C to stop.\n";
+
+                std::cout.flush();
+
+                while (
+                    node.running() &&
+                    !g_shutdown_requested) {
+
+                    std::this_thread::sleep_for(
+                        std::chrono::milliseconds(100));
+                }
+            }
         } else {
             std::cout
                 << "Node is running. "

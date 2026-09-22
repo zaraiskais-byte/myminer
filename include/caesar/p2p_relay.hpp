@@ -56,6 +56,8 @@ public:
 
         server_.peers().set_peer_added_callback({});
 
+        server_.peers().close_all_connections();
+
         std::vector<std::thread> threads;
 
         {
@@ -155,7 +157,41 @@ private:
             return;
 
         std::vector<Hash256> locators;
-        locators.push_back(chain.back().hash());
+        locators.reserve(32);
+
+        /*
+         * Build a Bitcoin-style locator sequence:
+         * tip, then exponentially older blocks, and finally genesis.
+         *
+         * This lets a peer on a competing fork find the latest
+         * common ancestor instead of requiring our current tip
+         * to exist on its chain.
+         */
+        std::size_t index = chain.size() - 1;
+        std::size_t step = 1;
+
+        while (true) {
+            locators.push_back(
+                chain[index].hash());
+
+            if (index == 0 ||
+                locators.size() >= 31)
+                break;
+
+            if (index < step)
+                index = 0;
+            else
+                index -= step;
+
+            if (step <=
+                std::numeric_limits<std::size_t>::max() / 2)
+                step *= 2;
+            else
+                step = std::numeric_limits<std::size_t>::max();
+        }
+
+        if (locators.back() != chain.front().hash())
+            locators.push_back(chain.front().hash());
 
         connection->send_frame(
             make_get_headers_frame(locators));
@@ -307,8 +343,7 @@ private:
         if (headers.empty())
             return;
 
-        std::uint64_t local_height = 0;
-        Hash256 local_tip_hash{};
+        std::vector<Block> local_chain;
 
         {
             std::lock_guard<std::mutex> lock(storage_mutex_);
@@ -316,17 +351,47 @@ private:
             if (!storage_.exists())
                 return;
 
-            const auto chain = storage_.load();
+            local_chain = storage_.load();
 
-            if (chain.empty())
+            if (local_chain.empty())
                 return;
-
-            local_height =
-                chain.back().header.height;
-
-            local_tip_hash =
-                chain.back().hash();
         }
+
+        /*
+         * Find the local block immediately preceding the received
+         * branch.  This deliberately allows the received headers to
+         * have heights that already exist locally: that is the normal
+         * case for a competing fork.
+         */
+        std::size_t ancestor_index = 0;
+        bool found_anchor = false;
+
+        for (const auto& header : headers) {
+            if (header.height == 0)
+                continue;
+
+            const auto previous_height =
+                header.height - 1;
+
+            if (previous_height >= local_chain.size())
+                continue;
+
+            if (local_chain[
+                    static_cast<std::size_t>(
+                        previous_height)].hash() ==
+                header.previous_hash) {
+
+                ancestor_index =
+                    static_cast<std::size_t>(
+                        previous_height);
+
+                found_anchor = true;
+                break;
+            }
+        }
+
+        if (!found_anchor)
+            return;
 
         std::vector<std::uint64_t> heights;
         heights.reserve(
@@ -334,22 +399,22 @@ private:
                 headers.size(),
                 1024));
 
-        for (const auto& header : headers) {
+        bool started = false;
 
-            if (header.height <= local_height)
+        for (const auto& header : headers) {
+            if (header.height == 0)
                 continue;
 
-            if (heights.empty()) {
-
+            if (!started) {
                 if (header.height !=
-                    local_height + 1)
-                    throw std::runtime_error(
-                        "received headers do not extend local chain");
+                    ancestor_index + 1)
+                    continue;
 
                 if (header.previous_hash !=
-                    local_tip_hash)
-                    throw std::runtime_error(
-                        "received headers have invalid local anchor");
+                    local_chain[ancestor_index].hash())
+                    continue;
+
+                started = true;
             }
 
             heights.push_back(header.height);
@@ -557,6 +622,9 @@ private:
             throw std::runtime_error(
                 "invalid relayed block count");
 
+        std::vector<Block> received;
+        received.reserve(count);
+
         for (std::uint32_t i = 0; i < count; ++i) {
 
             const std::uint32_t size =
@@ -569,93 +637,184 @@ private:
             const auto data =
                 reader.read_bytes(size);
 
-            const Block block =
-                Block::deserialize_full(data);
-
-            try {
-                std::lock_guard<std::mutex> lock(storage_mutex_);
-
-                if (!storage_.exists())
-                    throw std::runtime_error(
-                        "cannot relay block without local chain");
-
-                const auto chain = storage_.load();
-
-                const auto local_height =
-                    chain.back().header.height;
-
-                if (block.header.height <= local_height) {
-                    const auto local_hash =
-                        chain[block.header.height].hash();
-
-                    if (local_hash == block.hash()) {
-                        std::cerr
-                            << "[P2P] duplicate block ignored"
-                            << " height=" << block.header.height
-                            << " hash="
-                            << hash_to_hex(block.hash())
-                            << std::endl;
-                        continue;
-                    }
-
-                    std::cerr
-                        << "[P2P] conflicting block at existing height"
-                        << " height=" << block.header.height
-                        << " local_hash="
-                        << hash_to_hex(local_hash)
-                        << " received_hash="
-                        << hash_to_hex(block.hash())
-                        << std::endl;
-
-                    continue;
-                }
-
-                const auto previous_utxos =
-                    rebuild_utxo_set(chain);
-
-                if (!validate_block_consensus(
-                        block,
-                        chain,
-                        previous_utxos)) {
-
-                    std::cerr
-                        << "[P2P] relay-check CONSENSUS_FAIL"
-                        << " received_height=" << block.header.height
-                        << " local_height=" << chain.back().header.height
-                        << " expected_previous="
-                        << hash_to_hex(chain.back().hash())
-                        << " received_previous="
-                        << hash_to_hex(block.header.previous_hash)
-                        << std::endl;
-
-                    throw std::runtime_error(
-                        "relayed block failed consensus validation");
-                }
-
-                storage_.append(block);
-            } catch (const std::exception& e) {
-                std::cerr
-                    << "[P2P] rejected relayed block at height "
-                    << block.header.height
-                    << ": " << e.what()
-                    << std::endl;
-                continue;
-            } catch (...) {
-                std::cerr
-                    << "[P2P] rejected relayed block at height "
-                    << block.header.height
-                    << ": unknown exception"
-                    << std::endl;
-                continue;
-            }
-
-            server_.peers().broadcast(
-                make_blocks_frame(block));
+            received.push_back(
+                Block::deserialize_full(data));
         }
 
         if (!reader.empty())
             throw std::runtime_error(
                 "trailing bytes in relayed blocks payload");
+
+        std::lock_guard<std::mutex> lock(
+            storage_mutex_);
+
+        if (!storage_.exists())
+            throw std::runtime_error(
+                "cannot process blocks without local chain");
+
+        const auto local_chain =
+            storage_.load();
+
+        if (local_chain.empty())
+            throw std::runtime_error(
+                "local blockchain is empty");
+
+        /*
+         * The sender returns blocks in height order.
+         * Sort defensively so the candidate construction does not
+         * depend on transport ordering.
+         */
+        std::sort(
+            received.begin(),
+            received.end(),
+            [](const Block& a, const Block& b) {
+                return a.header.height <
+                       b.header.height;
+            });
+
+        const Block& first =
+            received.front();
+
+        if (first.header.height == 0)
+            throw std::runtime_error(
+                "received genesis block is not processable");
+
+        /*
+         * Locate the local ancestor immediately preceding
+         * the received branch.
+         */
+        std::size_t ancestor_index = 0;
+        bool found_ancestor = false;
+
+        for (std::size_t i = 0;
+             i < local_chain.size();
+             ++i) {
+
+            if (local_chain[i].hash() ==
+                first.header.previous_hash) {
+
+                ancestor_index = i;
+                found_ancestor = true;
+                break;
+            }
+        }
+
+        if (!found_ancestor)
+            throw std::runtime_error(
+                "received block does not connect to local chain");
+
+        std::vector<Block> candidate;
+        candidate.reserve(
+            ancestor_index + 1 +
+            received.size());
+
+        candidate.insert(
+            candidate.end(),
+            local_chain.begin(),
+            local_chain.begin() +
+                static_cast<std::ptrdiff_t>(
+                    ancestor_index + 1));
+
+        for (const auto& block : received) {
+
+            const auto expected_height =
+                candidate.back().header.height + 1;
+
+            if (block.header.height !=
+                expected_height)
+                throw std::runtime_error(
+                    "received blocks are not sequential");
+
+            if (block.header.previous_hash !=
+                candidate.back().hash())
+                throw std::runtime_error(
+                    "received block has invalid previous hash");
+
+            const auto previous_utxos =
+                rebuild_utxo_set(candidate);
+
+            if (!validate_block_consensus(
+                    block,
+                    candidate,
+                    previous_utxos)) {
+
+                std::cerr
+                    << "[P2P] candidate CONSENSUS_FAIL"
+                    << " height="
+                    << block.header.height
+                    << " previous="
+                    << hash_to_hex(
+                        block.header.previous_hash)
+                    << std::endl;
+
+                throw std::runtime_error(
+                    "received block failed candidate consensus");
+            }
+
+            candidate.push_back(block);
+        }
+
+        const auto candidate_work =
+            calculate_chain_work(candidate);
+
+        const auto local_work =
+            calculate_chain_work(local_chain);
+
+        if (candidate_work <= local_work) {
+
+            std::cerr
+                << "[P2P] candidate rejected by chain-work rule"
+                << " local_height="
+                << local_chain.back().header.height
+                << " candidate_height="
+                << candidate.back().header.height
+                << std::endl;
+
+            return;
+        }
+
+        if (!storage_.replace_chain(candidate)) {
+
+            std::cerr
+                << "[P2P] replace_chain rejected candidate"
+                << std::endl;
+
+            return;
+        }
+
+        const bool was_reorg =
+            ancestor_index + 1 <
+            local_chain.size();
+
+        if (was_reorg) {
+
+            std::cerr
+                << "[P2P] REORG accepted"
+                << " ancestor_height="
+                << local_chain[
+                    ancestor_index].header.height
+                << " old_height="
+                << local_chain.back().header.height
+                << " new_height="
+                << candidate.back().header.height
+                << std::endl;
+
+        } else {
+
+            std::cerr
+                << "[P2P] chain extended"
+                << " height="
+                << candidate.back().header.height
+                << std::endl;
+        }
+
+        /*
+         * Relay only blocks that are now part of the canonical
+         * chain.  A losing candidate is never broadcast.
+         */
+        for (const auto& block : received)
+            server_.peers().broadcast(
+                make_blocks_frame(block));
     }
 
     P2PServer& server_;

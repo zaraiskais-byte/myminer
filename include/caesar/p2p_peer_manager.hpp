@@ -92,6 +92,25 @@ public:
         peers_.clear();
     }
 
+    void close_all_connections() noexcept {
+        std::vector<std::shared_ptr<P2PConnection>> connections;
+
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            connections.reserve(peers_.size());
+
+            for (const auto& [id, peer] : peers_) {
+                (void)id;
+                connections.push_back(peer.connection);
+            }
+        }
+
+        for (const auto& connection : connections) {
+            if (connection)
+                connection->close();
+        }
+    }
+
     void send_to(
         std::uint64_t id,
         const P2PFrame& frame) {

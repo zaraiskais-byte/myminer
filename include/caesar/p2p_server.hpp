@@ -93,6 +93,8 @@ public:
             local_hello_,
             local_hello_.network_id);
 
+        connection.clear_timeouts();
+
         return peers_.add_peer(
             std::move(connection),
             address,
@@ -106,12 +108,37 @@ public:
 
         running_ = false;
 
+        std::cerr
+            << "[P2P] stop: closing listener"
+            << std::endl;
+
         listener_.close();
 
-        if (accept_thread_.joinable())
+        std::cerr
+            << "[P2P] stop: listener closed"
+            << std::endl;
+
+        if (accept_thread_.joinable()) {
+            std::cerr
+                << "[P2P] stop: joining accept thread"
+                << std::endl;
+
             accept_thread_.join();
 
+            std::cerr
+                << "[P2P] stop: accept thread joined"
+                << std::endl;
+        }
+
+        std::cerr
+            << "[P2P] stop: clearing peers"
+            << std::endl;
+
         peers_.clear();
+
+        std::cerr
+            << "[P2P] stop: peers cleared"
+            << std::endl;
     }
 
     bool running() const noexcept {
@@ -216,6 +243,8 @@ private:
                     connection,
                     local_hello_,
                     local_hello_.network_id);
+
+                connection.clear_timeouts();
 
                 if (!running_) {
                     break;

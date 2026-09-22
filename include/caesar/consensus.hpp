@@ -218,6 +218,84 @@ inline bool mine_pow(
 }
 
 
+
+// Cumulative proof-of-work used for chain selection.
+//
+// CZR defines difficulty as the required number of leading zero bits.
+// Therefore a block at difficulty d represents an expected work of 2^d.
+// Six 64-bit limbs provide 384 bits, which is sufficient for the current
+// maximum chain length and leaves room for future growth.
+struct ChainWork {
+    static constexpr std::size_t LIMBS = 6;
+
+    std::array<std::uint64_t, LIMBS> limbs{};
+
+    friend bool operator==(const ChainWork& a, const ChainWork& b) noexcept {
+        return a.limbs == b.limbs;
+    }
+
+    friend bool operator!=(const ChainWork& a, const ChainWork& b) noexcept {
+        return !(a == b);
+    }
+
+    friend bool operator<(const ChainWork& a, const ChainWork& b) noexcept {
+        for (std::size_t i = LIMBS; i-- > 0;) {
+            if (a.limbs[i] != b.limbs[i])
+                return a.limbs[i] < b.limbs[i];
+        }
+        return false;
+    }
+
+    friend bool operator>(const ChainWork& a, const ChainWork& b) noexcept {
+        return b < a;
+    }
+
+    friend bool operator<=(const ChainWork& a, const ChainWork& b) noexcept {
+        return !(b < a);
+    }
+
+    friend bool operator>=(const ChainWork& a, const ChainWork& b) noexcept {
+        return !(a < b);
+    }
+
+    void add_power_of_two(std::uint32_t exponent) noexcept {
+        const std::size_t limb = exponent / 64;
+        const std::size_t bit = exponent % 64;
+
+        if (limb >= LIMBS)
+            return;
+
+        std::uint64_t value = std::uint64_t{1} << bit;
+
+        for (std::size_t i = limb; i < LIMBS && value != 0; ++i) {
+            const std::uint64_t old = limbs[i];
+            limbs[i] += value;
+
+            // Overflow means carry into the next limb.
+            value = (limbs[i] < old) ? 1 : 0;
+        }
+    }
+};
+
+inline ChainWork block_work(std::uint32_t difficulty) noexcept {
+    ChainWork work;
+
+    if (difficulty <= 256)
+        work.add_power_of_two(difficulty);
+
+    return work;
+}
+
+template <typename BlockRange>
+inline ChainWork calculate_chain_work(const BlockRange& chain) noexcept {
+    ChainWork total;
+
+    for (const auto& block : chain)
+        total.add_power_of_two(block.header.difficulty);
+
+    return total;
+}
+
 constexpr std::size_t CZR_DIFFICULTY_WINDOW = 11;
 constexpr std::uint64_t CZR_TARGET_BLOCK_TIME = 120;
 constexpr std::uint32_t CZR_MIN_DIFFICULTY = 0;
