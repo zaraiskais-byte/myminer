@@ -44,7 +44,8 @@ public:
         block.transactions.push_back(
             make_coinbase_transaction(
                 block.header.height,
-                miner_recipient));
+                miner_recipient,
+                block.header.height));
 
         for (const auto& entry :
              mempool.transactions()) {

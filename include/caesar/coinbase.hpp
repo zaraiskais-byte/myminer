@@ -79,6 +79,12 @@ inline Transaction make_coinbase_transaction(
 
     tx.inputs.push_back(input);
 
+    tx.coinbase_data.resize(sizeof(extra_nonce));
+    for (std::size_t i = 0; i < sizeof(extra_nonce); ++i) {
+        tx.coinbase_data[i] = static_cast<std::uint8_t>(
+            (extra_nonce >> (i * 8)) & 0xff);
+    }
+
     TransactionOutput output;
 
     output.amount =
@@ -87,18 +93,6 @@ inline Transaction make_coinbase_transaction(
     output.recipient = recipient;
 
     tx.outputs.push_back(output);
-
-    // Bind the block height and extra nonce into a
-    // deterministic second output only through the
-    // transaction's canonical data.
-    //
-    // The extra nonce is represented by an additional
-    // zero-value metadata-free output only when needed
-    // in future mining work. For now it is encoded by
-    // replacing the recipient suffix.
-    //
-    // Keep the transaction simple for this protocol stage.
-    (void)extra_nonce;
 
     return tx;
 }

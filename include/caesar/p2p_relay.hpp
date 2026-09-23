@@ -187,6 +187,10 @@ private:
                 handle_blocks(frame.payload);
                 break;
 
+            case P2PMessageType::GetBlocks:
+                handle_get_blocks(id, frame.payload);
+                break;
+
             case P2PMessageType::GetHeaders:
                 handle_get_headers(id, frame.payload);
                 break;
@@ -200,21 +204,79 @@ private:
         }
     }
 
+    static P2PFrame make_get_blocks_frame(
+        const std::vector<Hash256>& block_hashes) {
+
+        if (block_hashes.empty() || block_hashes.size() > 1024)
+            throw std::runtime_error(
+                "invalid block request count");
+
+        BinaryWriter writer;
+
+        writer.write_u32(
+            static_cast<std::uint32_t>(block_hashes.size()));
+
+        for (const auto& hash : block_hashes)
+            for (const auto byte : hash)
+                writer.write_u8(byte);
+
+        P2PFrame frame;
+        frame.type = P2PMessageType::GetBlocks;
+        frame.payload = writer.data();
+        return frame;
+    }
+
+    void request_blocks(
+        std::uint64_t id,
+        const std::vector<Hash256>& block_hashes) {
+
+        if (block_hashes.empty())
+            return;
+
+        auto connection =
+            server_.peers().connection(id);
+
+        if (!connection)
+            return;
+
+        constexpr std::size_t max_batch = 1024;
+
+        for (std::size_t offset = 0;
+             offset < block_hashes.size();
+             offset += max_batch) {
+
+            const std::size_t end =
+                std::min(
+                    offset + max_batch,
+                    block_hashes.size());
+
+            const std::vector<Hash256> batch(
+                block_hashes.begin() + offset,
+                block_hashes.begin() + end);
+
+            connection->send_frame(
+                make_get_blocks_frame(batch));
+        }
+    }
+
     void handle_headers(
         std::uint64_t id,
         const std::vector<std::uint8_t>& payload) {
-        (void)id;
 
         BinaryReader reader(payload);
 
         const std::uint32_t count =
             reader.read_u32();
 
-        if (count > 2000)
+        if (count == 0 || count > 2000)
             throw std::runtime_error(
-                "too many received headers");
+                "invalid received header count");
+
+        std::vector<BlockHeader> headers;
+        headers.reserve(count);
 
         for (std::uint32_t i = 0; i < count; ++i) {
+
             const std::uint32_t size =
                 reader.read_u32();
 
@@ -242,14 +304,68 @@ private:
             if (!validate_pow(
                     pow_header.serialize_binary(),
                     header.nonce,
-                    header.difficulty))
+                    header.difficulty)) {
                 throw std::runtime_error(
                     "invalid received header proof of work");
+            }
+
+            headers.push_back(header);
         }
 
         if (!reader.empty())
             throw std::runtime_error(
                 "trailing bytes in headers payload");
+
+        /*
+         * Headers are only useful if they form a direct extension
+         * of our current chain.  We deliberately do not append
+         * headers to storage: full blocks must arrive first.
+         */
+        if (!storage_.exists())
+            throw std::runtime_error(
+                "cannot process headers without local chain");
+
+        std::vector<Hash256> block_hashes;
+        block_hashes.reserve(headers.size());
+
+        {
+            std::lock_guard<std::mutex> lock(storage_mutex_);
+
+            const auto chain = storage_.load();
+
+            if (chain.empty())
+                throw std::runtime_error(
+                    "cannot process headers on empty chain");
+
+            const Block& tip = chain.back();
+
+            Hash256 previous_hash = tip.hash();
+            std::uint64_t expected_height =
+                tip.header.height + 1;
+
+            for (const auto& header : headers) {
+
+                if (header.height != expected_height)
+                    throw std::runtime_error(
+                        "received header height is not sequential");
+
+                if (header.previous_hash != previous_hash)
+                    throw std::runtime_error(
+                        "received header does not extend local tip");
+
+                block_hashes.push_back(header.hash());
+
+                previous_hash = header.hash();
+                ++expected_height;
+            }
+        }
+
+        /*
+         * We have now authenticated the header chain and know
+         * exactly which full blocks are missing.  Request them
+         * explicitly by hash.
+         */
+        request_blocks(id, block_hashes);
     }
 
     void handle_get_headers(
@@ -334,6 +450,103 @@ private:
         response.payload = writer.data();
 
         auto connection = server_.peers().connection(id);
+        if (connection)
+            connection->send_frame(response);
+    }
+
+    void handle_get_blocks(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        BinaryReader reader(payload);
+
+        const std::uint32_t count =
+            reader.read_u32();
+
+        if (count == 0 || count > 1024)
+            throw std::runtime_error(
+                "invalid getblocks request count");
+
+        std::vector<Hash256> requested;
+        requested.reserve(count);
+
+        for (std::uint32_t i = 0; i < count; ++i) {
+
+            Hash256 hash{};
+
+            for (auto& byte : hash)
+                byte = reader.read_u8();
+
+            requested.push_back(hash);
+        }
+
+        if (!reader.empty())
+            throw std::runtime_error(
+                "trailing bytes in getblocks payload");
+
+        if (!storage_.exists())
+            return;
+
+        std::lock_guard<std::mutex> lock(storage_mutex_);
+
+        const auto chain = storage_.load();
+
+        if (chain.empty())
+            return;
+
+        BinaryWriter writer;
+
+        /*
+         * Resolve requested hashes against the local canonical chain.
+         * Only known blocks are returned.
+         */
+        std::vector<const Block*> blocks;
+        blocks.reserve(requested.size());
+
+        for (const auto& requested_hash : requested) {
+
+            for (const auto& block : chain) {
+
+                if (block.hash() == requested_hash) {
+                    blocks.push_back(&block);
+                    break;
+                }
+            }
+        }
+
+        if (blocks.empty())
+            return;
+
+        writer.write_u32(
+            static_cast<std::uint32_t>(blocks.size()));
+
+        for (const Block* block : blocks) {
+
+            const auto encoded =
+                block->serialize_full_binary();
+
+            if (encoded.empty() ||
+                encoded.size() > CZR_P2P_MAX_PAYLOAD ||
+                encoded.size() >
+                    std::numeric_limits<std::uint32_t>::max()) {
+                throw std::runtime_error(
+                    "block too large for getblocks response");
+            }
+
+            writer.write_u32(
+                static_cast<std::uint32_t>(
+                    encoded.size()));
+
+            writer.write_bytes(encoded);
+        }
+
+        P2PFrame response;
+        response.type = P2PMessageType::Blocks;
+        response.payload = writer.data();
+
+        auto connection =
+            server_.peers().connection(id);
+
         if (connection)
             connection->send_frame(response);
     }

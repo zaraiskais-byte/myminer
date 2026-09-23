@@ -67,6 +67,27 @@ int main() {
         std::cout
             << "[PASS] Valid coinbase accepted\n";
 
+        Transaction nonce_a =
+            make_coinbase_transaction(
+                1,
+                "CZ1-miner",
+                1);
+
+        Transaction nonce_b =
+            make_coinbase_transaction(
+                1,
+                "CZ1-miner",
+                2);
+
+        if (nonce_a.txid() == nonce_b.txid()) {
+            std::cerr
+                << "[FAIL] Different coinbase extra_nonce values kept the same TXID\\n";
+            return EXIT_FAILURE;
+        }
+
+        std::cout
+            << "[PASS] Coinbase extra_nonce changes TXID\n";
+
         Transaction oversized =
             coinbase;
 

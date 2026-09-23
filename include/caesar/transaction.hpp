@@ -94,6 +94,7 @@ struct TransactionOutput {
 
 struct Transaction {
     std::uint32_t version{1};
+    std::vector<std::uint8_t> coinbase_data;
     std::vector<TransactionInput> inputs;
     std::vector<TransactionOutput> outputs;
     TransactionWitnessSet witness;
@@ -123,6 +124,12 @@ struct Transaction {
         BinaryWriter writer;
 
         writer.write_u32(version);
+
+        if (coinbase_data.size() > 128)
+            throw std::runtime_error("coinbase data too large");
+
+        writer.write_u32(static_cast<std::uint32_t>(coinbase_data.size()));
+        writer.write_bytes(coinbase_data);
 
         if (inputs.size() >
             static_cast<std::size_t>(UINT32_MAX)) {
@@ -188,6 +195,11 @@ struct Transaction {
 
         tx.version = reader.read_u32();
 
+        const std::uint32_t coinbase_data_size = reader.read_u32();
+        if (coinbase_data_size > 128)
+            throw std::runtime_error("coinbase data too large");
+        tx.coinbase_data = reader.read_bytes(coinbase_data_size);
+
         const std::uint32_t input_count = reader.read_u32();
         if (input_count > 1000000)
             throw std::runtime_error("too many transaction inputs");
@@ -234,6 +246,12 @@ struct Transaction {
 
         tx.version =
             reader.read_u32();
+
+        const std::uint32_t coinbase_data_size =
+            reader.read_u32();
+        if (coinbase_data_size > 128)
+            throw std::runtime_error("coinbase data too large");
+        tx.coinbase_data = reader.read_bytes(coinbase_data_size);
 
         const std::uint32_t input_count =
             reader.read_u32();
