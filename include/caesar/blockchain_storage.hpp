@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <caesar/block.hpp>
+#include <caesar/chain_validator.hpp>
 #include <caesar/crypto.hpp>
 
 namespace caesar {
@@ -30,7 +31,7 @@ public:
         if (chain.empty())
             throw std::runtime_error("cannot save empty blockchain");
 
-        if (!validate_block_chain(chain))
+        if (!validate_candidate_chain(chain))
             throw std::runtime_error("refusing to save invalid blockchain");
 
         const auto temp = path_.string() + ".tmp";
@@ -117,9 +118,9 @@ public:
             throw std::runtime_error(
                 "trailing bytes after blockchain storage");
 
-        if (!validate_block_chain(chain))
+        if (!validate_candidate_chain(chain))
             throw std::runtime_error(
-                "stored blockchain failed validation");
+                "stored blockchain failed canonical validation");
 
         return chain;
     }
