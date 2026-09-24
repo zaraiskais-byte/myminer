@@ -40,7 +40,7 @@ struct P2PFrame {
 
         const auto raw_type = reader.read_u8();
 
-        if (raw_type == 0 || raw_type > 11)
+        if (raw_type == 0 || raw_type > 13)
             throw std::runtime_error("Invalid P2P message type");
 
         if (reader.remaining() != payload_size)

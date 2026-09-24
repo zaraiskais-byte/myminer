@@ -58,20 +58,28 @@ public:
                     "failed while writing blockchain storage");
         }
 
+        // On the target platform (Linux/Termux), rename() replaces the
+        // destination atomically. Never remove the existing canonical file
+        // as a fallback: if replacement fails, the old chain must remain.
         std::error_code ec;
         std::filesystem::rename(temp, path_, ec);
 
         if (ec) {
-            std::filesystem::remove(path_, ec);
-            ec.clear();
-            std::filesystem::rename(temp, path_, ec);
-        }
+            std::error_code cleanup_ec;
+            std::filesystem::remove(temp, cleanup_ec);
 
-        if (ec) {
-            std::filesystem::remove(temp, ec);
             throw std::runtime_error(
-                "failed to replace blockchain storage");
+                "failed to atomically replace blockchain storage: " +
+                ec.message());
         }
+    }
+
+    // Explicit full-chain replacement API.
+    //
+    // Validation and complete serialization happen before the final rename.
+    // The existing canonical file is never removed as a fallback.
+    void replace(const std::vector<Block>& chain) const {
+        save(chain);
     }
 
     std::vector<Block> load() const {

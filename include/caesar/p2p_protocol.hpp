@@ -15,7 +15,9 @@ enum class P2PMessageType : std::uint8_t {
     GetMempool = 8,
     Transaction = 9,
     GetTransaction = 10,
-    Reject = 11
+    Reject = 11,
+    GetSyncBlocks = 12,
+    SyncBlocks = 13
 };
 
 inline const char* p2p_message_name(
@@ -44,6 +46,10 @@ inline const char* p2p_message_name(
             return "gettransaction";
         case P2PMessageType::Reject:
             return "reject";
+        case P2PMessageType::GetSyncBlocks:
+            return "getsyncblocks";
+        case P2PMessageType::SyncBlocks:
+            return "syncblocks";
     }
 
     return "unknown";

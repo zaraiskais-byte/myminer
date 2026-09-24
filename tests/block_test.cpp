@@ -99,7 +99,7 @@ int main() {
         block1.header.previous_hash =
             genesis_hash;
         block1.header.timestamp = 1060;
-        block1.header.nonce = 42;
+        block1.header.nonce = 0;
         block1.header.difficulty = 1;
 
         block1.transactions.push_back(
@@ -116,6 +116,14 @@ int main() {
                 3000));
 
         block1.update_merkle_root();
+
+        std::uint64_t found_nonce = 0;
+        Hash256 found_hash{};
+        if (!mine_pow(block1.pow_header(), block1.header.difficulty,
+                      0, 1000000, found_nonce, found_hash)) {
+            throw std::runtime_error("failed to mine test block 1");
+        }
+        block1.header.nonce = found_nonce;
 
         if (!block1.validate_basic()) {
             std::cerr

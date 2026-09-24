@@ -1,11 +1,15 @@
 #pragma once
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <mutex>
+#include <random>
 #include <stdexcept>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 #include <caesar/block.hpp>
@@ -14,6 +18,8 @@
 #include <caesar/p2p_frame.hpp>
 #include <caesar/p2p_peer_manager.hpp>
 #include <caesar/p2p_protocol.hpp>
+#include <caesar/chain_replacement.hpp>
+#include <caesar/p2p_sync_protocol.hpp>
 #include <caesar/p2p_server.hpp>
 #include <caesar/serialization.hpp>
 
@@ -24,11 +30,19 @@ namespace caesar {
 //   count * [u32 block_size][block_size bytes (Block::serialize_full_binary)]
 class P2PRelay {
 public:
+    using ChainReplacementCallback =
+        std::function<bool(const std::vector<Block>&)>;
+
     P2PRelay(
         P2PServer& server,
         BlockchainStorage& storage)
         : server_(server),
           storage_(storage) {}
+
+    void set_chain_replacement_callback(
+        ChainReplacementCallback callback) {
+        chain_replacement_callback_ = std::move(callback);
+    }
 
     ~P2PRelay() { stop(); }
 
@@ -66,6 +80,11 @@ public:
             if (t.joinable())
                 t.join();
         }
+
+        {
+            std::lock_guard<std::mutex> lock(pending_mutex_);
+            pending_chain_syncs_.clear();
+        }
     }
 
     void announce_block(const Block& block) {
@@ -74,6 +93,13 @@ public:
     }
 
 private:
+    struct PendingChainSync {
+        P2PSyncSessionId session_id;
+        std::vector<BlockHeader> headers;
+        std::vector<Block> blocks;
+        std::vector<bool> received;
+    };
+
     static P2PFrame make_blocks_frame(
         const Block& block) {
 
@@ -121,6 +147,66 @@ private:
         return frame;
     }
 
+    static P2PSyncSessionId make_sync_session_id() {
+        std::random_device rd;
+
+        const std::uint64_t high =
+            (static_cast<std::uint64_t>(rd()) << 32) |
+            static_cast<std::uint64_t>(rd());
+
+        const std::uint64_t low =
+            (static_cast<std::uint64_t>(rd()) << 32) |
+            static_cast<std::uint64_t>(rd());
+
+        P2PSyncSessionId session{high, low};
+
+        if (session.high == 0 && session.low == 0)
+            session.low = 1;
+
+        return session;
+    }
+
+    void request_sync_blocks(
+        std::uint64_t id,
+        const P2PSyncSessionId& session_id,
+        const std::vector<Hash256>& block_hashes) {
+
+        if (block_hashes.empty())
+            return;
+
+        auto connection =
+            server_.peers().connection(id);
+
+        if (!connection)
+            return;
+
+        constexpr std::size_t max_batch = 1024;
+
+        for (std::size_t offset = 0;
+             offset < block_hashes.size();
+             offset += max_batch) {
+
+            const std::size_t end =
+                std::min(
+                    offset + max_batch,
+                    block_hashes.size());
+
+            GetSyncBlocksMessage message;
+            message.session_id = session_id;
+            message.block_hashes.assign(
+                block_hashes.begin() + offset,
+                block_hashes.begin() + end);
+
+            P2PFrame frame;
+            frame.type =
+                P2PMessageType::GetSyncBlocks;
+            frame.payload =
+                message.serialize_binary();
+
+            connection->send_frame(frame);
+        }
+    }
+
     void request_headers(std::uint64_t id) {
         auto connection = server_.peers().connection(id);
         if (!connection)
@@ -134,7 +220,26 @@ private:
             return;
 
         std::vector<Hash256> locators;
-        locators.push_back(chain.back().hash());
+        locators.reserve(32);
+
+        std::size_t index = chain.size() - 1;
+        std::size_t step = 1;
+
+        while (true) {
+            locators.push_back(chain[index].hash());
+
+            if (index == 0 || locators.size() == 32)
+                break;
+
+            const std::size_t next_index =
+                (index > step) ? index - step : 0;
+
+            index = next_index;
+
+            if (locators.size() >= 10 &&
+                step <= (std::numeric_limits<std::size_t>::max() / 2))
+                step *= 2;
+        }
 
         connection->send_frame(
             make_get_headers_frame(locators));
@@ -175,6 +280,11 @@ private:
             }
         }
 
+        {
+            std::lock_guard<std::mutex> lock(pending_mutex_);
+            pending_chain_syncs_.erase(id);
+        }
+
         if (server_.peers().contains(id))
             server_.peers().remove_peer(id);
     }
@@ -184,7 +294,15 @@ private:
         switch (frame.type) {
 
             case P2PMessageType::Blocks:
-                handle_blocks(frame.payload);
+                handle_blocks(id, frame.payload);
+                break;
+
+            case P2PMessageType::GetSyncBlocks:
+                handle_get_sync_blocks(id, frame.payload);
+                break;
+
+            case P2PMessageType::SyncBlocks:
+                handle_sync_blocks(id, frame.payload);
                 break;
 
             case P2PMessageType::GetBlocks:
@@ -317,9 +435,11 @@ private:
                 "trailing bytes in headers payload");
 
         /*
-         * Headers are only useful if they form a direct extension
-         * of our current chain.  We deliberately do not append
-         * headers to storage: full blocks must arrive first.
+         * Headers may either extend our current tip directly or
+         * describe a competing fork rooted at a known local block.
+         *
+         * Headers are authenticated here, but full consensus validation
+         * remains deferred until the complete blocks are assembled.
          */
         if (!storage_.exists())
             throw std::runtime_error(
@@ -327,6 +447,8 @@ private:
 
         std::vector<Hash256> block_hashes;
         block_hashes.reserve(headers.size());
+
+        bool direct_extension = false;
 
         {
             std::lock_guard<std::mutex> lock(storage_mutex_);
@@ -339,31 +461,101 @@ private:
 
             const Block& tip = chain.back();
 
-            Hash256 previous_hash = tip.hash();
-            std::uint64_t expected_height =
-                tip.header.height + 1;
+            direct_extension =
+                headers.front().previous_hash == tip.hash();
 
-            for (const auto& header : headers) {
+            if (direct_extension) {
+                Hash256 previous_hash = tip.hash();
+                std::uint64_t expected_height =
+                    tip.header.height + 1;
 
-                if (header.height != expected_height)
+                for (const auto& header : headers) {
+                    if (header.height != expected_height)
+                        throw std::runtime_error(
+                            "received header height is not sequential");
+
+                    if (header.previous_hash != previous_hash)
+                        throw std::runtime_error(
+                            "received header does not extend local tip");
+
+                    block_hashes.push_back(header.hash());
+                    previous_hash = header.hash();
+                    ++expected_height;
+                }
+            } else {
+                bool common_ancestor_found = false;
+
+                for (const auto& local_block : chain) {
+                    if (local_block.hash() ==
+                        headers.front().previous_hash) {
+                        common_ancestor_found = true;
+                        break;
+                    }
+                }
+
+                if (!common_ancestor_found)
                     throw std::runtime_error(
-                        "received header height is not sequential");
+                        "received fork has no known common ancestor");
 
-                if (header.previous_hash != previous_hash)
-                    throw std::runtime_error(
-                        "received header does not extend local tip");
+                Hash256 previous_hash =
+                    headers.front().previous_hash;
 
-                block_hashes.push_back(header.hash());
+                std::uint64_t expected_height =
+                    headers.front().height;
 
-                previous_hash = header.hash();
-                ++expected_height;
+                for (const auto& header : headers) {
+                    if (header.height != expected_height)
+                        throw std::runtime_error(
+                            "received fork header height is not sequential");
+
+                    if (header.previous_hash != previous_hash)
+                        throw std::runtime_error(
+                            "received fork header does not link sequentially");
+
+                    block_hashes.push_back(header.hash());
+                    previous_hash = header.hash();
+                    ++expected_height;
+                }
             }
         }
 
+        if (!direct_extension) {
+            const P2PSyncSessionId session_id =
+                make_sync_session_id();
+
+            {
+                std::lock_guard<std::mutex> lock(
+                    pending_mutex_);
+
+                PendingChainSync pending;
+                pending.session_id = session_id;
+                pending.headers = headers;
+                pending.blocks.resize(headers.size());
+                pending.received.assign(
+                    headers.size(),
+                    false);
+
+                pending_chain_syncs_[id] =
+                    std::move(pending);
+            }
+
+            /*
+             * Fork synchronization uses a session-aware wire path.
+             * A later Headers response replaces the pending session;
+             * responses carrying the old session id can therefore
+             * never be attached to the new session.
+             */
+            request_sync_blocks(
+                id,
+                session_id,
+                block_hashes);
+
+            return;
+        }
+
         /*
-         * We have now authenticated the header chain and know
-         * exactly which full blocks are missing.  Request them
-         * explicitly by hash.
+         * Direct extension keeps the existing GetBlocks/Blocks
+         * path. This preserves ordinary block relay semantics.
          */
         request_blocks(id, block_hashes);
     }
@@ -551,7 +743,246 @@ private:
             connection->send_frame(response);
     }
 
+    void handle_get_sync_blocks(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        const GetSyncBlocksMessage request =
+            GetSyncBlocksMessage::deserialize_binary(
+                payload);
+
+        if (!storage_.exists())
+            throw std::runtime_error(
+                "cannot serve sync blocks without local chain");
+
+        const auto chain = storage_.load();
+
+        std::vector<Block> requested;
+        requested.reserve(
+            request.block_hashes.size());
+
+        for (const auto& hash :
+             request.block_hashes) {
+
+            const auto it =
+                std::find_if(
+                    chain.begin(),
+                    chain.end(),
+                    [&](const Block& block) {
+                        return block.hash() == hash;
+                    });
+
+            if (it == chain.end())
+                throw std::runtime_error(
+                    "requested sync block is not on canonical chain");
+
+            requested.push_back(*it);
+        }
+
+        auto connection =
+            server_.peers().connection(id);
+
+        if (!connection)
+            return;
+
+        SyncBlocksMessage response;
+        response.session_id =
+            request.session_id;
+
+        for (const auto& block : requested) {
+            const auto encoded =
+                block.serialize_full_binary();
+
+            if (encoded.empty() ||
+                encoded.size() >
+                    static_cast<std::size_t>(
+                        CZR_P2P_MAX_PAYLOAD)) {
+                throw std::runtime_error(
+                    "sync block exceeds payload limit");
+            }
+
+            /*
+             * Keep every SyncBlocks frame below the P2P frame
+             * payload limit. A session may therefore receive
+             * multiple responses with the same session id.
+             */
+            if (!response.blocks.empty()) {
+                const std::size_t projected =
+                    16 + 4 +
+                    response.blocks.size() * 4;
+
+                std::size_t total =
+                    projected;
+
+                for (const auto& existing :
+                     response.blocks)
+                    total += existing.size();
+
+                total += 4 + encoded.size();
+
+                if (total >
+                    static_cast<std::size_t>(
+                        CZR_P2P_MAX_PAYLOAD)) {
+
+                    P2PFrame frame;
+                    frame.type =
+                        P2PMessageType::SyncBlocks;
+                    frame.payload =
+                        response.serialize_binary();
+
+                    connection->send_frame(frame);
+
+                    response.blocks.clear();
+                }
+            }
+
+            response.blocks.push_back(encoded);
+        }
+
+        if (!response.blocks.empty()) {
+            P2PFrame frame;
+            frame.type =
+                P2PMessageType::SyncBlocks;
+            frame.payload =
+                response.serialize_binary();
+
+            connection->send_frame(frame);
+        }
+    }
+
+    void handle_sync_blocks(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        const SyncBlocksMessage message =
+            SyncBlocksMessage::deserialize_binary(
+                payload);
+
+        std::vector<BlockHeader> headers;
+        std::vector<Block> blocks;
+        bool complete = false;
+
+        {
+            std::lock_guard<std::mutex> lock(
+                pending_mutex_);
+
+            auto pending_it =
+                pending_chain_syncs_.find(id);
+
+            /*
+             * A response for a completed/replaced session is stale.
+             * It is deliberately ignored rather than being interpreted
+             * as ordinary block relay.
+             */
+            if (pending_it ==
+                pending_chain_syncs_.end()) {
+                return;
+            }
+
+            auto& pending =
+                pending_it->second;
+
+            if (pending.session_id !=
+                message.session_id) {
+                return;
+            }
+
+            for (const auto& encoded :
+                 message.blocks) {
+
+                const Block block =
+                    Block::deserialize_full(encoded);
+
+                std::size_t index =
+                    pending.headers.size();
+
+                for (std::size_t i = 0;
+                     i < pending.headers.size();
+                     ++i) {
+
+                    if (pending.headers[i].hash() ==
+                        block.hash()) {
+                        index = i;
+                        break;
+                    }
+                }
+
+                if (index == pending.headers.size())
+                    throw std::runtime_error(
+                        "sync block was not requested");
+
+                if (pending.received[index])
+                    throw std::runtime_error(
+                        "duplicate sync block");
+
+                if (block.header.hash() !=
+                    pending.headers[index].hash())
+                    throw std::runtime_error(
+                        "sync block header mismatch");
+
+                pending.blocks[index] = block;
+                pending.received[index] = true;
+            }
+
+            complete =
+                std::all_of(
+                    pending.received.begin(),
+                    pending.received.end(),
+                    [](bool value) {
+                        return value;
+                    });
+
+            if (complete) {
+                headers = pending.headers;
+                blocks = pending.blocks;
+                pending_chain_syncs_.erase(
+                    pending_it);
+            }
+        }
+
+        if (!complete)
+            return;
+
+        std::vector<Block> current;
+
+        {
+            std::lock_guard<std::mutex> lock(
+                storage_mutex_);
+
+            if (!storage_.exists())
+                throw std::runtime_error(
+                    "cannot assemble sync candidate without local chain");
+
+            current = storage_.load();
+        }
+
+        const auto candidate =
+            assemble_candidate_chain(
+                current,
+                headers,
+                blocks);
+
+        if (!candidate)
+            throw std::runtime_error(
+                "failed to assemble sync candidate");
+
+        ChainReplacementCallback callback;
+
+        {
+            std::lock_guard<std::mutex> lock(
+                pending_mutex_);
+
+            callback =
+                chain_replacement_callback_;
+        }
+
+        if (callback && !callback(*candidate))
+            throw std::runtime_error(
+                "sync candidate was rejected");
+    }
+
     void handle_blocks(
+        std::uint64_t id,
         const std::vector<std::uint8_t>& payload) {
 
         BinaryReader reader(payload);
@@ -577,6 +1008,7 @@ private:
 
             const Block block =
                 Block::deserialize_full(data);
+
 
             try {
                 std::lock_guard<std::mutex> lock(storage_mutex_);
@@ -613,6 +1045,7 @@ private:
 
     P2PServer& server_;
     BlockchainStorage& storage_;
+    ChainReplacementCallback chain_replacement_callback_;
 
     std::atomic<bool> running_{false};
 
@@ -620,6 +1053,11 @@ private:
     std::vector<std::thread> threads_;
 
     std::mutex storage_mutex_;
+
+    mutable std::mutex pending_mutex_;
+    std::unordered_map<
+        std::uint64_t,
+        PendingChainSync> pending_chain_syncs_;
 };
 
 } // namespace caesar

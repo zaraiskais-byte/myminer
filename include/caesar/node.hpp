@@ -11,8 +11,10 @@
 #include <vector>
 
 #include <caesar/block_builder.hpp>
+#include <caesar/chain_replacement.hpp>
 #include <caesar/blockchain_storage.hpp>
 #include <caesar/mempool.hpp>
+#include <caesar/ownership.hpp>
 #include <caesar/p2p_relay.hpp>
 #include <caesar/p2p_server.hpp>
 
@@ -29,7 +31,12 @@ public:
           storage_(chain_path_),
           p2p_port_(p2p_port),
           network_id_(network_id),
-          relay_(server_, storage_) {}
+          relay_(server_, storage_) {
+        relay_.set_chain_replacement_callback(
+            [this](const std::vector<Block>& candidate) {
+                return replace_chain(candidate);
+            });
+    }
 
     ~CaesarNode() {
         stop();
@@ -95,6 +102,32 @@ public:
             current.back().header.height);
     }
 
+    bool replace_chain(const std::vector<Block>& candidate) {
+        if (!running_)
+            throw std::runtime_error(
+                "cannot replace chain while node is stopped");
+
+        std::lock_guard<std::mutex> lock(chain_mutex_);
+
+        const auto current = storage_.load();
+
+        auto plan =
+            prepare_chain_replacement(
+                current,
+                candidate);
+
+        if (!plan)
+            return false;
+
+        // Persistence succeeds before the in-memory operation can
+        // report success. The candidate has already been fully
+        // validated and its UTXO set rebuilt by prepare_chain_replacement().
+        storage_.replace(plan->chain);
+
+        return true;
+    }
+
+
     std::size_t peer_count() const noexcept {
         return server_.peer_count();
     }
@@ -120,6 +153,48 @@ public:
         return mempool_;
     }
 
+    MempoolValidationResult accept_transaction(
+        const Transaction& tx) {
+
+        if (!running_)
+            throw std::runtime_error(
+                "cannot accept transaction while node is stopped");
+
+        std::lock_guard<std::mutex> chain_lock(
+            chain_mutex_);
+
+        const auto current_chain =
+            storage_.load();
+
+        if (current_chain.empty())
+            throw std::runtime_error(
+                "cannot accept transaction on empty blockchain");
+
+        const UTXOSet utxos =
+            rebuild_utxo_set(current_chain);
+
+        if (is_coinbase_transaction(tx)) {
+            return {
+                MempoolRejectReason::InvalidTransaction
+            };
+        }
+
+        if (!validate_transaction_witness(
+                tx,
+                utxos)) {
+            return {
+                MempoolRejectReason::InvalidTransaction
+            };
+        }
+
+        std::lock_guard<std::mutex> mempool_lock(
+            mempool_mutex_);
+
+        return mempool_.accept(
+            tx,
+            utxos);
+    }
+
     void mine_one_block(
         const std::string& miner_recipient,
         std::uint64_t max_attempts = 1000000) {
@@ -132,7 +207,11 @@ public:
             throw std::runtime_error(
                 "miner recipient is empty");
 
-        std::lock_guard<std::mutex> lock(chain_mutex_);
+        std::lock_guard<std::mutex> chain_lock(
+            chain_mutex_);
+
+        std::lock_guard<std::mutex> mempool_lock(
+            mempool_mutex_);
 
         auto current_chain = storage_.load();
 
@@ -241,6 +320,7 @@ private:
 
     mutable std::mutex chain_mutex_;
     mutable std::mutex lifecycle_mutex_;
+    mutable std::mutex mempool_mutex_;
 
     BlockchainStorage storage_;
     Mempool mempool_;

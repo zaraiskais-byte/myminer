@@ -277,6 +277,128 @@ inline bool validate_block_consensus(
         chain);
 }
 
+
+inline bool validate_candidate_chain(
+    const std::vector<Block>& candidate) {
+
+    if (candidate.empty())
+        return false;
+
+    const Block& genesis = candidate.front();
+
+    if (genesis.header.height != 0)
+        return false;
+
+    if (!genesis.validate_basic())
+        return false;
+
+    if (genesis.header.previous_hash != Hash256{})
+        return false;
+
+    if (genesis.header.difficulty != 0)
+        return false;
+
+    UTXOSet utxos;
+    std::uint64_t total_issued = 0;
+
+    for (std::size_t i = 1; i < candidate.size(); ++i) {
+        const Block& block = candidate[i];
+        const Block& previous = candidate[i - 1];
+
+        if (block.header.height !=
+            previous.header.height + 1)
+            return false;
+
+        if (block.header.previous_hash !=
+            previous.hash())
+            return false;
+
+        if (block.header.timestamp <
+            previous.header.timestamp)
+            return false;
+
+        bool structural_valid = false;
+
+        if (i < CZR_DIFFICULTY_WINDOW + 1) {
+            const std::uint32_t expected_difficulty =
+                (previous.header.height == 0 &&
+                 previous.header.difficulty == 0)
+                    ? CZR_INITIAL_MINING_DIFFICULTY
+                    : previous.header.difficulty;
+
+            structural_valid =
+                block.validate_basic() &&
+                block.header.difficulty ==
+                    expected_difficulty;
+        } else {
+            std::vector<std::uint64_t> intervals;
+            intervals.reserve(CZR_DIFFICULTY_WINDOW);
+
+            const std::size_t previous_index = i - 1;
+            const std::size_t first =
+                previous_index + 1 - CZR_DIFFICULTY_WINDOW;
+
+            for (std::size_t j = first;
+                 j <= previous_index;
+                 ++j) {
+
+                if (j == 0)
+                    return false;
+
+                const std::uint64_t current_time =
+                    candidate[j].header.timestamp;
+
+                const std::uint64_t previous_time =
+                    candidate[j - 1].header.timestamp;
+
+                if (current_time < previous_time)
+                    return false;
+
+                intervals.push_back(
+                    current_time - previous_time);
+            }
+
+            structural_valid =
+                block.validate_basic() &&
+                block.header.difficulty ==
+                    adjust_difficulty_window(
+                        previous.header.difficulty,
+                        intervals);
+        }
+
+        if (!structural_valid)
+            return false;
+
+        if (block.transactions.empty())
+            return false;
+
+        const Transaction& coinbase =
+            block.transactions.front();
+
+        if (!is_coinbase_transaction(coinbase))
+            return false;
+
+        for (const auto& output : coinbase.outputs) {
+            if (output.amount >
+                CZR_MAX_SUPPLY - total_issued)
+                return false;
+
+            total_issued += output.amount;
+        }
+
+        try {
+            utxos = apply_block_transactions(
+                block,
+                utxos);
+        }
+        catch (...) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 inline UTXOSet rebuild_utxo_set(
     const std::vector<Block>& chain) {
 

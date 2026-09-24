@@ -432,3 +432,141 @@ add_test(
     NAME CaesarChainSyncTest
     COMMAND caesar_chain_sync_test
 )
+
+
+add_executable(caesar_chain_work_test
+    tests/chain_work_test.cpp
+)
+target_include_directories(caesar_chain_work_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_chain_work_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarChainWorkTest
+    COMMAND caesar_chain_work_test
+)
+
+add_executable(caesar_chain_replacement_test
+    tests/chain_replacement_test.cpp
+)
+target_include_directories(caesar_chain_replacement_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_chain_replacement_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarChainReplacementTest
+    COMMAND caesar_chain_replacement_test
+)
+
+add_executable(caesar_chain_replacement_prepare_test
+    tests/chain_replacement_prepare_test.cpp
+)
+target_include_directories(caesar_chain_replacement_prepare_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_chain_replacement_prepare_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarChainReplacementPrepareTest
+    COMMAND caesar_chain_replacement_prepare_test
+)
+
+add_executable(caesar_candidate_chain_validation_test
+    tests/candidate_chain_validation_test.cpp
+)
+
+target_include_directories(caesar_candidate_chain_validation_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_candidate_chain_validation_test PRIVATE
+    crypto
+    pthread
+)
+
+add_test(
+    NAME CaesarCandidateChainValidationTest
+    COMMAND caesar_candidate_chain_validation_test
+)
+
+add_executable(caesar_node_chain_replacement_test
+    tests/node_chain_replacement_test.cpp
+)
+target_include_directories(caesar_node_chain_replacement_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_node_chain_replacement_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarNodeChainReplacementTest
+    COMMAND caesar_node_chain_replacement_test
+)
+
+add_executable(caesar_chain_candidate_assembly_test
+    tests/chain_candidate_assembly_test.cpp
+)
+target_include_directories(caesar_chain_candidate_assembly_test
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_chain_candidate_assembly_test
+    PRIVATE crypto pthread
+)
+add_test(
+    NAME CaesarChainCandidateAssemblyTest
+    COMMAND caesar_chain_candidate_assembly_test
+)
+
+add_executable(caesar_p2p_fork_reorg_test
+    tests/p2p_fork_reorg_test.cpp
+)
+target_include_directories(caesar_p2p_fork_reorg_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_p2p_fork_reorg_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarP2PForkReorgTest
+    COMMAND caesar_p2p_fork_reorg_test
+)
+
+add_executable(caesar_chain_replacement_rejection_test
+    tests/chain_replacement_rejection_test.cpp
+)
+target_include_directories(caesar_chain_replacement_rejection_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_chain_replacement_rejection_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarChainReplacementRejectionTest
+    COMMAND caesar_chain_replacement_rejection_test
+)
+
+add_executable(caesar_p2p_sync_protocol_test
+    tests/p2p_sync_protocol_test.cpp
+)
+target_include_directories(caesar_p2p_sync_protocol_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_p2p_sync_protocol_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarP2PSyncProtocolTest
+    COMMAND caesar_p2p_sync_protocol_test
+)
