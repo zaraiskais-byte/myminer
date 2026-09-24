@@ -18,7 +18,8 @@ public:
         const std::string& miner_recipient,
         std::uint64_t timestamp,
         std::uint32_t difficulty,
-        std::uint64_t nonce = 0) {
+        std::uint64_t nonce = 0,
+        const UTXOSet* chain_utxos = nullptr) {
 
         if (miner_recipient.empty())
             throw std::runtime_error(
@@ -45,11 +46,20 @@ public:
                 miner_recipient,
                 block.header.height));
 
-        for (const auto& entry :
-             mempool.transactions()) {
+        if (chain_utxos) {
+            const auto ordered =
+                mempool.ordered_transactions(
+                    *chain_utxos);
 
-            block.transactions.push_back(
-                entry.second);
+            for (const auto& tx : ordered)
+                block.transactions.push_back(tx);
+        } else {
+            for (const auto& entry :
+                 mempool.transactions()) {
+
+                block.transactions.push_back(
+                    entry.second);
+            }
         }
 
         block.update_merkle_root();

@@ -17,7 +17,9 @@ enum class MempoolRejectReason {
     DuplicateInput,
     DoubleSpend,
     OutputOverflow,
-    InsufficientInputValue
+    InsufficientInputValue,
+    TransactionTooLarge,
+    MempoolFull
 };
 
 struct MempoolValidationResult {
@@ -147,6 +149,12 @@ inline const char* mempool_reject_reason_string(
 
         case MempoolRejectReason::InsufficientInputValue:
             return "insufficient input value";
+
+        case MempoolRejectReason::TransactionTooLarge:
+            return "transaction too large";
+
+        case MempoolRejectReason::MempoolFull:
+            return "mempool full";
     }
 
     return "unknown";

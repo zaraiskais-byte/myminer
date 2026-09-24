@@ -3,6 +3,7 @@
 #include <string>
 
 #include <caesar/mempool.hpp>
+#include <caesar/transaction_signature.hpp>
 #include <caesar/wallet.hpp>
 
 using namespace caesar;
@@ -10,7 +11,8 @@ using namespace caesar;
 static Transaction make_transaction(
     const Hash256& funding_txid,
     std::uint64_t amount,
-    const std::string& recipient) {
+    const std::string& recipient,
+    const Wallet& signer) {
 
     Transaction tx;
 
@@ -25,6 +27,17 @@ static Transaction make_transaction(
     output.recipient = recipient;
 
     tx.outputs.push_back(output);
+
+    TransactionWitness witness;
+    witness.public_key = signer.public_key();
+    witness.signature =
+        sign_transaction_input(
+            tx,
+            0,
+            signer.private_key());
+
+    tx.witness.inputs.push_back(
+        std::move(witness));
 
     return tx;
 }
@@ -63,7 +76,8 @@ int main() {
             make_transaction(
                 funding_txid,
                 4000000,
-                bob.address());
+                bob.address(),
+                alice);
 
         const auto result1 =
             mempool.accept(
@@ -110,7 +124,8 @@ int main() {
             make_transaction(
                 funding_txid,
                 3000000,
-                bob.address());
+                bob.address(),
+                alice);
 
         const auto result2 =
             mempool.accept(

@@ -179,14 +179,6 @@ public:
             };
         }
 
-        if (!validate_transaction_witness(
-                tx,
-                utxos)) {
-            return {
-                MempoolRejectReason::InvalidTransaction
-            };
-        }
-
         std::lock_guard<std::mutex> mempool_lock(
             mempool_mutex_);
 
@@ -253,7 +245,9 @@ public:
                 mempool_,
                 miner_recipient,
                 block_timestamp,
-                difficulty);
+                difficulty,
+                0,
+                &previous_utxos);
 
         if (!BlockBuilder::mine(
                 candidate,
