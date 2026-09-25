@@ -22,6 +22,7 @@
 #include <caesar/p2p_sync_protocol.hpp>
 #include <caesar/p2p_server.hpp>
 #include <caesar/serialization.hpp>
+#include <caesar/transaction.hpp>
 
 namespace caesar {
 
@@ -33,6 +34,9 @@ public:
     using ChainReplacementCallback =
         std::function<bool(const std::vector<Block>&)>;
 
+    using TransactionCallback =
+        std::function<bool(const Transaction&)>;
+
     P2PRelay(
         P2PServer& server,
         BlockchainStorage& storage)
@@ -41,7 +45,14 @@ public:
 
     void set_chain_replacement_callback(
         ChainReplacementCallback callback) {
+        std::lock_guard<std::mutex> lock(pending_mutex_);
         chain_replacement_callback_ = std::move(callback);
+    }
+
+    void set_transaction_callback(
+        TransactionCallback callback) {
+        std::lock_guard<std::mutex> lock(transaction_callback_mutex_);
+        transaction_callback_ = std::move(callback);
     }
 
     ~P2PRelay() { stop(); }
@@ -92,6 +103,11 @@ public:
             make_blocks_frame(block));
     }
 
+    void announce_transaction(const Transaction& tx) {
+        server_.peers().broadcast(
+            make_transaction_frame(tx));
+    }
+
 private:
     struct PendingChainSync {
         P2PSyncSessionId session_id;
@@ -125,6 +141,27 @@ private:
         frame.payload = writer.data();
         return frame;
     }
+
+    static P2PFrame make_transaction_frame(
+        const Transaction& tx) {
+
+        const auto encoded =
+            tx.serialize_full_binary();
+
+        if (encoded.empty() ||
+            encoded.size() > CZR_P2P_MAX_PAYLOAD ||
+            encoded.size() >
+                std::numeric_limits<std::uint32_t>::max()) {
+            throw std::runtime_error(
+                "transaction too large for P2P relay");
+        }
+
+        P2PFrame frame;
+        frame.type = P2PMessageType::Transaction;
+        frame.payload = encoded;
+        return frame;
+    }
+
 
     static P2PFrame make_get_headers_frame(
         const std::vector<Hash256>& locator_hashes) {
@@ -315,6 +352,10 @@ private:
 
             case P2PMessageType::Headers:
                 handle_headers(id, frame.payload);
+                break;
+
+            case P2PMessageType::Transaction:
+                handle_transaction(id, frame.payload);
                 break;
 
             default:
@@ -558,6 +599,51 @@ private:
          * path. This preserves ordinary block relay semantics.
          */
         request_blocks(id, block_hashes);
+    }
+
+    void handle_transaction(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        (void)id;
+
+        /*
+         * Transaction relay is deliberately defensive:
+         * malformed or oversized transactions are ignored locally
+         * rather than being allowed to tear down the peer loop.
+         */
+        if (payload.empty() ||
+            payload.size() > CZR_P2P_MAX_PAYLOAD) {
+            return;
+        }
+
+        try {
+            const Transaction tx =
+                Transaction::deserialize_full(payload);
+
+            TransactionCallback callback;
+
+            {
+                std::lock_guard<std::mutex> lock(
+                    transaction_callback_mutex_);
+
+                callback = transaction_callback_;
+            }
+
+            /*
+             * The node callback performs the authoritative mempool
+             * admission check. Accepted transactions are announced by
+             * the node's single transaction-relay path after admission.
+             */
+            if (callback)
+                (void)callback(tx);
+
+        } catch (...) {
+            /*
+             * Invalid transaction data is not propagated.
+             * The connection remains usable for subsequent messages.
+             */
+        }
     }
 
     void handle_get_headers(
@@ -1045,7 +1131,10 @@ private:
 
     P2PServer& server_;
     BlockchainStorage& storage_;
+
     ChainReplacementCallback chain_replacement_callback_;
+    mutable std::mutex transaction_callback_mutex_;
+    TransactionCallback transaction_callback_;
 
     std::atomic<bool> running_{false};
 

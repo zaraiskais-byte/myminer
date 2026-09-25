@@ -36,6 +36,11 @@ public:
             [this](const std::vector<Block>& candidate) {
                 return replace_chain(candidate);
             });
+
+        relay_.set_transaction_callback(
+            [this](const Transaction& tx) {
+                return accept_transaction(tx).accepted();
+            });
     }
 
     ~CaesarNode() {
@@ -160,31 +165,45 @@ public:
             throw std::runtime_error(
                 "cannot accept transaction while node is stopped");
 
-        std::lock_guard<std::mutex> chain_lock(
-            chain_mutex_);
+        MempoolValidationResult result;
 
-        const auto current_chain =
-            storage_.load();
+        {
+            std::lock_guard<std::mutex> chain_lock(
+                chain_mutex_);
 
-        if (current_chain.empty())
-            throw std::runtime_error(
-                "cannot accept transaction on empty blockchain");
+            const auto current_chain =
+                storage_.load();
 
-        const UTXOSet utxos =
-            rebuild_utxo_set(current_chain);
+            if (current_chain.empty())
+                throw std::runtime_error(
+                    "cannot accept transaction on empty blockchain");
 
-        if (is_coinbase_transaction(tx)) {
-            return {
-                MempoolRejectReason::InvalidTransaction
-            };
+            const UTXOSet utxos =
+                rebuild_utxo_set(current_chain);
+
+            if (is_coinbase_transaction(tx)) {
+                result = {
+                    MempoolRejectReason::InvalidTransaction
+                };
+            } else {
+                std::lock_guard<std::mutex> mempool_lock(
+                    mempool_mutex_);
+
+                result = mempool_.accept(
+                    tx,
+                    utxos);
+            }
         }
 
-        std::lock_guard<std::mutex> mempool_lock(
-            mempool_mutex_);
+        /*
+         * Local submissions and accepted peer transactions share the
+         * same admission path. Relay only after the mempool accepted
+         * the transaction and all chain/mempool locks are released.
+         */
+        if (result.accepted())
+            relay_.announce_transaction(tx);
 
-        return mempool_.accept(
-            tx,
-            utxos);
+        return result;
     }
 
     void mine_one_block(

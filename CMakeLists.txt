@@ -570,3 +570,21 @@ add_test(
     NAME CaesarP2PSyncProtocolTest
     COMMAND caesar_p2p_sync_protocol_test
 )
+
+add_executable(caesar_transaction_relay_test
+    tests/transaction_relay_test.cpp
+)
+
+target_include_directories(caesar_transaction_relay_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_transaction_relay_test PRIVATE
+    crypto
+    pthread
+)
+
+add_test(
+    NAME CaesarTransactionRelayTest
+    COMMAND caesar_transaction_relay_test
+)
