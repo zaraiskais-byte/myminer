@@ -159,7 +159,10 @@ inline bool validate_block_position_with_chain(
         return false;
     }
 
-    if (chain.size() < CZR_DIFFICULTY_WINDOW + 1) {
+    const std::size_t previous_index =
+        block_index - 1;
+
+    if (previous_index < CZR_DIFFICULTY_WINDOW) {
         const std::uint32_t expected =
             (previous.header.height == 0 &&
              previous.header.difficulty == 0)
@@ -171,9 +174,6 @@ inline bool validate_block_position_with_chain(
 
     std::vector<std::uint64_t> intervals;
     intervals.reserve(CZR_DIFFICULTY_WINDOW);
-
-    const std::size_t previous_index =
-        chain.size() - 1;
 
     const std::size_t first =
         previous_index + 1 - CZR_DIFFICULTY_WINDOW;
