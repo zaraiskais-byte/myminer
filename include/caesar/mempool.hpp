@@ -82,7 +82,7 @@ public:
 
         if (contains(id)) {
             return {
-                MempoolRejectReason::InvalidTransaction
+                MempoolRejectReason::Duplicate
             };
         }
 
