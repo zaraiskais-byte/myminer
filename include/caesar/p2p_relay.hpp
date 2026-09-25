@@ -427,11 +427,19 @@ private:
         const std::uint32_t count =
             reader.read_u32();
 
-        if (count == 0 || count > 2000)
+        if (count > 2000)
             throw std::runtime_error(
                 "invalid received header count");
 
         std::vector<BlockHeader> headers;
+
+        if (count == 0) {
+            if (!reader.empty())
+                throw std::runtime_error(
+                    "trailing bytes in headers payload");
+            return;
+        }
+
         headers.reserve(count);
 
         for (std::uint32_t i = 0; i < count; ++i) {

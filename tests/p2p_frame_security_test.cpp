@@ -56,11 +56,43 @@ int main() {
     // 4. Invalid message type: above the known protocol range.
     {
         auto data = u32le(0);
-        data.push_back(12);
+        data.push_back(14);
         expect_reject(data);
     }
 
-    // 5. Declared payload is larger than bytes actually supplied.
+    // 5. GetSyncBlocks (12) is a valid protocol message type.
+    {
+        auto data = u32le(0);
+        data.push_back(
+            static_cast<std::uint8_t>(
+                P2PMessageType::GetSyncBlocks));
+
+        const auto decoded =
+            P2PFrame::deserialize_binary(data);
+
+        assert(
+            decoded.type ==
+            P2PMessageType::GetSyncBlocks);
+        assert(decoded.payload.empty());
+    }
+
+    // 6. SyncBlocks (13) is a valid protocol message type.
+    {
+        auto data = u32le(0);
+        data.push_back(
+            static_cast<std::uint8_t>(
+                P2PMessageType::SyncBlocks));
+
+        const auto decoded =
+            P2PFrame::deserialize_binary(data);
+
+        assert(
+            decoded.type ==
+            P2PMessageType::SyncBlocks);
+        assert(decoded.payload.empty());
+    }
+
+    // 7. Declared payload is larger than bytes actually supplied.
     {
         auto data = u32le(10);
         data.push_back(
@@ -70,7 +102,7 @@ int main() {
         expect_reject(data);
     }
 
-    // 6. Declared payload is smaller than trailing bytes.
+    // 8. Declared payload is smaller than trailing bytes.
     {
         auto data = u32le(1);
         data.push_back(
@@ -81,7 +113,7 @@ int main() {
         expect_reject(data);
     }
 
-    // 7. A valid empty-payload frame must still decode.
+    // 9. A valid empty-payload frame must still decode.
     {
         P2PFrame frame;
         frame.type = P2PMessageType::Ping;
@@ -95,7 +127,7 @@ int main() {
         assert(decoded.payload.empty());
     }
 
-    // 8. Maximum permitted payload must be accepted.
+    // 10. Maximum permitted payload must be accepted.
     {
         P2PFrame frame;
         frame.type = P2PMessageType::Transaction;
@@ -113,7 +145,7 @@ int main() {
         assert(decoded.payload.back() == 0x5A);
     }
 
-    // 9. Serialization itself must reject oversized payloads.
+    // 11. Serialization itself must reject oversized payloads.
     {
         P2PFrame frame;
         frame.type = P2PMessageType::Blocks;
