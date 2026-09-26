@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <memory>
+#include <utility>
 #include <mutex>
 #include <random>
 #include <stdexcept>
@@ -39,9 +41,11 @@ public:
 
     P2PRelay(
         P2PServer& server,
-        BlockchainStorage& storage)
+        BlockchainStorage& storage,
+        std::shared_ptr<std::mutex> storage_mutex)
         : server_(server),
-          storage_(storage) {}
+          storage_(storage),
+          storage_mutex_(std::move(storage_mutex)) {}
 
     void set_chain_replacement_callback(
         ChainReplacementCallback callback) {
@@ -249,10 +253,13 @@ private:
         if (!connection)
             return;
 
-        if (!storage_.exists())
-            return;
-
-        const auto chain = storage_.load();
+        std::vector<Block> chain;
+        {
+            std::lock_guard<std::mutex> lock(*storage_mutex_);
+            if (!storage_.exists())
+                return;
+            chain = storage_.load();
+        }
         if (chain.empty())
             return;
 
@@ -503,7 +510,7 @@ private:
         bool direct_extension = false;
 
         {
-            std::lock_guard<std::mutex> lock(storage_mutex_);
+            std::lock_guard<std::mutex> lock(*storage_mutex_);
 
             const auto chain = storage_.load();
 
@@ -690,7 +697,7 @@ private:
         if (!storage_.exists())
             return;
 
-        std::lock_guard<std::mutex> lock(storage_mutex_);
+        std::lock_guard<std::mutex> lock(*storage_mutex_);
 
         const auto chain = storage_.load();
 
@@ -776,7 +783,7 @@ private:
         if (!storage_.exists())
             return;
 
-        std::lock_guard<std::mutex> lock(storage_mutex_);
+        std::lock_guard<std::mutex> lock(*storage_mutex_);
 
         const auto chain = storage_.load();
 
@@ -848,11 +855,14 @@ private:
             GetSyncBlocksMessage::deserialize_binary(
                 payload);
 
-        if (!storage_.exists())
-            throw std::runtime_error(
-                "cannot serve sync blocks without local chain");
-
-        const auto chain = storage_.load();
+        std::vector<Block> chain;
+        {
+            std::lock_guard<std::mutex> lock(*storage_mutex_);
+            if (!storage_.exists())
+                throw std::runtime_error(
+                    "cannot serve sync blocks without local chain");
+            chain = storage_.load();
+        }
 
         std::vector<Block> requested;
         requested.reserve(
@@ -1043,8 +1053,7 @@ private:
         std::vector<Block> current;
 
         {
-            std::lock_guard<std::mutex> lock(
-                storage_mutex_);
+            std::lock_guard<std::mutex> lock(*storage_mutex_);
 
             if (!storage_.exists())
                 throw std::runtime_error(
@@ -1108,7 +1117,7 @@ private:
 
 
             try {
-                std::lock_guard<std::mutex> lock(storage_mutex_);
+                std::lock_guard<std::mutex> lock(*storage_mutex_);
 
                 if (!storage_.exists())
                     throw std::runtime_error(
@@ -1152,7 +1161,7 @@ private:
     std::mutex threads_mutex_;
     std::vector<std::thread> threads_;
 
-    std::mutex storage_mutex_;
+    std::shared_ptr<std::mutex> storage_mutex_;
 
     mutable std::mutex pending_mutex_;
     std::unordered_map<

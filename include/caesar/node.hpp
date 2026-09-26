@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -31,7 +32,8 @@ public:
           storage_(chain_path_),
           p2p_port_(p2p_port),
           network_id_(network_id),
-          relay_(server_, storage_) {
+          chain_mutex_(std::make_shared<std::mutex>()),
+          relay_(server_, storage_, chain_mutex_) {
         relay_.set_chain_replacement_callback(
             [this](const std::vector<Block>& candidate) {
                 return replace_chain(candidate);
@@ -59,7 +61,11 @@ public:
 
         ensure_chain();
 
-        const auto chain = storage_.load();
+        std::vector<Block> chain;
+        {
+            std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
+            chain = storage_.load();
+        }
 
         server_.start(
             p2p_port_,
@@ -94,7 +100,7 @@ public:
     }
 
     std::vector<Block> chain() const {
-        std::lock_guard<std::mutex> lock(chain_mutex_);
+        std::lock_guard<std::mutex> lock(*chain_mutex_);
         return storage_.load();
     }
 
@@ -112,7 +118,7 @@ public:
             throw std::runtime_error(
                 "cannot replace chain while node is stopped");
 
-        std::lock_guard<std::mutex> lock(chain_mutex_);
+        std::lock_guard<std::mutex> lock(*chain_mutex_);
 
         const auto current = storage_.load();
 
@@ -168,8 +174,7 @@ public:
         MempoolValidationResult result;
 
         {
-            std::lock_guard<std::mutex> chain_lock(
-                chain_mutex_);
+            std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
 
             const auto current_chain =
                 storage_.load();
@@ -218,8 +223,7 @@ public:
             throw std::runtime_error(
                 "miner recipient is empty");
 
-        std::lock_guard<std::mutex> chain_lock(
-            chain_mutex_);
+        std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
 
         std::lock_guard<std::mutex> mempool_lock(
             mempool_mutex_);
@@ -290,7 +294,7 @@ public:
 
 private:
     void ensure_chain() {
-        std::lock_guard<std::mutex> lock(chain_mutex_);
+        std::lock_guard<std::mutex> lock(*chain_mutex_);
 
         std::filesystem::create_directories(
             data_dir_);
@@ -328,7 +332,7 @@ private:
     std::filesystem::path data_dir_;
     std::filesystem::path chain_path_;
 
-    mutable std::mutex chain_mutex_;
+    mutable std::shared_ptr<std::mutex> chain_mutex_;
     mutable std::mutex lifecycle_mutex_;
     mutable std::mutex mempool_mutex_;
 
