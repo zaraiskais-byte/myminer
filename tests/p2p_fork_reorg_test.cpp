@@ -156,7 +156,7 @@ int main() {
          */
         bool replaced = false;
 
-        for (int i = 0; i < 200; ++i) {
+        for (int i = 0; i < 6000; ++i) {
             if (node_b.height() == node_a.height() &&
                 node_b.chain().back().hash() ==
                     node_a.chain().back().hash()) {

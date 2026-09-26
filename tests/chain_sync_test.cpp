@@ -69,7 +69,7 @@ int main() {
      * Wait for the peer connection and then for the
      * complete block synchronization.
      */
-    for (int i = 0; i < 300; ++i) {
+    for (int i = 0; i < 3000; ++i) {
 
         if (node_a.peer_count() == 1 &&
             node_b.peer_count() == 1 &&

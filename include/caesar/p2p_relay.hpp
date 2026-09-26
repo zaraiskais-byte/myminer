@@ -447,7 +447,10 @@ private:
             const std::uint32_t size =
                 reader.read_u32();
 
-            if (size != 84)
+            const std::size_t expected_header_size =
+                BlockHeader{}.serialize_binary().size();
+
+            if (size != expected_header_size)
                 throw std::runtime_error(
                     "invalid block header size");
 
