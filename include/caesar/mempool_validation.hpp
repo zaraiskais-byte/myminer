@@ -13,6 +13,7 @@ namespace caesar {
 enum class MempoolRejectReason {
     None,
     InvalidTransaction,
+    Duplicate,
     MissingInput,
     DuplicateInput,
     DoubleSpend,
@@ -134,6 +135,9 @@ inline const char* mempool_reject_reason_string(
 
         case MempoolRejectReason::InvalidTransaction:
             return "invalid transaction";
+
+        case MempoolRejectReason::Duplicate:
+            return "duplicate";
 
         case MempoolRejectReason::MissingInput:
             return "missing input";
