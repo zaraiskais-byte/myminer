@@ -449,6 +449,21 @@ add_test(
     COMMAND caesar_chain_work_test
 )
 
+add_executable(caesar_dynamic_mining_difficulty_test
+    tests/dynamic_mining_difficulty_test.cpp
+)
+target_include_directories(caesar_dynamic_mining_difficulty_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_dynamic_mining_difficulty_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarDynamicMiningDifficultyTest
+    COMMAND caesar_dynamic_mining_difficulty_test
+)
+
 add_executable(caesar_chain_replacement_test
     tests/chain_replacement_test.cpp
 )

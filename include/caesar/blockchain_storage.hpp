@@ -182,10 +182,7 @@ public:
 
         if (chain.size() < CZR_DIFFICULTY_WINDOW + 1) {
             const std::uint32_t expected_difficulty =
-                (previous.header.height == 0 &&
-                 previous.header.difficulty == 0)
-                    ? CZR_INITIAL_MINING_DIFFICULTY
-                    : previous.header.difficulty;
+                expected_next_difficulty(chain);
 
             if (block.header.difficulty !=
                 expected_difficulty) {

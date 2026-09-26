@@ -82,6 +82,11 @@ struct BlockHeader {
     }
 };
 
+struct Block;
+
+inline std::uint32_t expected_next_difficulty(
+    const std::vector<Block>& chain);
+
 struct Block {
     BlockHeader header;
     std::vector<Transaction> transactions;
@@ -350,41 +355,11 @@ struct Block {
         if (chain.size() < CZR_DIFFICULTY_WINDOW + 1)
             return false;
 
-        std::vector<std::uint64_t> intervals;
-        intervals.reserve(CZR_DIFFICULTY_WINDOW);
-
-        const std::size_t previous_index =
-            chain.size() - 1;
-
-        const std::size_t first =
-            previous_index + 1 - CZR_DIFFICULTY_WINDOW;
-
-        for (std::size_t i = first;
-             i <= previous_index;
-             ++i) {
-
-            if (i == 0)
-                return false;
-
-            const std::uint64_t current_time =
-                chain[i].header.timestamp;
-
-            const std::uint64_t previous_time =
-                chain[i - 1].header.timestamp;
-
-            if (current_time < previous_time)
-                return false;
-
-            intervals.push_back(
-                current_time - previous_time);
-        }
-
         if (!validate_basic())
             return false;
 
-        return validate_difficulty_against_history(
-            previous.header.difficulty,
-            intervals);
+        return header.difficulty ==
+            expected_next_difficulty(chain);
     }
 
     bool validate_basic() const {
@@ -508,6 +483,56 @@ inline bool validate_block_chain(
     }
 
     return true;
+}
+
+
+// Unified difficulty computation shared by every block-acceptance
+// path (mining, storage append, consensus validation). Keeping all
+// callers on this single function is required for mined blocks to
+// pass validation once the difficulty window activates.
+inline std::uint32_t expected_next_difficulty(
+    const std::vector<Block>& chain) {
+
+    if (chain.empty())
+        return CZR_INITIAL_MINING_DIFFICULTY;
+
+    const Block& previous = chain.back();
+
+    if (previous.header.height == 0 &&
+        previous.header.difficulty == 0) {
+        return CZR_INITIAL_MINING_DIFFICULTY;
+    }
+
+    if (chain.size() < CZR_DIFFICULTY_WINDOW + 1)
+        return previous.header.difficulty;
+
+    std::vector<std::uint64_t> intervals;
+    intervals.reserve(CZR_DIFFICULTY_WINDOW);
+
+    const std::size_t previous_index = chain.size() - 1;
+    const std::size_t first =
+        previous_index + 1 - CZR_DIFFICULTY_WINDOW;
+
+    for (std::size_t i = first; i <= previous_index; ++i) {
+
+        if (i == 0)
+            return previous.header.difficulty;
+
+        const std::uint64_t current_time =
+            chain[i].header.timestamp;
+
+        const std::uint64_t prev_time =
+            chain[i - 1].header.timestamp;
+
+        if (current_time < prev_time)
+            return previous.header.difficulty;
+
+        intervals.push_back(current_time - prev_time);
+    }
+
+    return adjust_difficulty_window(
+        previous.header.difficulty,
+        intervals);
 }
 
 } // namespace caesar

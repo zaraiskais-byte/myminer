@@ -253,10 +253,7 @@ public:
                 : timestamp;
 
         const std::uint32_t difficulty =
-            (previous.header.height == 0 &&
-             previous.header.difficulty == 0)
-                ? CZR_INITIAL_MINING_DIFFICULTY
-                : previous.header.difficulty;
+            expected_next_difficulty(current_chain);
 
         Block candidate =
             BlockBuilder::build(

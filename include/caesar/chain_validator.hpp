@@ -162,46 +162,8 @@ inline bool validate_block_position_with_chain(
     const std::size_t previous_index =
         block_index - 1;
 
-    if (previous_index < CZR_DIFFICULTY_WINDOW) {
-        const std::uint32_t expected =
-            (previous.header.height == 0 &&
-             previous.header.difficulty == 0)
-                ? CZR_INITIAL_MINING_DIFFICULTY
-                : previous.header.difficulty;
-
-        return block.header.difficulty == expected;
-    }
-
-    std::vector<std::uint64_t> intervals;
-    intervals.reserve(CZR_DIFFICULTY_WINDOW);
-
-    const std::size_t first =
-        previous_index + 1 - CZR_DIFFICULTY_WINDOW;
-
-    for (std::size_t i = first;
-         i <= previous_index;
-         ++i) {
-
-        if (i == 0)
-            return false;
-
-        const auto current =
-            chain[i].header.timestamp;
-
-        const auto previous_time =
-            chain[i - 1].header.timestamp;
-
-        if (current < previous_time)
-            return false;
-
-        intervals.push_back(
-            current - previous_time);
-    }
-
     return block.header.difficulty ==
-        adjust_difficulty_window(
-            previous.header.difficulty,
-            intervals);
+        expected_next_difficulty(chain);
 }
 
 inline bool add_coinbase_issuance(
@@ -391,42 +353,8 @@ inline bool validate_block_consensus(
         return false;
     }
 
-    std::uint32_t expected_difficulty = 0;
-
-    if (chain.size() < CZR_DIFFICULTY_WINDOW + 1) {
-        expected_difficulty =
-            (previous.header.height == 0 &&
-             previous.header.difficulty == 0)
-                ? CZR_INITIAL_MINING_DIFFICULTY
-                : previous.header.difficulty;
-    } else {
-        std::vector<std::uint64_t> intervals;
-        intervals.reserve(CZR_DIFFICULTY_WINDOW);
-
-        const std::size_t start =
-            chain.size() - CZR_DIFFICULTY_WINDOW - 1;
-
-        for (std::size_t i = start + 1;
-             i < chain.size();
-             ++i) {
-            if (chain[i].header.timestamp <
-                chain[i - 1].header.timestamp) {
-                return false;
-            }
-
-            intervals.push_back(
-                chain[i].header.timestamp -
-                chain[i - 1].header.timestamp);
-        }
-
-        expected_difficulty =
-            adjust_difficulty_window(
-                chain.back().header.difficulty,
-                intervals);
-    }
-
     if (block.header.difficulty !=
-        expected_difficulty) {
+        expected_next_difficulty(chain)) {
         return false;
     }
 
