@@ -87,6 +87,10 @@ struct Block;
 inline std::uint32_t expected_next_difficulty(
     const std::vector<Block>& chain);
 
+inline std::uint32_t expected_difficulty_at_position(
+    const std::vector<Block>& chain,
+    std::size_t position);
+
 struct Block {
     BlockHeader header;
     std::vector<Transaction> transactions;
@@ -490,26 +494,27 @@ inline bool validate_block_chain(
 // path (mining, storage append, consensus validation). Keeping all
 // callers on this single function is required for mined blocks to
 // pass validation once the difficulty window activates.
-inline std::uint32_t expected_next_difficulty(
-    const std::vector<Block>& chain) {
+inline std::uint32_t expected_difficulty_at_position(
+    const std::vector<Block>& chain,
+    std::size_t position) {
 
-    if (chain.empty())
+    if (position == 0 || position > chain.size())
         return CZR_INITIAL_MINING_DIFFICULTY;
 
-    const Block& previous = chain.back();
+    const Block& previous = chain[position - 1];
 
     if (previous.header.height == 0 &&
         previous.header.difficulty == 0) {
         return CZR_INITIAL_MINING_DIFFICULTY;
     }
 
-    if (chain.size() < CZR_DIFFICULTY_WINDOW + 1)
+    if (position < CZR_DIFFICULTY_WINDOW + 1)
         return previous.header.difficulty;
 
     std::vector<std::uint64_t> intervals;
     intervals.reserve(CZR_DIFFICULTY_WINDOW);
 
-    const std::size_t previous_index = chain.size() - 1;
+    const std::size_t previous_index = position - 1;
     const std::size_t first =
         previous_index + 1 - CZR_DIFFICULTY_WINDOW;
 
@@ -533,6 +538,14 @@ inline std::uint32_t expected_next_difficulty(
     return adjust_difficulty_window(
         previous.header.difficulty,
         intervals);
+}
+
+inline std::uint32_t expected_next_difficulty(
+    const std::vector<Block>& chain) {
+
+    return expected_difficulty_at_position(
+        chain,
+        chain.size());
 }
 
 } // namespace caesar

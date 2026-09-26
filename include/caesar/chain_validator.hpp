@@ -159,11 +159,8 @@ inline bool validate_block_position_with_chain(
         return false;
     }
 
-    const std::size_t previous_index =
-        block_index - 1;
-
     return block.header.difficulty ==
-        expected_next_difficulty(chain);
+        expected_difficulty_at_position(chain, block_index);
 }
 
 inline bool add_coinbase_issuance(
