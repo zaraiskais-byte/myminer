@@ -211,9 +211,28 @@ public:
                     " difficulty=" + std::to_string(block.header.difficulty));
             }
         } else {
-            if (!block.validate_against_chain(chain))
+            /*
+             * Full consensus validation, matching the mining, relay,
+             * and chain-replacement paths. Rebuilding the UTXO set
+             * from the current chain is O(chain size), which matches
+             * the cost already paid by every other
+             * validate_block_consensus() caller in this codebase.
+             *
+             * This closes the previous gap where append() accepted
+             * a block whose transactions did not spend existing
+             * UTXOs, as long as the header and difficulty were
+             * consistent with validate_against_chain().
+             */
+            const UTXOSet previous_utxos =
+                rebuild_utxo_set(chain);
+
+            if (!validate_block_consensus(
+                    block,
+                    chain,
+                    previous_utxos)) {
                 throw std::runtime_error(
                     "block consensus validation failed");
+            }
         }
 
         chain.push_back(block);
