@@ -80,14 +80,22 @@ public:
         if (!running_)
             return;
 
-        running_ = false;
-
         server_.peers().set_peer_added_callback({});
 
         std::vector<std::thread> threads;
 
         {
             std::lock_guard<std::mutex> lock(threads_mutex_);
+
+            /*
+             * Clear running_ under the same lock that on_peer_added()
+             * takes. After this point no new worker can be appended:
+             * either the callback already entered the critical section
+             * (its thread is in threads_ and will be swapped out here),
+             * or it will acquire the lock after us and see running_ =
+             * false, then return without pushing anything.
+             */
+            running_ = false;
             threads.swap(threads_);
         }
 
@@ -290,10 +298,22 @@ private:
     }
 
     void on_peer_added(std::uint64_t id) {
+        /*
+         * The running_ check must happen under threads_mutex_ so that
+         * it is serialized against stop(). If it runs outside the
+         * lock, the following sequence is possible:
+         *
+         *   A: reads running_ == true (outside lock)
+         *   B: stop() sets running_ = false, swaps threads_, joins old
+         *   A: acquires the lock, pushes a new worker
+         *
+         * That new worker is never joined by stop() and may outlive
+         * the P2PRelay object.
+         */
+        std::lock_guard<std::mutex> lock(threads_mutex_);
+
         if (!running_)
             return;
-
-        std::lock_guard<std::mutex> lock(threads_mutex_);
 
         threads_.emplace_back(
             [this, id]() {
