@@ -51,7 +51,7 @@ static bool wait_for_mempool(
     int attempts = 100) {
 
     for (int i = 0; i < attempts; ++i) {
-        if (node.mempool().contains(txid))
+        if (node.mempool_contains(txid))
             return true;
 
         std::this_thread::sleep_for(
@@ -223,9 +223,9 @@ int main() {
         std::cout
             << "[PASS] Invalid-signature transaction rejected\n";
 
-        assert(node_a.mempool().size() == 1);
-        assert(node_b.mempool().size() == 1);
-        assert(node_b.mempool().contains(txid));
+        assert(node_a.mempool_size() == 1);
+        assert(node_b.mempool_size() == 1);
+        assert(node_b.mempool_contains(txid));
 
         std::cout
             << "[PASS] Relay admission state remains consistent\n";

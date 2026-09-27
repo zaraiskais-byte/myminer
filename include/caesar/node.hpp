@@ -156,12 +156,28 @@ public:
             port);
     }
 
-    Mempool& mempool() noexcept {
-        return mempool_;
+    /*
+     * Thread-safe read-only accessors.
+     *
+     * Earlier revisions exposed `Mempool& mempool()` and
+     * `const Mempool& mempool()`. The non-const overload allowed any
+     * external caller to mutate the mempool without holding
+     * mempool_mutex_, bypassing accept_transaction(). The const
+     * overload returned a reference whose lifetime extended past any
+     * internal lock, so concurrent writes could still race against
+     * readers that walked the returned reference.
+     *
+     * These accessors take mempool_mutex_ internally for the duration
+     * of the read, so callers cannot observe a half-updated mempool.
+     */
+    std::size_t mempool_size() const {
+        std::lock_guard<std::mutex> lock(mempool_mutex_);
+        return mempool_.size();
     }
 
-    const Mempool& mempool() const noexcept {
-        return mempool_;
+    bool mempool_contains(const Hash256& txid) const {
+        std::lock_guard<std::mutex> lock(mempool_mutex_);
+        return mempool_.contains(txid);
     }
 
     MempoolValidationResult accept_transaction(
