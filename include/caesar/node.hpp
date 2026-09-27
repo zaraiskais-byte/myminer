@@ -15,6 +15,7 @@
 #include <caesar/chain_replacement.hpp>
 #include <caesar/blockchain_storage.hpp>
 #include <caesar/mempool.hpp>
+#include <caesar/network_params.hpp>
 #include <caesar/ownership.hpp>
 #include <caesar/p2p_relay.hpp>
 #include <caesar/p2p_server.hpp>
@@ -320,27 +321,7 @@ private:
             return;
         }
 
-        Block genesis;
-
-        genesis.header.version = 1;
-        genesis.header.height = 0;
-        genesis.header.previous_hash = {};
-        genesis.header.timestamp = 0;
-        genesis.header.nonce = 0;
-        genesis.header.difficulty = 0;
-
-        Transaction genesis_tx;
-
-        genesis_tx.outputs.push_back(
-            TransactionOutput{
-                1,
-                "CAESAR_GENESIS_BURN"
-            });
-
-        genesis.transactions.push_back(
-            genesis_tx);
-
-        genesis.update_merkle_root();
+        const Block genesis = build_canonical_genesis();
 
         storage_.save({genesis});
     }

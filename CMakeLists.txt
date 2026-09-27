@@ -524,6 +524,21 @@ add_test(
     COMMAND caesar_p2p_message_type_range_test
 )
 
+add_executable(caesar_genesis_canonical_test
+    tests/genesis_canonical_test.cpp
+)
+target_include_directories(caesar_genesis_canonical_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_genesis_canonical_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarGenesisCanonicalTest
+    COMMAND caesar_genesis_canonical_test
+)
+
 add_executable(caesar_chain_replacement_test
     tests/chain_replacement_test.cpp
 )
