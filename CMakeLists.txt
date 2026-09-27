@@ -554,6 +554,21 @@ add_test(
     COMMAND caesar_timestamp_consensus_test
 )
 
+add_executable(caesar_storage_durability_test
+    tests/storage_durability_test.cpp
+)
+target_include_directories(caesar_storage_durability_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_storage_durability_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarStorageDurabilityTest
+    COMMAND caesar_storage_durability_test
+)
+
 add_executable(caesar_chain_replacement_test
     tests/chain_replacement_test.cpp
 )

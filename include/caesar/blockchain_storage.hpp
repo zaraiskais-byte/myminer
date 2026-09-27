@@ -1,11 +1,15 @@
 #pragma once
 
+#include <cerrno>
 #include <cstdint>
+#include <cstring>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 #include <caesar/block.hpp>
@@ -13,6 +17,88 @@
 #include <caesar/crypto.hpp>
 
 namespace caesar {
+
+namespace detail {
+
+/*
+ * Forces pending writes to a regular file to durable storage.
+ *
+ * std::ofstream::flush() only pushes bytes from the C++ stream buffer
+ * into the OS page cache; it does not guarantee they reach disk.
+ * After a power loss, a file that was "flushed" can still end up
+ * truncated or missing.
+ *
+ * fsync() asks the kernel to flush the page cache for that file.
+ * Combined with the atomic rename already present in save(), it gives
+ * us two guarantees:
+ *
+ *   1. The bytes of the temporary file are on disk before the rename.
+ *   2. The directory entry pointing at the new canonical file is
+ *      durable after the rename.
+ *
+ * This is the standard write-ahead pattern used by Bitcoin Core and
+ * most production databases.
+ */
+inline void fsync_file(const std::filesystem::path& p) {
+    const int fd = ::open(p.c_str(), O_RDONLY);
+    if (fd < 0) {
+        throw std::runtime_error(
+            "fsync open failed for " + p.string() +
+            ": " + std::strerror(errno));
+    }
+
+    if (::fsync(fd) != 0) {
+        const int saved = errno;
+        ::close(fd);
+        throw std::runtime_error(
+            "fsync failed for " + p.string() +
+            ": " + std::strerror(saved));
+    }
+
+    ::close(fd);
+}
+
+/*
+ * Forces a directory entry update to disk.
+ *
+ * After rename(temp, canonical), the new name is visible to the
+ * running system but the directory metadata may still sit in the page
+ * cache. A crash before that metadata reaches disk would leave the
+ * directory pointing at the old file. fsync() on the parent directory
+ * closes that window.
+ *
+ * Some filesystems (notably f2fs on Android) return EINVAL when
+ * fsync is called on a directory. That is not fatal: the rename is
+ * still atomic, we just cannot force the directory entry to durable
+ * storage. We swallow EINVAL and re-raise anything else, so tests on
+ * Termux do not fail on f2fs while a genuine I/O error is still
+ * surfaced.
+ */
+inline void fsync_parent_dir(const std::filesystem::path& p) {
+    std::filesystem::path dir = p.parent_path();
+    if (dir.empty())
+        dir = ".";
+
+    const int fd = ::open(dir.c_str(), O_RDONLY | O_DIRECTORY);
+    if (fd < 0)
+        return;  // best-effort only
+
+    if (::fsync(fd) != 0) {
+        const int saved = errno;
+        ::close(fd);
+        if (saved == EINVAL) {
+            // Filesystem does not support fsync on directories.
+            return;
+        }
+        throw std::runtime_error(
+            "fsync dir failed for " + dir.string() +
+            ": " + std::strerror(saved));
+    }
+
+    ::close(fd);
+}
+
+} // namespace detail
 
 class BlockchainStorage {
 public:
@@ -59,6 +145,10 @@ public:
                     "failed while writing blockchain storage");
         }
 
+        // The stream is now closed. Force its bytes to disk before the
+        // rename makes the new file reachable under the canonical name.
+        detail::fsync_file(temp);
+
         // On the target platform (Linux/Termux), rename() replaces the
         // destination atomically. Never remove the existing canonical file
         // as a fallback: if replacement fails, the old chain must remain.
@@ -73,6 +163,11 @@ public:
                 "failed to atomically replace blockchain storage: " +
                 ec.message());
         }
+
+        // The rename is visible to this process, but the directory
+        // entry may still be in the page cache. Force it to disk so a
+        // crash does not leave the chain pointing at the old file.
+        detail::fsync_parent_dir(path_);
     }
 
     // Explicit full-chain replacement API.
