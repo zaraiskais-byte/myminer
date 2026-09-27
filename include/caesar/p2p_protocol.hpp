@@ -20,6 +20,26 @@ enum class P2PMessageType : std::uint8_t {
     SyncBlocks = 13
 };
 
+/*
+ * Wire-format bounds for P2PMessageType.
+ *
+ * MIN is the first valid message type.
+ * MAX is the value of the last valid message type, derived from the
+ * enum itself so a rename or renumber of SyncBlocks stays in sync
+ * automatically.
+ *
+ * IMPORTANT: if you add a new P2PMessageType after SyncBlocks, you
+ * must also update P2P_MESSAGE_TYPE_MAX (or move SyncBlocks to be
+ * the last value). The test CaesarP2PMessageTypeRangeTest walks every
+ * enum value that is listed in tests/p2p_message_type_range_test.cpp
+ * and fails if the highest value does not match MAX.
+ */
+inline constexpr std::uint8_t P2P_MESSAGE_TYPE_MIN =
+    static_cast<std::uint8_t>(P2PMessageType::Hello);
+
+inline constexpr std::uint8_t P2P_MESSAGE_TYPE_MAX =
+    static_cast<std::uint8_t>(P2PMessageType::SyncBlocks);
+
 inline const char* p2p_message_name(
     P2PMessageType type) noexcept {
 

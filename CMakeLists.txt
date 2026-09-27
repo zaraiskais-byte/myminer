@@ -509,6 +509,21 @@ add_test(
     COMMAND caesar_p2p_lifecycle_race_test
 )
 
+add_executable(caesar_p2p_message_type_range_test
+    tests/p2p_message_type_range_test.cpp
+)
+target_include_directories(caesar_p2p_message_type_range_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_p2p_message_type_range_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarP2PMessageTypeRangeTest
+    COMMAND caesar_p2p_message_type_range_test
+)
+
 add_executable(caesar_chain_replacement_test
     tests/chain_replacement_test.cpp
 )

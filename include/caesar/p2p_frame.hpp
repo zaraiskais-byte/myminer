@@ -40,8 +40,10 @@ struct P2PFrame {
 
         const auto raw_type = reader.read_u8();
 
-        if (raw_type == 0 || raw_type > 13)
+        if (raw_type < P2P_MESSAGE_TYPE_MIN ||
+            raw_type > P2P_MESSAGE_TYPE_MAX) {
             throw std::runtime_error("Invalid P2P message type");
+        }
 
         if (reader.remaining() != payload_size)
             throw std::runtime_error("Invalid P2P frame length");
