@@ -479,6 +479,21 @@ add_test(
     COMMAND caesar_storage_utxo_rejection_test
 )
 
+add_executable(caesar_headers_size_regression_test
+    tests/headers_size_regression_test.cpp
+)
+target_include_directories(caesar_headers_size_regression_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_headers_size_regression_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarHeadersSizeRegressionTest
+    COMMAND caesar_headers_size_regression_test
+)
+
 add_executable(caesar_chain_replacement_test
     tests/chain_replacement_test.cpp
 )
