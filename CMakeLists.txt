@@ -44,6 +44,38 @@ if(CAESAR_ENABLE_SANITIZERS)
         "CAESAR SANITIZERS: AddressSanitizer + UndefinedBehaviorSanitizer")
 endif()
 
+# ---------------------------------------------------------------------------
+# ThreadSanitizer (TSan) — opt-in, Clang only.
+#
+# TSan is complementary to ASan/UBSan: it detects data races and lock
+# misuse at runtime, which the address and undefined-behavior sanitizers
+# cannot see. The CI runs a dedicated job that builds this option and
+# runs the concurrency-sensitive tests.
+#
+# TSan and ASan cannot be combined in the same binary, so this option
+# replaces the ASan/UBSan flags entirely when enabled.
+# ---------------------------------------------------------------------------
+option(CAESAR_ENABLE_TSAN
+    "Build with ThreadSanitizer (Clang only)" OFF)
+
+if(CAESAR_ENABLE_TSAN)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR
+            "CAESAR_ENABLE_TSAN requires Clang")
+    endif()
+
+    add_compile_options(
+        -fsanitize=thread
+        -fno-omit-frame-pointer
+        -g
+        -O1
+    )
+    add_link_options(-fsanitize=thread)
+
+    message(STATUS
+        "CAESAR TSAN: ThreadSanitizer enabled")
+endif()
+
 
 add_executable(caesard
     src/main.cpp

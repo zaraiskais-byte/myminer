@@ -87,3 +87,46 @@ jobs:
           ./fuzz-build/crypto-fuzzer \
             -runs=10000 \
             -max_len=4096
+
+  # -------------------------------------------------------------------------
+  # ThreadSanitizer job.
+  #
+  # Complements the existing build-test-sanitize-fuzz job:
+  #   - ASan + UBSan there catch memory errors and UB.
+  #   - TSan here catches data races and lock misuse.
+  #
+  # We only build and run the tests that exercise concurrency directly,
+  # so the extra CI time stays bounded. The full test suite still runs in
+  # the main job above under ASan/UBSan.
+  # -------------------------------------------------------------------------
+  tsan-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake libssl-dev
+
+      - name: Build with ThreadSanitizer
+        run: |
+          cmake -S . -B tsan-build \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCAESAR_ENABLE_TSAN=ON \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          cmake --build tsan-build -j2 \
+            --target caesar_p2p_lifecycle_race_test \
+                     caesar_node_test \
+                     caesar_two_node_p2p_test
+
+      - name: TSan concurrency tests
+        env:
+          # Fail fast on the first reported race so the log is readable.
+          TSAN_OPTIONS: "halt_on_error=1 second_deadlock_stack=1"
+        run: |
+          ctest --test-dir tsan-build \
+            -R 'CaesarP2PLifecycleRaceTest|CaesarNodeTest|CaesarTwoNodeP2PTest' \
+            --output-on-failure
