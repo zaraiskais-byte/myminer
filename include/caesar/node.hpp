@@ -15,6 +15,7 @@
 #include <caesar/chain_replacement.hpp>
 #include <caesar/blockchain_storage.hpp>
 #include <caesar/mempool.hpp>
+#include <caesar/mempool_reorg.hpp>
 #include <caesar/network_params.hpp>
 #include <caesar/ownership.hpp>
 #include <caesar/p2p_relay.hpp>
@@ -135,6 +136,16 @@ public:
         // report success. The candidate has already been fully
         // validated and its UTXO set rebuilt by prepare_chain_replacement().
         storage_.replace(plan->chain);
+
+        // Revalidate the mempool against the new UTXO set. Any
+        // transaction whose inputs no longer exist under the new
+        // chain, or whose parent was itself rejected, is dropped.
+        // This runs under mempool_mutex_ so concurrent readers of
+        // mempool_size() / mempool_contains() see a consistent view.
+        {
+            std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
+            revalidate_mempool_after_reorg(mempool_, plan->chain);
+        }
 
         return true;
     }
