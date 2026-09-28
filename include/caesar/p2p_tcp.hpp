@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
@@ -15,6 +16,25 @@
 
 namespace caesar {
 
+/*
+ * TCP socket wrapper.
+ *
+ * The underlying file descriptor is stored in std::atomic<int> so
+ * that close() may be called from one thread (the main thread
+ * during shutdown) while another thread (the accept loop) is
+ * concurrently executing ::accept(). Before this change fd_ was a
+ * plain int, and ThreadSanitizer reported a data race between the
+ * write in close() and the read in accept_connection():
+ *
+ *   Write of size 4 in P2PTcpSocket::close()          (main thread)
+ *   Read  of size 4 in P2PTcpSocket::accept_connection() (accept thread)
+ *
+ * Making fd_ atomic removes the C++ memory-model violation without
+ * changing the shutdown ordering: close() still runs before join(),
+ * so ::accept() is still woken up by ::shutdown(). The accept loop
+ * catches the resulting exception, sees running_ == false, and
+ * exits cleanly.
+ */
 class P2PTcpSocket {
 public:
     P2PTcpSocket() = default;
@@ -30,15 +50,12 @@ public:
     P2PTcpSocket& operator=(const P2PTcpSocket&) = delete;
 
     P2PTcpSocket(P2PTcpSocket&& other) noexcept
-        : fd_(other.fd_) {
-        other.fd_ = -1;
-    }
+        : fd_(other.fd_.exchange(-1)) {}
 
     P2PTcpSocket& operator=(P2PTcpSocket&& other) noexcept {
         if (this != &other) {
             close();
-            fd_ = other.fd_;
-            other.fd_ = -1;
+            fd_.store(other.fd_.exchange(-1));
         }
         return *this;
     }
@@ -49,16 +66,18 @@ public:
 
         close();
 
-        fd_ = ::socket(AF_INET, SOCK_STREAM, 0);
+        const int new_fd = ::socket(AF_INET, SOCK_STREAM, 0);
 
-        if (fd_ < 0)
+        if (new_fd < 0)
             throw std::runtime_error(
                 "TCP socket creation failed");
+
+        fd_.store(new_fd);
 
         int reuse = 1;
 
         if (::setsockopt(
-                fd_,
+                new_fd,
                 SOL_SOCKET,
                 SO_REUSEADDR,
                 &reuse,
@@ -82,7 +101,7 @@ public:
         }
 
         if (::bind(
-                fd_,
+                new_fd,
                 reinterpret_cast<sockaddr*>(&server),
                 sizeof(server)) < 0) {
             close();
@@ -90,7 +109,7 @@ public:
                 std::string("TCP bind failed: ") + std::strerror(errno));
         }
 
-        if (::listen(fd_, 8) < 0) {
+        if (::listen(new_fd, 8) < 0) {
             close();
             throw std::runtime_error(
                 "TCP listen failed");
@@ -99,12 +118,14 @@ public:
 
     P2PTcpSocket accept_connection() const {
 
-        if (fd_ < 0)
+        const int current = fd_.load();
+
+        if (current < 0)
             throw std::runtime_error(
                 "TCP socket is closed");
 
         const int client_fd =
-            ::accept(fd_, nullptr, nullptr);
+            ::accept(current, nullptr, nullptr);
 
         if (client_fd < 0)
             throw std::runtime_error(
@@ -114,7 +135,9 @@ public:
     }
 
     std::string peer_address() const {
-        if (fd_ < 0)
+        const int current = fd_.load();
+
+        if (current < 0)
             throw std::runtime_error(
                 "TCP socket is closed");
 
@@ -122,7 +145,7 @@ public:
         socklen_t peer_len = sizeof(peer);
 
         if (::getpeername(
-                fd_,
+                current,
                 reinterpret_cast<sockaddr*>(&peer),
                 &peer_len) < 0) {
             throw std::runtime_error(
@@ -146,7 +169,9 @@ public:
     }
 
     std::uint16_t peer_port() const {
-        if (fd_ < 0)
+        const int current = fd_.load();
+
+        if (current < 0)
             throw std::runtime_error(
                 "TCP socket is closed");
 
@@ -154,7 +179,7 @@ public:
         socklen_t peer_len = sizeof(peer);
 
         if (::getpeername(
-                fd_,
+                current,
                 reinterpret_cast<sockaddr*>(&peer),
                 &peer_len) < 0) {
             throw std::runtime_error(
@@ -169,7 +194,9 @@ public:
         std::uint8_t* data,
         std::size_t size) const {
 
-        if (fd_ < 0)
+        const int current = fd_.load();
+
+        if (current < 0)
             throw std::runtime_error(
                 "TCP socket is closed");
 
@@ -179,7 +206,7 @@ public:
 
             const ssize_t result =
                 ::recv(
-                    fd_,
+                    current,
                     data + received,
                     size - received,
                     0);
@@ -199,14 +226,16 @@ public:
 
         close();
 
-        fd_ = ::socket(
+        const int new_fd = ::socket(
             AF_INET,
             SOCK_STREAM,
             0);
 
-        if (fd_ < 0)
+        if (new_fd < 0)
             throw std::runtime_error(
                 "TCP socket creation failed");
+
+        fd_.store(new_fd);
 
         sockaddr_in server{};
         server.sin_family = AF_INET;
@@ -222,7 +251,7 @@ public:
         }
 
         if (::connect(
-                fd_,
+                new_fd,
                 reinterpret_cast<sockaddr*>(&server),
                 sizeof(server)) < 0) {
             close();
@@ -235,7 +264,9 @@ public:
         const std::uint8_t* data,
         std::size_t size) const {
 
-        if (fd_ < 0)
+        const int current = fd_.load();
+
+        if (current < 0)
             throw std::runtime_error(
                 "TCP socket is closed");
 
@@ -245,7 +276,7 @@ public:
 
             const ssize_t result =
                 ::send(
-                    fd_,
+                    current,
                     data + sent,
                     size - sent,
                     MSG_NOSIGNAL);
@@ -260,7 +291,9 @@ public:
     }
 
     void set_timeouts(std::uint32_t timeout_ms) const {
-        if (fd_ < 0)
+        const int current = fd_.load();
+
+        if (current < 0)
             throw std::runtime_error("Invalid TCP socket");
 
         timeval tv{};
@@ -269,7 +302,7 @@ public:
             static_cast<suseconds_t>((timeout_ms % 1000) * 1000);
 
         if (::setsockopt(
-                fd_,
+                current,
                 SOL_SOCKET,
                 SO_RCVTIMEO,
                 &tv,
@@ -279,7 +312,7 @@ public:
         }
 
         if (::setsockopt(
-                fd_,
+                current,
                 SOL_SOCKET,
                 SO_SNDTIMEO,
                 &tv,
@@ -290,23 +323,38 @@ public:
     }
 
     bool valid() const noexcept {
-        return fd_ >= 0;
+        return fd_.load() >= 0;
     }
 
     int native_handle() const noexcept {
-        return fd_;
+        return fd_.load();
     }
 
     void close() noexcept {
-        if (fd_ >= 0) {
-            ::shutdown(fd_, SHUT_RDWR);
-            ::close(fd_);
-            fd_ = -1;
+        /*
+         * exchange() returns the previous value of fd_ and stores -1
+         * in a single atomic operation. If two threads call close()
+         * concurrently only the one that observes a non-negative value
+         * actually performs ::shutdown and ::close, so the descriptor
+         * is never closed twice.
+         *
+         * A concurrent reader in accept_connection() loads fd_ into a
+         * local variable first. It therefore either sees the old value
+         * (and gets EBADF from ::accept after shutdown has run) or the
+         * new -1 (and throws before calling ::accept). Either way
+         * there is no data race on the variable itself, and the accept
+         * loop's catch handler observes running_ == false and exits.
+         */
+        const int fd = fd_.exchange(-1);
+
+        if (fd >= 0) {
+            ::shutdown(fd, SHUT_RDWR);
+            ::close(fd);
         }
     }
 
 private:
-    int fd_{-1};
+    std::atomic<int> fd_{-1};
 };
 
-}
+} // namespace caesar
