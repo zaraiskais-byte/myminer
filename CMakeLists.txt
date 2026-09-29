@@ -646,6 +646,21 @@ add_test(
     COMMAND caesar_node_network_identity_test
 )
 
+add_executable(caesar_p2p_peer_scoring_test
+    tests/p2p_peer_scoring_test.cpp
+)
+target_include_directories(caesar_p2p_peer_scoring_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_p2p_peer_scoring_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarP2PPeerScoringTest
+    COMMAND caesar_p2p_peer_scoring_test
+)
+
 add_executable(caesar_chain_replacement_test
     tests/chain_replacement_test.cpp
 )
