@@ -785,3 +785,33 @@ add_test(
     NAME CaesarTransactionRelayTest
     COMMAND caesar_transaction_relay_test
 )
+
+# ---------------------------------------------------------------------------
+# Force asserts active in every test target, even in Release.
+#
+# CMake's Release config appends -DNDEBUG, which turns every assert()
+# into a no-op. Tests that rely on assert() then silently pass without
+# checking anything. We defeat NDEBUG by adding -UNDEBUG after the
+# Release flags (the last flag wins) and force-include
+# tests/test_assertions.hpp, which trips a #error if NDEBUG is still
+# defined when a test is compiled.
+#
+# This makes the failure mode loud instead of silent: if a future
+# refactor drops -UNDEBUG, the test build fails at compile time with
+# a clear diagnostic instead of letting the tests pass vacuously.
+#
+# Production targets (caesard, etc.) are not affected and continue to
+# build with -DNDEBUG for speed.
+# ---------------------------------------------------------------------------
+get_property(CAESAR_ALL_TARGETS DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+
+foreach(_t ${CAESAR_ALL_TARGETS})
+    if(_t MATCHES "^caesar_.*_test$")
+        target_compile_options(${_t} PRIVATE -UNDEBUG)
+        target_compile_options(${_t} PRIVATE
+            -include ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_assertions.hpp)
+    endif()
+endforeach()
+
+unset(CAESAR_ALL_TARGETS)
+unset(_t)
