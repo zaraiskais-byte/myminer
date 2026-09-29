@@ -860,3 +860,22 @@ endforeach()
 
 unset(CAESAR_ALL_TARGETS)
 unset(_t)
+
+# ============================================================
+# Caesar Web Wallet (HTTP JSON-RPC + Browser UI)
+# ============================================================
+find_package(Threads REQUIRED)
+
+add_executable(caesar_web
+    src/web.cpp
+)
+
+target_include_directories(caesar_web PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/third_party
+)
+
+target_link_libraries(caesar_web PRIVATE
+    OpenSSL::Crypto
+    Threads::Threads
+)
