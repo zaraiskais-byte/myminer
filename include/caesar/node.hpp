@@ -69,6 +69,26 @@ public:
             chain = storage_.load();
         }
 
+        /*
+         * Network-identity gate: the first block of our local chain
+         * must hash to the pinned genesis for the network we were
+         * constructed with. If the storage on disk belongs to a
+         * different network (Mainnet storage opened as Testnet, or
+         * vice versa), refuse to start rather than silently serving
+         * a foreign chain to peers.
+         */
+        {
+            const Hash256* expected =
+                genesis_hash_for_network(network_id_);
+
+            if (!validate_genesis_network_identity(
+                    chain.front(), expected)) {
+                throw std::runtime_error(
+                    "storage contains a chain from a different "
+                    "network (genesis hash mismatch)");
+            }
+        }
+
         server_.start(
             p2p_port_,
             "0.0.0.0",
@@ -332,7 +352,10 @@ private:
             return;
         }
 
-        const Block genesis = build_canonical_genesis();
+        const Block genesis =
+            (network_id_ == NETWORK_TESTNET)
+                ? build_testnet_genesis()
+                : build_canonical_genesis();
 
         storage_.save({genesis});
     }

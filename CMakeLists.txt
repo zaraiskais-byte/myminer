@@ -631,6 +631,21 @@ add_test(
     COMMAND caesar_reorg_work_selection_test
 )
 
+add_executable(caesar_node_network_identity_test
+    tests/node_network_identity_test.cpp
+)
+target_include_directories(caesar_node_network_identity_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_node_network_identity_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarNodeNetworkIdentityTest
+    COMMAND caesar_node_network_identity_test
+)
+
 add_executable(caesar_chain_replacement_test
     tests/chain_replacement_test.cpp
 )
