@@ -14,10 +14,7 @@
 
 namespace caesar {
 
-inline std::string bytes_to_hex(
-    const unsigned char* data,
-    std::size_t size) {
-
+inline std::string bytes_to_hex(const unsigned char* data, std::size_t size) {
     if (!data && size != 0)
         throw std::runtime_error("invalid key data");
 
@@ -25,16 +22,15 @@ inline std::string bytes_to_hex(
     out << std::hex << std::setfill('0');
 
     for (std::size_t i = 0; i < size; ++i)
-        out << std::setw(2)
-            << static_cast<unsigned int>(data[i]);
+        out << std::setw(2) << static_cast<unsigned int>(data[i]);
 
     return out.str();
 }
 
 class Wallet {
-public:
-    Wallet()
-        : keys_(generate_keypair()) {}
+   public:
+    Wallet() : keys_(generate_keypair()) {
+    }
 
     Wallet(const Wallet&) = delete;
     Wallet& operator=(const Wallet&) = delete;
@@ -44,29 +40,18 @@ public:
 
     std::string public_key() const {
         if (!keys_.public_key)
-            throw std::runtime_error(
-                "wallet public key unavailable");
+            throw std::runtime_error("wallet public key unavailable");
 
         std::size_t size = 0;
 
-        if (EVP_PKEY_get_raw_public_key(
-                keys_.public_key,
-                nullptr,
-                &size) != 1) {
-
-            throw std::runtime_error(
-                "failed to determine public key size");
+        if (EVP_PKEY_get_raw_public_key(keys_.public_key, nullptr, &size) != 1) {
+            throw std::runtime_error("failed to determine public key size");
         }
 
         std::vector<unsigned char> raw(size);
 
-        if (EVP_PKEY_get_raw_public_key(
-                keys_.public_key,
-                raw.data(),
-                &size) != 1) {
-
-            throw std::runtime_error(
-                "failed to extract public key");
+        if (EVP_PKEY_get_raw_public_key(keys_.public_key, raw.data(), &size) != 1) {
+            throw std::runtime_error("failed to extract public key");
         }
 
         raw.resize(size);
@@ -79,16 +64,13 @@ public:
     }
 
     bool valid() const {
-        if (!keys_.private_key ||
-            !keys_.public_key) {
-
+        if (!keys_.private_key || !keys_.public_key) {
             return false;
         }
 
         const std::string key = public_key();
 
-        return key.size() == 64 &&
-               is_valid_address(address());
+        return key.size() == 64 && is_valid_address(address());
     }
 
     EVP_PKEY* private_key() const {
@@ -99,7 +81,7 @@ public:
         return keys_.public_key;
     }
 
-private:
+   private:
     KeyPair keys_;
 };
 

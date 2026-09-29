@@ -30,11 +30,7 @@ int main() {
 
     P2PPeerManager manager;
 
-    const std::uint64_t peer_id =
-        manager.add_peer(
-            std::move(peer),
-            "127.0.0.1",
-            port);
+    const std::uint64_t peer_id = manager.add_peer(std::move(peer), "127.0.0.1", port);
 
     assert(manager.size() == 1);
     assert(manager.contains(peer_id));
@@ -81,10 +77,7 @@ int main() {
         client.join();
 
     for (auto& connection : extra_peers)
-        limited_manager.add_peer(
-            std::move(connection),
-            "127.0.0.1",
-            39424);
+        limited_manager.add_peer(std::move(connection), "127.0.0.1", 39424);
 
     assert(limited_manager.size() == P2PPeerManager::MAX_PEERS);
 
@@ -99,14 +92,10 @@ int main() {
             client.connect_to("127.0.0.1", 39425);
         });
 
-        P2PConnection overflow_peer(
-            overflow_server.accept_connection());
+        P2PConnection overflow_peer(overflow_server.accept_connection());
 
         try {
-            limited_manager.add_peer(
-                std::move(overflow_peer),
-                "127.0.0.1",
-                39425);
+            limited_manager.add_peer(std::move(overflow_peer), "127.0.0.1", 39425);
         } catch (const std::runtime_error&) {
             limit_rejected = true;
         }

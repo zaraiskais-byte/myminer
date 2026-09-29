@@ -42,10 +42,7 @@ namespace caesar {
  * records which transactions were removed from the old chain, a
  * follow-up can feed them back here before or after this call.
  */
-inline void revalidate_mempool_after_reorg(
-    Mempool& mempool,
-    const std::vector<Block>& new_chain) {
-
+inline void revalidate_mempool_after_reorg(Mempool& mempool, const std::vector<Block>& new_chain) {
     if (mempool.size() == 0)
         return;
 
@@ -98,8 +95,7 @@ inline void revalidate_mempool_after_reorg(
             bool deps_ready = true;
 
             for (const auto& input : tx.inputs) {
-                if (pending.find(input.previous_txid) !=
-                    pending.end()) {
+                if (pending.find(input.previous_txid) != pending.end()) {
                     deps_ready = false;
                     break;
                 }

@@ -1,6 +1,6 @@
-#include <string>
-#include <cassert>
 #include <caesar/p2p_protocol.hpp>
+#include <cassert>
+#include <string>
 
 int main() {
     using namespace caesar;
@@ -16,8 +16,7 @@ int main() {
     assert(std::string(p2p_message_name(P2PMessageType::Transaction)) == "transaction");
     assert(std::string(p2p_message_name(P2PMessageType::Reject)) == "reject");
 
-    assert(std::string(p2p_message_name(
-        static_cast<P2PMessageType>(255))) == "unknown");
+    assert(std::string(p2p_message_name(static_cast<P2PMessageType>(255))) == "unknown");
 
     return 0;
 }

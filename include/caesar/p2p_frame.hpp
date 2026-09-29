@@ -27,21 +27,17 @@ struct P2PFrame {
         return writer.data();
     }
 
-    static P2PFrame deserialize_binary(
-        const std::vector<std::uint8_t>& data) {
-
+    static P2PFrame deserialize_binary(const std::vector<std::uint8_t>& data) {
         BinaryReader reader(data);
 
-        const std::uint32_t payload_size =
-            reader.read_u32();
+        const std::uint32_t payload_size = reader.read_u32();
 
         if (payload_size > CZR_P2P_MAX_PAYLOAD)
             throw std::runtime_error("P2P payload too large");
 
         const auto raw_type = reader.read_u8();
 
-        if (raw_type < P2P_MESSAGE_TYPE_MIN ||
-            raw_type > P2P_MESSAGE_TYPE_MAX) {
+        if (raw_type < P2P_MESSAGE_TYPE_MIN || raw_type > P2P_MESSAGE_TYPE_MAX) {
             throw std::runtime_error("Invalid P2P message type");
         }
 
@@ -49,10 +45,8 @@ struct P2PFrame {
             throw std::runtime_error("Invalid P2P frame length");
 
         P2PFrame frame;
-        frame.type =
-            static_cast<P2PMessageType>(raw_type);
-        frame.payload =
-            reader.read_bytes(payload_size);
+        frame.type = static_cast<P2PMessageType>(raw_type);
+        frame.payload = reader.read_bytes(payload_size);
 
         return frame;
     }

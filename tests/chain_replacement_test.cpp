@@ -32,10 +32,7 @@ int main() {
     plan.chain.push_back(make_block(2));
 
     // Give the prepared state a distinct UTXO count.
-    const caesar::OutPoint marker{
-        caesar::Hash256{},
-        7
-    };
+    const caesar::OutPoint marker{caesar::Hash256{}, 7};
 
     caesar::TransactionOutput output;
     output.amount = 123;
@@ -43,10 +40,7 @@ int main() {
     assert(plan.utxo.add(marker, output));
     assert(plan.utxo.size() == 1);
 
-    caesar::commit_chain_replacement(
-        canonical,
-        canonical_utxo,
-        std::move(plan));
+    caesar::commit_chain_replacement(canonical, canonical_utxo, std::move(plan));
 
     // Both pieces of canonical state changed together.
     assert(canonical.size() == 3);
@@ -54,10 +48,9 @@ int main() {
     assert(canonical_utxo.size() == 1);
     assert(canonical_utxo.contains(marker));
 
-    std::cout
-        << "Canonical chain replaced atomically: PASS\n"
-        << "Canonical UTXO replaced with matching prepared state: PASS\n"
-        << "CHAIN REPLACEMENT TEST PASSED\n";
+    std::cout << "Canonical chain replaced atomically: PASS\n"
+              << "Canonical UTXO replaced with matching prepared state: PASS\n"
+              << "CHAIN REPLACEMENT TEST PASSED\n";
 
     return 0;
 }

@@ -17,13 +17,9 @@ int main() {
 
         UTXOSet utxos;
 
-        const Hash256 funding_txid =
-            sha256("Alice ownership funding");
+        const Hash256 funding_txid = sha256("Alice ownership funding");
 
-        const OutPoint funded{
-            funding_txid,
-            0
-        };
+        const OutPoint funded{funding_txid, 0};
 
         TransactionOutput funding_output;
         funding_output.amount = 5000000;
@@ -48,69 +44,38 @@ int main() {
 
         tx.outputs.push_back(destination);
 
-        const auto alice_signature =
-            sign_transaction_input(
-                tx,
-                0,
-                alice.private_key());
+        const auto alice_signature = sign_transaction_input(tx, 0, alice.private_key());
 
-        std::vector<EVP_PKEY*> alice_handles{
-            alice.public_key_handle()
-        };
+        std::vector<EVP_PKEY*> alice_handles{alice.public_key_handle()};
 
-        std::vector<std::string> alice_public_keys{
-            alice.public_key()
-        };
+        std::vector<std::string> alice_public_keys{alice.public_key()};
 
-        std::vector<std::vector<unsigned char>> signatures{
-            alice_signature
-        };
+        std::vector<std::vector<unsigned char>> signatures{alice_signature};
 
-        if (!validate_signed_transaction_ownership(
-                tx,
-                utxos,
-                alice_handles,
-                alice_public_keys,
-                signatures)) {
-
+        if (!validate_signed_transaction_ownership(tx, utxos, alice_handles, alice_public_keys,
+                                                   signatures)) {
             std::cerr << "[FAIL] Valid owner transaction rejected\n";
             return EXIT_FAILURE;
         }
 
         std::cout << "[PASS] Correct owner + signature accepted\n";
 
-        std::vector<EVP_PKEY*> attacker_handles{
-            attacker.public_key_handle()
-        };
+        std::vector<EVP_PKEY*> attacker_handles{attacker.public_key_handle()};
 
-        std::vector<std::string> attacker_public_keys{
-            attacker.public_key()
-        };
+        std::vector<std::string> attacker_public_keys{attacker.public_key()};
 
-        if (validate_signed_transaction_ownership(
-                tx,
-                utxos,
-                attacker_handles,
-                attacker_public_keys,
-                signatures)) {
-
+        if (validate_signed_transaction_ownership(tx, utxos, attacker_handles, attacker_public_keys,
+                                                  signatures)) {
             std::cerr << "[FAIL] Wrong owner accepted\n";
             return EXIT_FAILURE;
         }
 
         std::cout << "[PASS] Wrong owner rejected\n";
 
-        std::vector<EVP_PKEY*> alice_wrong_handle{
-            attacker.public_key_handle()
-        };
+        std::vector<EVP_PKEY*> alice_wrong_handle{attacker.public_key_handle()};
 
-        if (validate_signed_transaction_ownership(
-                tx,
-                utxos,
-                alice_wrong_handle,
-                alice_public_keys,
-                signatures)) {
-
+        if (validate_signed_transaction_ownership(tx, utxos, alice_wrong_handle, alice_public_keys,
+                                                  signatures)) {
             std::cerr << "[FAIL] Wrong signing key accepted\n";
             return EXIT_FAILURE;
         }
@@ -120,21 +85,15 @@ int main() {
         Transaction modified = tx;
         modified.outputs[0].amount = 4500000;
 
-        if (validate_signed_transaction_ownership(
-                modified,
-                utxos,
-                alice_handles,
-                alice_public_keys,
-                signatures)) {
-
+        if (validate_signed_transaction_ownership(modified, utxos, alice_handles, alice_public_keys,
+                                                  signatures)) {
             std::cerr << "[FAIL] Modified transaction accepted\n";
             return EXIT_FAILURE;
         }
 
         std::cout << "[PASS] Modified transaction rejected\n";
 
-        std::cout << "Owner address: "
-                  << alice.address() << '\n';
+        std::cout << "Owner address: " << alice.address() << '\n';
 
         std::cout << "ALL OWNERSHIP TESTS PASSED\n";
         return EXIT_SUCCESS;

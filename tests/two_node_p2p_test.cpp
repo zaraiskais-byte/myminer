@@ -6,9 +6,7 @@
 #include <caesar/node.hpp>
 
 int main() {
-    const auto base =
-        std::filesystem::temp_directory_path() /
-        "caesar_two_node_p2p_test";
+    const auto base = std::filesystem::temp_directory_path() / "caesar_two_node_p2p_test";
 
     std::error_code ec;
     std::filesystem::remove_all(base, ec);
@@ -30,15 +28,13 @@ int main() {
     assert(node_a.peer_count() == 0);
     assert(node_b.peer_count() == 0);
 
-    const auto peer_id =
-        node_a.connect_to_peer("127.0.0.1", port_b);
+    const auto peer_id = node_a.connect_to_peer("127.0.0.1", port_b);
 
     assert(peer_id != 0);
     assert(node_a.peer_count() == 1);
 
     for (int i = 0; i < 50 && node_b.peer_count() == 0; ++i)
-        std::this_thread::sleep_for(
-            std::chrono::milliseconds(20));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     assert(node_b.peer_count() == 1);
 

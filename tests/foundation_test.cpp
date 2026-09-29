@@ -6,19 +6,20 @@
 
 std::string sha256(const std::string& input) {
     EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-    if (!ctx) return {};
+    if (!ctx)
+        return {};
 
     unsigned char digest[EVP_MAX_MD_SIZE];
     unsigned int size = 0;
 
-    bool ok =
-        EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) == 1 &&
-        EVP_DigestUpdate(ctx, input.data(), input.size()) == 1 &&
-        EVP_DigestFinal_ex(ctx, digest, &size) == 1;
+    bool ok = EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) == 1 &&
+              EVP_DigestUpdate(ctx, input.data(), input.size()) == 1 &&
+              EVP_DigestFinal_ex(ctx, digest, &size) == 1;
 
     EVP_MD_CTX_free(ctx);
 
-    if (!ok) return {};
+    if (!ok)
+        return {};
 
     static const char* hex = "0123456789abcdef";
     std::string out;

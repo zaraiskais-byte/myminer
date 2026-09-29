@@ -11,39 +11,26 @@
 
 namespace {
 
-caesar::Block mine_next(
-    const caesar::Block& previous,
-    std::uint64_t timestamp,
-    const std::string& miner) {
-
+caesar::Block mine_next(const caesar::Block& previous, std::uint64_t timestamp,
+                        const std::string& miner) {
     caesar::Mempool mempool;
 
-    auto block = caesar::BlockBuilder::build(
-        previous,
-        mempool,
-        miner,
-        timestamp,
-        caesar::CZR_INITIAL_MINING_DIFFICULTY);
+    auto block = caesar::BlockBuilder::build(previous, mempool, miner, timestamp,
+                                             caesar::CZR_INITIAL_MINING_DIFFICULTY);
 
     if (!caesar::BlockBuilder::mine(block, 0, 1000000))
         throw std::runtime_error("failed to mine test block");
 
-    if (!caesar::validate_block_consensus(
-            block,
-            {previous},
-            caesar::rebuild_utxo_set({previous}))) {
+    if (!caesar::validate_block_consensus(block, {previous},
+                                          caesar::rebuild_utxo_set({previous}))) {
         throw std::runtime_error("mined test block failed consensus");
     }
 
     return block;
 }
 
-std::vector<caesar::Block> make_chain(
-    const caesar::Block& genesis,
-    std::size_t count,
-    std::uint64_t timestamp_base,
-    const std::string& miner) {
-
+std::vector<caesar::Block> make_chain(const caesar::Block& genesis, std::size_t count,
+                                      std::uint64_t timestamp_base, const std::string& miner) {
     std::vector<caesar::Block> chain{genesis};
 
     for (std::size_t i = 0; i < count; ++i) {
@@ -51,17 +38,11 @@ std::vector<caesar::Block> make_chain(
 
         caesar::Mempool mempool;
 
-        auto block = caesar::BlockBuilder::build(
-            previous,
-            mempool,
-            miner,
-            timestamp_base + static_cast<std::uint64_t>(i),
-            caesar::CZR_INITIAL_MINING_DIFFICULTY);
+        auto block = caesar::BlockBuilder::build(previous, mempool, miner,
+                                                 timestamp_base + static_cast<std::uint64_t>(i),
+                                                 caesar::CZR_INITIAL_MINING_DIFFICULTY);
 
-        if (!caesar::BlockBuilder::mine(
-                block,
-                0,
-                1000000)) {
+        if (!caesar::BlockBuilder::mine(block, 0, 1000000)) {
             throw std::runtime_error("failed to mine fork block");
         }
 
@@ -79,9 +60,7 @@ std::vector<caesar::Block> make_chain(
 int main() {
     using namespace caesar;
 
-    const auto base =
-        std::filesystem::temp_directory_path() /
-        "caesar_p2p_fork_reorg_test";
+    const auto base = std::filesystem::temp_directory_path() / "caesar_p2p_fork_reorg_test";
 
     std::error_code ec;
     std::filesystem::remove_all(base, ec);
@@ -102,8 +81,7 @@ int main() {
         genesis.header.difficulty = 0;
 
         Transaction genesis_tx;
-        genesis_tx.outputs.push_back(
-            TransactionOutput{1, "CAESAR_GENESIS_BURN"});
+        genesis_tx.outputs.push_back(TransactionOutput{1, "CAESAR_GENESIS_BURN"});
         genesis.transactions.push_back(genesis_tx);
         genesis.update_merkle_root();
 
@@ -118,16 +96,12 @@ int main() {
          *
          * Both branches use real PoW.
          */
-        const auto chain_a =
-            make_chain(genesis, 3, 120, "P2P-FORK-A");
+        const auto chain_a = make_chain(genesis, 3, 120, "P2P-FORK-A");
 
-        const auto chain_b =
-            make_chain(genesis, 2, 120, "P2P-FORK-B");
+        const auto chain_b = make_chain(genesis, 2, 120, "P2P-FORK-B");
 
-        BlockchainStorage storage_a(
-            node_a_dir / "blockchain.dat");
-        BlockchainStorage storage_b(
-            node_b_dir / "blockchain.dat");
+        BlockchainStorage storage_a(node_a_dir / "blockchain.dat");
+        BlockchainStorage storage_b(node_b_dir / "blockchain.dat");
 
         std::filesystem::create_directories(node_a_dir);
         std::filesystem::create_directories(node_b_dir);
@@ -144,8 +118,7 @@ int main() {
         assert(node_a.height() == 3);
         assert(node_b.height() == 2);
 
-        const auto peer_id =
-            node_b.connect_to_peer("127.0.0.1", 19448);
+        const auto peer_id = node_b.connect_to_peer("127.0.0.1", 19448);
 
         assert(peer_id != 0);
 
@@ -158,14 +131,12 @@ int main() {
 
         for (int i = 0; i < 6000; ++i) {
             if (node_b.height() == node_a.height() &&
-                node_b.chain().back().hash() ==
-                    node_a.chain().back().hash()) {
+                node_b.chain().back().hash() == node_a.chain().back().hash()) {
                 replaced = true;
                 break;
             }
 
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(50));
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
 
         assert(replaced);

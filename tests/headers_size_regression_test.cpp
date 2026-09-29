@@ -40,7 +40,6 @@
 using namespace caesar;
 
 int main() {
-
     // 1. Build a BlockHeader with valid basic fields.
     BlockHeader header;
     header.version = 1;
@@ -50,28 +49,25 @@ int main() {
     header.witness_root = {};
     header.timestamp = 120;
     header.nonce = 0;
-    header.difficulty = 0;   // trivially satisfiable PoW
+    header.difficulty = 0; // trivially satisfiable PoW
 
     const auto header_bytes = header.serialize_binary();
 
-    std::cout << "[headers-size] serialized BlockHeader = "
-              << header_bytes.size() << " bytes\n";
+    std::cout << "[headers-size] serialized BlockHeader = " << header_bytes.size() << " bytes\n";
     assert(header_bytes.size() == 128);
 
     // 2. Build the exact wire payload handle_headers() expects:
     //    [u32 count][u32 size][size bytes of header]
     BinaryWriter writer;
     writer.write_u32(1);
-    writer.write_u32(
-        static_cast<std::uint32_t>(header_bytes.size()));
+    writer.write_u32(static_cast<std::uint32_t>(header_bytes.size()));
     writer.write_bytes(header_bytes);
 
     const auto payload = writer.data();
 
     // 3. Construct P2PRelay with a dummy server + storage.
     const auto tmp_path =
-        std::filesystem::temp_directory_path() /
-        "caesar_headers_size_regression_test.dat";
+        std::filesystem::temp_directory_path() / "caesar_headers_size_regression_test.dat";
 
     std::error_code ec;
     std::filesystem::remove(tmp_path, ec);
@@ -91,14 +87,11 @@ int main() {
         relay.handle_headers(1, payload);
     } catch (const std::exception& e) {
         message = e.what();
-        std::cout << "[headers-size] caught: "
-                  << message << "\n";
+        std::cout << "[headers-size] caught: " << message << "\n";
     }
 
     // 5. Assert the failure was NOT a size rejection.
-    const bool size_rejected =
-        message.find("invalid block header size")
-        != std::string::npos;
+    const bool size_rejected = message.find("invalid block header size") != std::string::npos;
 
     if (size_rejected) {
         std::cerr << "REGRESSION: 128-byte header was rejected "
@@ -107,14 +100,12 @@ int main() {
     }
 
     // 6. Sanity check: the failure must be the missing chain.
-    const bool chain_missing =
-        message.find("local chain") != std::string::npos;
+    const bool chain_missing = message.find("local chain") != std::string::npos;
 
-    std::cout << "[headers-size] rejected for missing chain: "
-              << (chain_missing ? "yes" : "no") << "\n";
+    std::cout << "[headers-size] rejected for missing chain: " << (chain_missing ? "yes" : "no")
+              << "\n";
 
-    assert(chain_missing &&
-           "expected the dummy storage to be empty");
+    assert(chain_missing && "expected the dummy storage to be empty");
 
     std::filesystem::remove(tmp_path, ec);
 

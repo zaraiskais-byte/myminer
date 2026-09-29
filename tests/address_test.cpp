@@ -9,11 +9,9 @@ using namespace caesar;
 int main() {
     std::cout << "=== Caesar CZR Address Tests ===\n";
 
-    const std::string public_key =
-        "caesar-ed25519-public-key-test";
+    const std::string public_key = "caesar-ed25519-public-key-test";
 
-    const std::string address =
-        address_from_public_key(public_key);
+    const std::string address = address_from_public_key(public_key);
 
     if (address.rfind("CZ1", 0) != 0) {
         std::cerr << "[FAIL] Address prefix\n";
@@ -34,8 +32,7 @@ int main() {
     std::cout << "[PASS] Valid address accepted\n";
 
     std::string modified = address;
-    modified[20] =
-        modified[20] == '0' ? '1' : '0';
+    modified[20] = modified[20] == '0' ? '1' : '0';
 
     if (is_valid_address(modified)) {
         std::cerr << "[FAIL] Checksum failed to detect modification\n";
@@ -44,8 +41,7 @@ int main() {
     std::cout << "[PASS] Modified address rejected by checksum\n";
 
     std::string bad_checksum = address;
-    bad_checksum.back() =
-        bad_checksum.back() == '0' ? '1' : '0';
+    bad_checksum.back() = bad_checksum.back() == '0' ? '1' : '0';
 
     if (is_valid_address(bad_checksum)) {
         std::cerr << "[FAIL] Invalid checksum accepted\n";

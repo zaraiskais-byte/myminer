@@ -52,8 +52,7 @@ int main() {
     {
         P2PFrame oversized;
         oversized.type = P2PMessageType::Blocks;
-        oversized.payload.resize(
-            static_cast<std::size_t>(CZR_P2P_MAX_PAYLOAD) + 1);
+        oversized.payload.resize(static_cast<std::size_t>(CZR_P2P_MAX_PAYLOAD) + 1);
 
         bool rejected = false;
 

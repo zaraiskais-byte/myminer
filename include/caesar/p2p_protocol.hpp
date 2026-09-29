@@ -40,9 +40,7 @@ inline constexpr std::uint8_t P2P_MESSAGE_TYPE_MIN =
 inline constexpr std::uint8_t P2P_MESSAGE_TYPE_MAX =
     static_cast<std::uint8_t>(P2PMessageType::SyncBlocks);
 
-inline const char* p2p_message_name(
-    P2PMessageType type) noexcept {
-
+inline const char* p2p_message_name(P2PMessageType type) noexcept {
     switch (type) {
         case P2PMessageType::Hello:
             return "hello";

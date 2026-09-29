@@ -18,7 +18,7 @@ namespace caesar {
  * The representation has eight 64-bit limbs, little-endian.
  */
 class ChainWork {
-public:
+   public:
     ChainWork() = default;
 
     explicit ChainWork(std::uint64_t value) {
@@ -27,12 +27,10 @@ public:
 
     static ChainWork power_of_two(std::uint32_t exponent) {
         if (exponent >= 512)
-            throw std::runtime_error(
-                "chain work exponent exceeds 512 bits");
+            throw std::runtime_error("chain work exponent exceeds 512 bits");
 
         ChainWork result;
-        result.limbs_[exponent / 64] =
-            std::uint64_t{1} << (exponent % 64);
+        result.limbs_[exponent / 64] = std::uint64_t{1} << (exponent % 64);
         return result;
     }
 
@@ -54,38 +52,25 @@ public:
         }
 
         if (carry != 0)
-            throw std::overflow_error(
-                "cumulative chain work exceeds 512 bits");
+            throw std::overflow_error("cumulative chain work exceeds 512 bits");
 
         return *this;
     }
 
-    friend ChainWork operator+(
-        ChainWork lhs,
-        const ChainWork& rhs) {
-
+    friend ChainWork operator+(ChainWork lhs, const ChainWork& rhs) {
         lhs += rhs;
         return lhs;
     }
 
-    friend bool operator==(
-        const ChainWork& lhs,
-        const ChainWork& rhs) {
-
+    friend bool operator==(const ChainWork& lhs, const ChainWork& rhs) {
         return lhs.limbs_ == rhs.limbs_;
     }
 
-    friend bool operator!=(
-        const ChainWork& lhs,
-        const ChainWork& rhs) {
-
+    friend bool operator!=(const ChainWork& lhs, const ChainWork& rhs) {
         return !(lhs == rhs);
     }
 
-    friend bool operator<(
-        const ChainWork& lhs,
-        const ChainWork& rhs) {
-
+    friend bool operator<(const ChainWork& lhs, const ChainWork& rhs) {
         for (std::size_t i = lhs.limbs_.size(); i-- > 0;) {
             if (lhs.limbs_[i] < rhs.limbs_[i])
                 return true;
@@ -96,46 +81,32 @@ public:
         return false;
     }
 
-    friend bool operator>(
-        const ChainWork& lhs,
-        const ChainWork& rhs) {
-
+    friend bool operator>(const ChainWork& lhs, const ChainWork& rhs) {
         return rhs < lhs;
     }
 
-    friend bool operator<=(
-        const ChainWork& lhs,
-        const ChainWork& rhs) {
-
+    friend bool operator<=(const ChainWork& lhs, const ChainWork& rhs) {
         return !(rhs < lhs);
     }
 
-    friend bool operator>=(
-        const ChainWork& lhs,
-        const ChainWork& rhs) {
-
+    friend bool operator>=(const ChainWork& lhs, const ChainWork& rhs) {
         return !(lhs < rhs);
     }
 
-private:
+   private:
     std::array<std::uint64_t, 8> limbs_{};
 };
 
 inline ChainWork block_work(const Block& block) {
     if (block.header.difficulty > CZR_MAX_DIFFICULTY)
-        throw std::runtime_error(
-            "invalid difficulty for chain work");
+        throw std::runtime_error("invalid difficulty for chain work");
 
-    return ChainWork::power_of_two(
-        block.header.difficulty);
+    return ChainWork::power_of_two(block.header.difficulty);
 }
 
-inline ChainWork cumulative_chain_work(
-    const std::vector<Block>& chain) {
-
+inline ChainWork cumulative_chain_work(const std::vector<Block>& chain) {
     if (chain.empty())
-        throw std::runtime_error(
-            "cannot calculate chain work for empty chain");
+        throw std::runtime_error("cannot calculate chain work for empty chain");
 
     ChainWork total;
 
@@ -145,18 +116,14 @@ inline ChainWork cumulative_chain_work(
     return total;
 }
 
-inline bool has_more_work(
-    const std::vector<Block>& candidate,
-    const std::vector<Block>& current) {
-
+inline bool has_more_work(const std::vector<Block>& candidate, const std::vector<Block>& current) {
     if (candidate.empty())
         return false;
 
     if (current.empty())
         return true;
 
-    return cumulative_chain_work(candidate) >
-           cumulative_chain_work(current);
+    return cumulative_chain_work(candidate) > cumulative_chain_work(current);
 }
 
 /*
@@ -164,10 +131,8 @@ inline bool has_more_work(
  *
  * Chainwork is a selection metric, not a consensus substitute.
  */
-inline bool select_higher_work_chain(
-    const std::vector<Block>& candidate,
-    const std::vector<Block>& current) {
-
+inline bool select_higher_work_chain(const std::vector<Block>& candidate,
+                                     const std::vector<Block>& current) {
     if (candidate.empty())
         return false;
 

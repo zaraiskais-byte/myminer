@@ -37,8 +37,7 @@ constexpr std::uint16_t PORT_A = 19511;
 constexpr std::uint16_t PORT_B = 19512;
 
 std::filesystem::path fresh_dir(const char* name) {
-    const auto base =
-        std::filesystem::temp_directory_path() / name;
+    const auto base = std::filesystem::temp_directory_path() / name;
     std::error_code ec;
     std::filesystem::remove_all(base, ec);
     return base;
@@ -47,7 +46,6 @@ std::filesystem::path fresh_dir(const char* name) {
 } // namespace
 
 int main() {
-
     // 1. Mainnet node uses Mainnet genesis.
     {
         const auto dir = fresh_dir("caesar_net_id_mainnet");
@@ -103,8 +101,7 @@ int main() {
             message = e.what();
         }
         assert(threw);
-        assert(message.find("different network") !=
-               std::string::npos);
+        assert(message.find("different network") != std::string::npos);
 
         std::filesystem::remove_all(dir);
     }

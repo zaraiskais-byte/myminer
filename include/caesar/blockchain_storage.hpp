@@ -1,15 +1,15 @@
 #pragma once
 
+#include <fcntl.h>
+#include <unistd.h>
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
-#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <limits>
 #include <stdexcept>
 #include <string>
-#include <unistd.h>
 #include <vector>
 
 #include <caesar/block.hpp>
@@ -42,17 +42,14 @@ namespace detail {
 inline void fsync_file(const std::filesystem::path& p) {
     const int fd = ::open(p.c_str(), O_RDONLY);
     if (fd < 0) {
-        throw std::runtime_error(
-            "fsync open failed for " + p.string() +
-            ": " + std::strerror(errno));
+        throw std::runtime_error("fsync open failed for " + p.string() + ": " +
+                                 std::strerror(errno));
     }
 
     if (::fsync(fd) != 0) {
         const int saved = errno;
         ::close(fd);
-        throw std::runtime_error(
-            "fsync failed for " + p.string() +
-            ": " + std::strerror(saved));
+        throw std::runtime_error("fsync failed for " + p.string() + ": " + std::strerror(saved));
     }
 
     ::close(fd);
@@ -81,7 +78,7 @@ inline void fsync_parent_dir(const std::filesystem::path& p) {
 
     const int fd = ::open(dir.c_str(), O_RDONLY | O_DIRECTORY);
     if (fd < 0)
-        return;  // best-effort only
+        return; // best-effort only
 
     if (::fsync(fd) != 0) {
         const int saved = errno;
@@ -90,9 +87,8 @@ inline void fsync_parent_dir(const std::filesystem::path& p) {
             // Filesystem does not support fsync on directories.
             return;
         }
-        throw std::runtime_error(
-            "fsync dir failed for " + dir.string() +
-            ": " + std::strerror(saved));
+        throw std::runtime_error("fsync dir failed for " + dir.string() + ": " +
+                                 std::strerror(saved));
     }
 
     ::close(fd);
@@ -101,9 +97,9 @@ inline void fsync_parent_dir(const std::filesystem::path& p) {
 } // namespace detail
 
 class BlockchainStorage {
-public:
-    explicit BlockchainStorage(std::filesystem::path path)
-        : path_(std::move(path)) {}
+   public:
+    explicit BlockchainStorage(std::filesystem::path path) : path_(std::move(path)) {
+    }
 
     const std::filesystem::path& path() const noexcept {
         return path_;
@@ -123,13 +119,10 @@ public:
         const auto temp = path_.string() + ".tmp";
 
         {
-            std::ofstream out(
-                temp,
-                std::ios::binary | std::ios::trunc);
+            std::ofstream out(temp, std::ios::binary | std::ios::trunc);
 
             if (!out)
-                throw std::runtime_error(
-                    "failed to create blockchain storage");
+                throw std::runtime_error("failed to create blockchain storage");
 
             write_u32(out, MAGIC);
             write_u32(out, FORMAT_VERSION);
@@ -141,8 +134,7 @@ public:
             out.flush();
 
             if (!out)
-                throw std::runtime_error(
-                    "failed while writing blockchain storage");
+                throw std::runtime_error("failed while writing blockchain storage");
         }
 
         // The stream is now closed. Force its bytes to disk before the
@@ -159,9 +151,8 @@ public:
             std::error_code cleanup_ec;
             std::filesystem::remove(temp, cleanup_ec);
 
-            throw std::runtime_error(
-                "failed to atomically replace blockchain storage: " +
-                ec.message());
+            throw std::runtime_error("failed to atomically replace blockchain storage: " +
+                                     ec.message());
         }
 
         // The rename is visible to this process, but the directory
@@ -179,29 +170,23 @@ public:
     }
 
     std::vector<Block> load() const {
-        std::ifstream in(
-            path_,
-            std::ios::binary);
+        std::ifstream in(path_, std::ios::binary);
 
         if (!in)
-            throw std::runtime_error(
-                "failed to open blockchain storage");
+            throw std::runtime_error("failed to open blockchain storage");
 
         const auto magic = read_u32(in);
         const auto version = read_u32(in);
         const auto count = read_u64(in);
 
         if (magic != MAGIC)
-            throw std::runtime_error(
-                "invalid blockchain storage magic");
+            throw std::runtime_error("invalid blockchain storage magic");
 
         if (version != FORMAT_VERSION)
-            throw std::runtime_error(
-                "unsupported blockchain storage version");
+            throw std::runtime_error("unsupported blockchain storage version");
 
         if (count == 0 || count > MAX_BLOCKS)
-            throw std::runtime_error(
-                "invalid blockchain block count");
+            throw std::runtime_error("invalid blockchain block count");
 
         std::vector<Block> chain;
         chain.reserve(static_cast<std::size_t>(count));
@@ -210,12 +195,10 @@ public:
             chain.push_back(read_block(in));
 
         if (in.peek() != std::ifstream::traits_type::eof())
-            throw std::runtime_error(
-                "trailing bytes after blockchain storage");
+            throw std::runtime_error("trailing bytes after blockchain storage");
 
         if (!validate_candidate_chain(chain))
-            throw std::runtime_error(
-                "stored blockchain failed canonical validation");
+            throw std::runtime_error("stored blockchain failed canonical validation");
 
         return chain;
     }
@@ -232,15 +215,12 @@ public:
 
         if (pow_before_load != pow_after_load)
             throw std::runtime_error(
-                "PoW changed across storage load: before=" +
-                std::to_string(pow_before_load) +
-                " after=" +
-                std::to_string(pow_after_load));
+                "PoW changed across storage load: before=" + std::to_string(pow_before_load) +
+                " after=" + std::to_string(pow_after_load));
 
         if (chain.empty()) {
             if (!block.validate_basic())
-                throw std::runtime_error(
-                    "cannot store invalid first block");
+                throw std::runtime_error("cannot store invalid first block");
 
             chain.push_back(block);
             save(chain);
@@ -249,58 +229,44 @@ public:
 
         const Block& previous = chain.back();
 
-        if (block.header.height !=
-            previous.header.height + 1) {
-            throw std::runtime_error(
-                "block height does not extend stored blockchain");
+        if (block.header.height != previous.header.height + 1) {
+            throw std::runtime_error("block height does not extend stored blockchain");
         }
 
-        if (block.header.previous_hash !=
-            previous.hash()) {
-            throw std::runtime_error(
-                "block previous hash does not match stored tip");
+        if (block.header.previous_hash != previous.hash()) {
+            throw std::runtime_error("block previous hash does not match stored tip");
         }
 
-        if (block.header.timestamp <
-            previous.header.timestamp) {
-            throw std::runtime_error(
-                "block timestamp is before stored tip");
+        if (block.header.timestamp < previous.header.timestamp) {
+            throw std::runtime_error("block timestamp is before stored tip");
         }
 
         const bool pow_after_checks = block.validate_pow();
         if (pow_after_load != pow_after_checks)
             throw std::runtime_error(
-                "PoW changed after append checks: after_load=" +
-                std::to_string(pow_after_load) +
-                " after_checks=" +
-                std::to_string(pow_after_checks));
+                "PoW changed after append checks: after_load=" + std::to_string(pow_after_load) +
+                " after_checks=" + std::to_string(pow_after_checks));
 
         if (chain.size() < CZR_DIFFICULTY_WINDOW + 1) {
-            const std::uint32_t expected_difficulty =
-                expected_next_difficulty(chain);
+            const std::uint32_t expected_difficulty = expected_next_difficulty(chain);
 
-            if (block.header.difficulty !=
-                expected_difficulty) {
-                throw std::runtime_error(
-                    "block difficulty does not match bootstrap rule");
+            if (block.header.difficulty != expected_difficulty) {
+                throw std::runtime_error("block difficulty does not match bootstrap rule");
             }
 
             if (!block.validate_basic()) {
                 const bool v = block.header.version != 0;
                 const bool pow = block.validate_pow();
                 const bool coinbase =
-                    validate_coinbase_position_and_reward(
-                        block.transactions,
-                        block.header.height);
+                    validate_coinbase_position_and_reward(block.transactions, block.header.height);
                 const bool merkle = block.validate_merkle_root();
                 const bool witness = block.validate_witness_root();
 
                 throw std::runtime_error(
                     "block basic validation failed: "
-                    "version=" + std::to_string(v) +
-                    " pow=" + std::to_string(pow) +
-                    " coinbase=" + std::to_string(coinbase) +
-                    " merkle=" + std::to_string(merkle) +
+                    "version=" +
+                    std::to_string(v) + " pow=" + std::to_string(pow) +
+                    " coinbase=" + std::to_string(coinbase) + " merkle=" + std::to_string(merkle) +
                     " witness=" + std::to_string(witness) +
                     " height=" + std::to_string(block.header.height) +
                     " difficulty=" + std::to_string(block.header.difficulty));
@@ -318,15 +284,10 @@ public:
              * UTXOs, as long as the header and difficulty were
              * consistent with validate_against_chain().
              */
-            const UTXOSet previous_utxos =
-                rebuild_utxo_set(chain);
+            const UTXOSet previous_utxos = rebuild_utxo_set(chain);
 
-            if (!validate_block_consensus(
-                    block,
-                    chain,
-                    previous_utxos)) {
-                throw std::runtime_error(
-                    "block consensus validation failed");
+            if (!validate_block_consensus(block, chain, previous_utxos)) {
+                throw std::runtime_error("block consensus validation failed");
             }
         }
 
@@ -334,7 +295,7 @@ public:
         save(chain);
     }
 
-private:
+   private:
     static constexpr std::uint32_t MAGIC = 0x435A5231U;
     static constexpr std::uint32_t FORMAT_VERSION = 1;
     static constexpr std::uint64_t MAX_BLOCKS = 10000000ULL;
@@ -342,153 +303,103 @@ private:
 
     std::filesystem::path path_;
 
-    static void write_u32(
-        std::ofstream& out,
-        std::uint32_t value) {
-
+    static void write_u32(std::ofstream& out, std::uint32_t value) {
         for (unsigned i = 0; i < 4; ++i)
-            out.put(
-                static_cast<char>(
-                    (value >> (i * 8)) & 0xffU));
+            out.put(static_cast<char>((value >> (i * 8)) & 0xffU));
 
         if (!out)
-            throw std::runtime_error(
-                "failed writing uint32");
+            throw std::runtime_error("failed writing uint32");
     }
 
-    static void write_u64(
-        std::ofstream& out,
-        std::uint64_t value) {
-
+    static void write_u64(std::ofstream& out, std::uint64_t value) {
         for (unsigned i = 0; i < 8; ++i)
-            out.put(
-                static_cast<char>(
-                    (value >> (i * 8)) & 0xffULL));
+            out.put(static_cast<char>((value >> (i * 8)) & 0xffULL));
 
         if (!out)
-            throw std::runtime_error(
-                "failed writing uint64");
+            throw std::runtime_error("failed writing uint64");
     }
 
-    static std::uint32_t read_u32(
-        std::ifstream& in) {
-
+    static std::uint32_t read_u32(std::ifstream& in) {
         std::uint32_t value = 0;
 
         for (unsigned i = 0; i < 4; ++i) {
             const int c = in.get();
 
             if (c == std::ifstream::traits_type::eof())
-                throw std::runtime_error(
-                    "unexpected end of blockchain storage");
+                throw std::runtime_error("unexpected end of blockchain storage");
 
-            value |=
-                static_cast<std::uint32_t>(
-                    static_cast<unsigned char>(c))
-                << (i * 8);
+            value |= static_cast<std::uint32_t>(static_cast<unsigned char>(c)) << (i * 8);
         }
 
         return value;
     }
 
-    static std::uint64_t read_u64(
-        std::ifstream& in) {
-
+    static std::uint64_t read_u64(std::ifstream& in) {
         std::uint64_t value = 0;
 
         for (unsigned i = 0; i < 8; ++i) {
             const int c = in.get();
 
             if (c == std::ifstream::traits_type::eof())
-                throw std::runtime_error(
-                    "unexpected end of blockchain storage");
+                throw std::runtime_error("unexpected end of blockchain storage");
 
-            value |=
-                static_cast<std::uint64_t>(
-                    static_cast<unsigned char>(c))
-                << (i * 8);
+            value |= static_cast<std::uint64_t>(static_cast<unsigned char>(c)) << (i * 8);
         }
 
         return value;
     }
 
-    static void write_block(
-        std::ofstream& out,
-        const Block& block) {
-
+    static void write_block(std::ofstream& out, const Block& block) {
         const auto data = block.serialize_full_binary();
 
-        if (data.empty() ||
-            data.size() > MAX_BLOCK_BYTES) {
-
-            throw std::runtime_error(
-                "block exceeds storage size limit");
+        if (data.empty() || data.size() > MAX_BLOCK_BYTES) {
+            throw std::runtime_error("block exceeds storage size limit");
         }
 
         if (data.size() > std::numeric_limits<std::uint32_t>::max())
-            throw std::runtime_error(
-                "block is too large for storage format");
+            throw std::runtime_error("block is too large for storage format");
 
-        const auto checksum =
-            sha256(bytes_to_binary_string(data));
+        const auto checksum = sha256(bytes_to_binary_string(data));
 
-        write_u32(
-            out,
-            static_cast<std::uint32_t>(data.size()));
+        write_u32(out, static_cast<std::uint32_t>(data.size()));
 
-        out.write(
-            reinterpret_cast<const char*>(data.data()),
-            static_cast<std::streamsize>(data.size()));
+        out.write(reinterpret_cast<const char*>(data.data()),
+                  static_cast<std::streamsize>(data.size()));
 
         for (const auto byte : checksum)
             out.put(static_cast<char>(byte));
 
         if (!out)
-            throw std::runtime_error(
-                "failed writing blockchain block");
+            throw std::runtime_error("failed writing blockchain block");
     }
 
-    static Block read_block(
-        std::ifstream& in) {
-
+    static Block read_block(std::ifstream& in) {
         const auto size = read_u32(in);
 
         if (size == 0 || size > MAX_BLOCK_BYTES)
-            throw std::runtime_error(
-                "invalid stored block size");
+            throw std::runtime_error("invalid stored block size");
 
         std::vector<std::uint8_t> data(size);
 
-        in.read(
-            reinterpret_cast<char*>(data.data()),
-            static_cast<std::streamsize>(data.size()));
+        in.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size()));
 
-        if (in.gcount() !=
-            static_cast<std::streamsize>(data.size())) {
-
-            throw std::runtime_error(
-                "truncated stored block");
+        if (in.gcount() != static_cast<std::streamsize>(data.size())) {
+            throw std::runtime_error("truncated stored block");
         }
 
         Hash256 stored_checksum{};
 
-        in.read(
-            reinterpret_cast<char*>(stored_checksum.data()),
-            static_cast<std::streamsize>(stored_checksum.size()));
+        in.read(reinterpret_cast<char*>(stored_checksum.data()),
+                static_cast<std::streamsize>(stored_checksum.size()));
 
-        if (in.gcount() !=
-            static_cast<std::streamsize>(stored_checksum.size())) {
-
-            throw std::runtime_error(
-                "truncated stored block checksum");
+        if (in.gcount() != static_cast<std::streamsize>(stored_checksum.size())) {
+            throw std::runtime_error("truncated stored block checksum");
         }
 
-        const auto actual_checksum =
-            sha256(bytes_to_binary_string(data));
+        const auto actual_checksum = sha256(bytes_to_binary_string(data));
 
         if (stored_checksum != actual_checksum)
-            throw std::runtime_error(
-                "stored block checksum mismatch");
+            throw std::runtime_error("stored block checksum mismatch");
 
         return Block::deserialize_full(data);
     }

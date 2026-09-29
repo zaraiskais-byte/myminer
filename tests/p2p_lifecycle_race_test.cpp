@@ -35,10 +35,7 @@
 using namespace caesar;
 
 int main() {
-
-    const auto tmp =
-        std::filesystem::temp_directory_path() /
-        "caesar_p2p_lifecycle_race_test.dat";
+    const auto tmp = std::filesystem::temp_directory_path() / "caesar_p2p_lifecycle_race_test.dat";
 
     std::error_code ec;
     std::filesystem::remove(tmp, ec);
@@ -51,21 +48,21 @@ int main() {
     int races_detected = 0;
 
     for (int it = 0; it < iterations; ++it) {
-
         P2PRelay relay(server, storage, storage_mutex);
         relay.start();
 
         std::atomic<bool> go{false};
 
         std::thread writer([&]() {
-            while (!go.load(std::memory_order_acquire)) {}
+            while (!go.load(std::memory_order_acquire)) {
+            }
             for (int i = 0; i < 100; ++i)
-                relay.on_peer_added(
-                    static_cast<std::uint64_t>(i));
+                relay.on_peer_added(static_cast<std::uint64_t>(i));
         });
 
         std::thread stopper([&]() {
-            while (!go.load(std::memory_order_acquire)) {}
+            while (!go.load(std::memory_order_acquire)) {
+            }
             relay.stop();
         });
 
@@ -82,8 +79,7 @@ int main() {
 
         if (leftover != 0) {
             ++races_detected;
-            std::cout << "[iter " << it << "] RACE: "
-                      << leftover << " worker(s) left in threads_"
+            std::cout << "[iter " << it << "] RACE: " << leftover << " worker(s) left in threads_"
                       << " after stop()\n";
 
             std::vector<std::thread> drain;
@@ -92,14 +88,15 @@ int main() {
                 drain.swap(relay.threads_);
             }
             for (auto& t : drain)
-                if (t.joinable()) t.join();
+                if (t.joinable())
+                    t.join();
         }
     }
 
     std::filesystem::remove(tmp, ec);
 
-    std::cout << "[p2p-lifecycle] iterations=" << iterations
-              << " races_detected=" << races_detected << "\n";
+    std::cout << "[p2p-lifecycle] iterations=" << iterations << " races_detected=" << races_detected
+              << "\n";
 
     if (races_detected > 0) {
         std::cerr << "REGRESSION: P2PRelay::stop() left unjoined "

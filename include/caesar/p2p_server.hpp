@@ -18,7 +18,7 @@
 namespace caesar {
 
 class P2PServer {
-public:
+   public:
     static constexpr std::size_t MAX_CONNECTION_ATTEMPTS_PER_IP = 8;
     static constexpr std::size_t MAX_TRACKED_CONNECTION_IPS = 1024;
     static constexpr std::chrono::seconds CONNECTION_ATTEMPT_WINDOW{10};
@@ -32,75 +32,50 @@ public:
     P2PServer(const P2PServer&) = delete;
     P2PServer& operator=(const P2PServer&) = delete;
 
-    void start(
-        std::uint16_t port,
-        const std::string& address = "0.0.0.0",
-        std::uint32_t network_id = 1,
-        std::uint64_t height = 0) {
-
+    void start(std::uint16_t port, const std::string& address = "0.0.0.0",
+               std::uint32_t network_id = 1, std::uint64_t height = 0) {
         if (running_)
-            throw std::runtime_error(
-                "P2P server already running");
+            throw std::runtime_error("P2P server already running");
 
-        local_hello_.protocol_version =
-            CZR_P2P_PROTOCOL_VERSION;
+        local_hello_.protocol_version = CZR_P2P_PROTOCOL_VERSION;
 
-        local_hello_.network_id =
-            network_id;
+        local_hello_.network_id = network_id;
 
-        local_hello_.height =
-            height;
+        local_hello_.height = height;
 
         local_hello_.timestamp = 0;
 
-        local_hello_.user_agent =
-            "Caesar-CZR";
+        local_hello_.user_agent = "Caesar-CZR";
 
         listener_.listen_on(port, address);
 
         running_ = true;
 
-        accept_thread_ = std::thread(
-            [this]() {
-                accept_loop();
-            });
+        accept_thread_ = std::thread([this]() { accept_loop(); });
     }
 
-    std::uint64_t connect_to_peer(
-        const std::string& address,
-        std::uint16_t port) {
-
+    std::uint64_t connect_to_peer(const std::string& address, std::uint16_t port) {
         if (!running_)
-            throw std::runtime_error(
-                "P2P server is not running");
+            throw std::runtime_error("P2P server is not running");
 
         if (peers_.size() >= P2PPeerManager::MAX_PEERS)
-            throw std::runtime_error(
-                "P2P peer limit reached");
+            throw std::runtime_error("P2P peer limit reached");
 
         P2PConnection connection;
 
         connection.connect_to(address, port);
 
         if (!connection.valid())
-            throw std::runtime_error(
-                "P2P outbound connection failed");
+            throw std::runtime_error("P2P outbound connection failed");
 
         connection.set_timeouts(5000);
 
-        perform_hello_handshake(
-            connection,
-            local_hello_,
-            local_hello_.network_id);
+        perform_hello_handshake(connection, local_hello_, local_hello_.network_id);
 
-        return peers_.add_peer(
-            std::move(connection),
-            address,
-            port);
+        return peers_.add_peer(std::move(connection), address, port);
     }
 
     void stop() noexcept {
-
         if (!running_)
             return;
 
@@ -126,21 +101,14 @@ public:
         return peers_;
     }
 
-private:
-    bool allow_connection_attempt(
-        const std::string& address) {
+   private:
+    bool allow_connection_attempt(const std::string& address) {
+        const auto now = std::chrono::steady_clock::now();
 
-        const auto now =
-            std::chrono::steady_clock::now();
+        std::lock_guard<std::mutex> lock(attempt_mutex_);
 
-        std::lock_guard<std::mutex> lock(
-            attempt_mutex_);
-
-        for (auto it = connection_attempts_.begin();
-             it != connection_attempts_.end();) {
-
-            if (now - it->second.window_start >=
-                CONNECTION_ATTEMPT_WINDOW) {
+        for (auto it = connection_attempts_.begin(); it != connection_attempts_.end();) {
+            if (now - it->second.window_start >= CONNECTION_ATTEMPT_WINDOW) {
                 it = connection_attempts_.erase(it);
             } else {
                 ++it;
@@ -150,23 +118,18 @@ private:
         auto it = connection_attempts_.find(address);
 
         if (it == connection_attempts_.end()) {
-
-            if (connection_attempts_.size() >=
-                MAX_TRACKED_CONNECTION_IPS) {
+            if (connection_attempts_.size() >= MAX_TRACKED_CONNECTION_IPS) {
                 return false;
             }
 
-            connection_attempts_.emplace(
-                address,
-                ConnectionAttemptState{now, 1});
+            connection_attempts_.emplace(address, ConnectionAttemptState{now, 1});
 
             return true;
         }
 
         auto& state = it->second;
 
-        if (state.attempts >=
-            MAX_CONNECTION_ATTEMPTS_PER_IP) {
+        if (state.attempts >= MAX_CONNECTION_ATTEMPTS_PER_IP) {
             return false;
         }
 
@@ -175,13 +138,9 @@ private:
     }
 
     void accept_loop() {
-
         while (running_) {
-
             try {
-
-                P2PTcpSocket socket =
-                    listener_.accept_connection();
+                P2PTcpSocket socket = listener_.accept_connection();
 
                 if (!running_) {
                     socket.close();
@@ -197,37 +156,26 @@ private:
                     continue;
                 }
 
-                const std::string peer_address =
-                    socket.peer_address();
+                const std::string peer_address = socket.peer_address();
 
-                if (!allow_connection_attempt(
-                        peer_address)) {
+                if (!allow_connection_attempt(peer_address)) {
                     socket.close();
                     continue;
                 }
 
-                const std::uint16_t peer_port =
-                    socket.peer_port();
+                const std::uint16_t peer_port = socket.peer_port();
 
-                P2PConnection connection(
-                    std::move(socket));
+                P2PConnection connection(std::move(socket));
 
-                perform_hello_handshake(
-                    connection,
-                    local_hello_,
-                    local_hello_.network_id);
+                perform_hello_handshake(connection, local_hello_, local_hello_.network_id);
 
                 if (!running_) {
                     break;
                 }
 
-                peers_.add_peer(
-                    std::move(connection),
-                    peer_address,
-                    peer_port);
+                peers_.add_peer(std::move(connection), peer_address, peer_port);
 
             } catch (...) {
-
                 if (!running_)
                     break;
             }
@@ -243,8 +191,7 @@ private:
     P2PPeerManager peers_;
 
     mutable std::mutex attempt_mutex_;
-    std::unordered_map<std::string, ConnectionAttemptState>
-        connection_attempts_;
+    std::unordered_map<std::string, ConnectionAttemptState> connection_attempts_;
 
     P2PHello local_hello_;
 
@@ -252,4 +199,4 @@ private:
     std::thread accept_thread_;
 };
 
-}
+} // namespace caesar

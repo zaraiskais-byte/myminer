@@ -47,8 +47,7 @@ Block make_block(std::uint64_t timestamp) {
     return b;
 }
 
-Block chain_with_last_timestamps(
-    const std::vector<std::uint64_t>& ts) {
+Block chain_with_last_timestamps(const std::vector<std::uint64_t>& ts) {
     Block b;
     for (auto t : ts) {
         b.header.timestamp = t;
@@ -59,7 +58,6 @@ Block chain_with_last_timestamps(
 } // namespace
 
 int main() {
-
     // -----------------------------------------------------------------
     // 1. median_of_timestamps: odd and even behaviour
     // -----------------------------------------------------------------
@@ -95,15 +93,11 @@ int main() {
         std::vector<Block> chain;
         chain.push_back(make_block(0));
         for (int i = 1; i <= 11; ++i)
-            chain.push_back(
-                make_block(static_cast<std::uint64_t>(i) * 120));
+            chain.push_back(make_block(static_cast<std::uint64_t>(i) * 120));
 
-        const std::vector<std::uint64_t> window = {
-            120, 240, 360, 480, 600, 720,
-            840, 960, 1080, 1200, 1320
-        };
-        assert(compute_median_time_past(chain) ==
-               median_of_timestamps(window));
+        const std::vector<std::uint64_t> window = {120, 240, 360,  480,  600, 720,
+                                                   840, 960, 1080, 1200, 1320};
+        assert(compute_median_time_past(chain) == median_of_timestamps(window));
     }
 
     std::cout << "[ts] MTP cases: OK\n";
@@ -120,10 +114,8 @@ int main() {
         assert(minimum_allowed_timestamp(chain) == 101);
     }
 
-    assert(maximum_allowed_timestamp(1000) ==
-           1000 + CZR_MAX_FUTURE_DRIFT);
-    assert(maximum_allowed_timestamp(0) ==
-           CZR_MAX_FUTURE_DRIFT);
+    assert(maximum_allowed_timestamp(1000) == 1000 + CZR_MAX_FUTURE_DRIFT);
+    assert(maximum_allowed_timestamp(0) == CZR_MAX_FUTURE_DRIFT);
 
     std::cout << "[ts] bounds: OK\n";
 
@@ -136,56 +128,46 @@ int main() {
     chain.push_back(make_block(0));
     chain.push_back(make_block(120));
     chain.push_back(make_block(240));
-    const std::uint64_t mtp =
-        compute_median_time_past(chain);
+    const std::uint64_t mtp = compute_median_time_past(chain);
 
     // 4a. Block exactly at MTP is rejected (strict inequality).
     {
         Block b = make_block(mtp);
-        assert(!validate_block_timestamp_canonical(
-            b, chain, now));
+        assert(!validate_block_timestamp_canonical(b, chain, now));
     }
 
     // 4b. Block one second above MTP and well before now is accepted.
     {
         Block b = make_block(mtp + 1);
-        assert(validate_block_timestamp_canonical(
-            b, chain, now));
+        assert(validate_block_timestamp_canonical(b, chain, now));
     }
 
     // 4c. Block exactly at the future-drift boundary is accepted.
     {
-        Block b = make_block(
-            maximum_allowed_timestamp(now));
-        assert(validate_block_timestamp_canonical(
-            b, chain, now));
+        Block b = make_block(maximum_allowed_timestamp(now));
+        assert(validate_block_timestamp_canonical(b, chain, now));
     }
 
     // 4d. Block one second past the boundary is rejected.
     {
-        Block b = make_block(
-            maximum_allowed_timestamp(now) + 1);
-        assert(!validate_block_timestamp_canonical(
-            b, chain, now));
+        Block b = make_block(maximum_allowed_timestamp(now) + 1);
+        assert(!validate_block_timestamp_canonical(b, chain, now));
     }
 
     // 4e. Massive future timestamp is rejected.
     {
         Block b = make_block(now + 100 * 365 * 24 * 3600ULL);
-        assert(!validate_block_timestamp_canonical(
-            b, chain, now));
+        assert(!validate_block_timestamp_canonical(b, chain, now));
     }
 
     // 4f. Empty chain: only future-drift rule applies.
     {
         std::vector<Block> empty;
         Block b = make_block(now);
-        assert(validate_block_timestamp_canonical(
-            b, empty, now));
+        assert(validate_block_timestamp_canonical(b, empty, now));
 
         Block b2 = make_block(now + 100 * 365 * 24 * 3600ULL);
-        assert(!validate_block_timestamp_canonical(
-            b2, empty, now));
+        assert(!validate_block_timestamp_canonical(b2, empty, now));
     }
 
     std::cout << "[ts] validation cases: OK\n";

@@ -18,9 +18,7 @@ int main() {
         P2PTcpSocket client;
         client.connect_to("127.0.0.1", port);
 
-        const std::uint8_t message[] = {
-            0x43, 0x5A, 0x52, 0x01
-        };
+        const std::uint8_t message[] = {0x43, 0x5A, 0x52, 0x01};
 
         client.send_all(message, sizeof(message));
 
@@ -45,9 +43,7 @@ int main() {
     assert(received[2] == 0x52);
     assert(received[3] == 0x01);
 
-    const std::uint8_t reply[] = {
-        0x50, 0x4F, 0x4E, 0x47
-    };
+    const std::uint8_t reply[] = {0x50, 0x4F, 0x4E, 0x47};
 
     peer.send_all(reply, sizeof(reply));
 

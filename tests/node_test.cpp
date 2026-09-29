@@ -5,9 +5,7 @@
 #include <caesar/node.hpp>
 
 int main() {
-    const auto data_dir =
-        std::filesystem::temp_directory_path() /
-        "caesar_node_test";
+    const auto data_dir = std::filesystem::temp_directory_path() / "caesar_node_test";
 
     std::error_code ec;
     std::filesystem::remove_all(data_dir, ec);
@@ -31,16 +29,12 @@ int main() {
         assert(chain.front().header.height == 0);
         assert(caesar::validate_block_chain(chain));
 
-        node.mine_one_block(
-            "CAESAR_NODE_TEST_MINER",
-            1000000);
+        node.mine_one_block("CAESAR_NODE_TEST_MINER", 1000000);
 
         const auto mined_chain = node.chain();
         assert(mined_chain.size() == 2);
         assert(mined_chain.back().header.height == 1);
-        assert(
-            mined_chain.back().header.previous_hash ==
-            mined_chain.front().hash());
+        assert(mined_chain.back().header.previous_hash == mined_chain.front().hash());
         assert(mined_chain.back().validate_pow());
         assert(caesar::validate_block_chain(mined_chain));
 

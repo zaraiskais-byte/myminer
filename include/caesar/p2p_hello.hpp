@@ -33,9 +33,7 @@ struct P2PHello {
         return writer.data();
     }
 
-    static P2PHello deserialize_binary(
-        const std::vector<std::uint8_t>& data) {
-
+    static P2PHello deserialize_binary(const std::vector<std::uint8_t>& data) {
         BinaryReader reader(data);
 
         P2PHello hello;

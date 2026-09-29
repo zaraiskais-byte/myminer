@@ -22,5 +22,6 @@
  * build with -DNDEBUG for speed.
  */
 #ifdef NDEBUG
-#error "Test built with NDEBUG: assert() would be a no-op. CMakeLists.txt must pass -UNDEBUG to test targets."
+#error \
+    "Test built with NDEBUG: assert() would be a no-op. CMakeLists.txt must pass -UNDEBUG to test targets."
 #endif

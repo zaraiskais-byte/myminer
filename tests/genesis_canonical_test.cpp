@@ -33,7 +33,6 @@
 using namespace caesar;
 
 int main() {
-
     // 1. Determinism.
     const Block g1 = build_canonical_genesis();
     const Block g2 = build_canonical_genesis();
@@ -65,15 +64,12 @@ int main() {
     const Hash256 h = g1.hash();
     std::cout << "[genesis] canonical hash = ";
     for (std::uint8_t b : h) {
-        std::cout << std::hex << std::setfill('0')
-                  << std::setw(2)
-                  << static_cast<int>(b);
+        std::cout << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(b);
     }
     std::cout << std::dec << "\n";
 
     // 5. Network constants are defined and distinct.
-    static_assert(NETWORK_MAINNET != NETWORK_TESTNET,
-                  "network ids must differ");
+    static_assert(NETWORK_MAINNET != NETWORK_TESTNET, "network ids must differ");
     assert(NETWORK_MAINNET == 1);
     assert(NETWORK_TESTNET == 2);
 
@@ -87,23 +83,19 @@ int main() {
     assert(genesis_hash_for_network(NETWORK_MAINNET) != nullptr);
     assert(*genesis_hash_for_network(NETWORK_MAINNET) == g1.hash());
     assert(genesis_hash_for_network(NETWORK_TESTNET) != nullptr);
-    assert(*genesis_hash_for_network(NETWORK_TESTNET) ==
-           GENESIS_HASH_TESTNET);
+    assert(*genesis_hash_for_network(NETWORK_TESTNET) == GENESIS_HASH_TESTNET);
 
     // 9. validate_genesis_network_identity accepts correct hash,
     //    rejects wrong hash, and passes through when unpinned.
     assert(validate_genesis_network_identity(g1, nullptr));
-    assert(validate_genesis_network_identity(
-        g1, &GENESIS_HASH_MAINNET));
+    assert(validate_genesis_network_identity(g1, &GENESIS_HASH_MAINNET));
 
     // Build a fake genesis with a different recipient.
     Block fake = g1;
-    fake.transactions.front().outputs.front().recipient =
-        "FAKE_GENESIS";
+    fake.transactions.front().outputs.front().recipient = "FAKE_GENESIS";
     fake.update_merkle_root();
     assert(fake.hash() != GENESIS_HASH_MAINNET);
-    assert(!validate_genesis_network_identity(
-        fake, &GENESIS_HASH_MAINNET));
+    assert(!validate_genesis_network_identity(fake, &GENESIS_HASH_MAINNET));
 
     // 10. Testnet genesis is structurally valid and distinct from
     //     the Mainnet one. The hash is printed so it can be pinned
@@ -116,13 +108,11 @@ int main() {
         assert(t.hash() != GENESIS_HASH_MAINNET);
         assert(t.transactions.size() == 1);
         assert(t.transactions.front().outputs.size() == 1);
-        assert(t.transactions.front().outputs.front().recipient ==
-               TESTNET_BURN_RECIPIENT);
+        assert(t.transactions.front().outputs.front().recipient == TESTNET_BURN_RECIPIENT);
 
         std::cout << "[genesis] testnet hash = ";
         for (std::uint8_t b : t.hash()) {
-            std::cout << std::hex << std::setfill('0')
-                      << std::setw(2) << static_cast<int>(b);
+            std::cout << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(b);
         }
         std::cout << std::dec << "\n";
 

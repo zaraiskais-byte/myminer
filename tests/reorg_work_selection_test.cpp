@@ -40,9 +40,7 @@ Block make_block(std::uint64_t height, std::uint32_t difficulty) {
     return b;
 }
 
-std::vector<Block> make_chain(
-    std::initializer_list<std::uint32_t> difficulties) {
-
+std::vector<Block> make_chain(std::initializer_list<std::uint32_t> difficulties) {
     std::vector<Block> chain;
     chain.reserve(difficulties.size());
 
@@ -56,7 +54,6 @@ std::vector<Block> make_chain(
 } // namespace
 
 int main() {
-
     // -----------------------------------------------------------------
     // 1. Exact chainwork arithmetic: each block contributes 2^d.
     // -----------------------------------------------------------------
@@ -102,9 +99,9 @@ int main() {
     // 3. Sequential reorgs form a strict total order on work.
     // -----------------------------------------------------------------
     {
-        const auto a = make_chain({10, 10});       // 2048
-        const auto b = make_chain({11, 11});       // 4096
-        const auto c = make_chain({11, 11, 10});   // 5120
+        const auto a = make_chain({10, 10});     // 2048
+        const auto b = make_chain({11, 11});     // 4096
+        const auto c = make_chain({11, 11, 10}); // 5120
 
         assert(has_more_work(b, a));
         assert(has_more_work(c, b));
@@ -166,16 +163,14 @@ int main() {
         out.amount = 999;
         assert(plan.utxo.add(marker, out));
 
-        commit_chain_replacement(
-            canonical, canonical_utxo, std::move(plan));
+        commit_chain_replacement(canonical, canonical_utxo, std::move(plan));
 
         assert(canonical.size() == 3);
         assert(canonical.front().hash() == genesis_before);
         assert(canonical_utxo.size() == 1);
         assert(canonical_utxo.contains(marker));
     }
-    std::cout
-        << "[reorg-work] atomic commit + genesis preserved: OK\n";
+    std::cout << "[reorg-work] atomic commit + genesis preserved: OK\n";
 
     std::cout << "CaesarReorgWorkSelectionTest: PASS\n";
     return 0;

@@ -8,9 +8,7 @@
 
 using namespace caesar;
 
-static void expect_reject(
-    const std::vector<std::uint8_t>& data) {
-
+static void expect_reject(const std::vector<std::uint8_t>& data) {
     bool rejected = false;
 
     try {
@@ -22,15 +20,10 @@ static void expect_reject(
     assert(rejected);
 }
 
-static std::vector<std::uint8_t> u32le(
-    std::uint32_t value) {
-
-    return {
-        static_cast<std::uint8_t>(value & 0xff),
-        static_cast<std::uint8_t>((value >> 8) & 0xff),
-        static_cast<std::uint8_t>((value >> 16) & 0xff),
-        static_cast<std::uint8_t>((value >> 24) & 0xff)
-    };
+static std::vector<std::uint8_t> u32le(std::uint32_t value) {
+    return {static_cast<std::uint8_t>(value & 0xff), static_cast<std::uint8_t>((value >> 8) & 0xff),
+            static_cast<std::uint8_t>((value >> 16) & 0xff),
+            static_cast<std::uint8_t>((value >> 24) & 0xff)};
 }
 
 int main() {
@@ -40,9 +33,7 @@ int main() {
     // 2. Declared payload length exceeds protocol limit.
     {
         auto data = u32le(CZR_P2P_MAX_PAYLOAD + 1);
-        data.push_back(
-            static_cast<std::uint8_t>(
-                P2PMessageType::Hello));
+        data.push_back(static_cast<std::uint8_t>(P2PMessageType::Hello));
         expect_reject(data);
     }
 
@@ -63,41 +54,29 @@ int main() {
     // 5. GetSyncBlocks (12) is a valid protocol message type.
     {
         auto data = u32le(0);
-        data.push_back(
-            static_cast<std::uint8_t>(
-                P2PMessageType::GetSyncBlocks));
+        data.push_back(static_cast<std::uint8_t>(P2PMessageType::GetSyncBlocks));
 
-        const auto decoded =
-            P2PFrame::deserialize_binary(data);
+        const auto decoded = P2PFrame::deserialize_binary(data);
 
-        assert(
-            decoded.type ==
-            P2PMessageType::GetSyncBlocks);
+        assert(decoded.type == P2PMessageType::GetSyncBlocks);
         assert(decoded.payload.empty());
     }
 
     // 6. SyncBlocks (13) is a valid protocol message type.
     {
         auto data = u32le(0);
-        data.push_back(
-            static_cast<std::uint8_t>(
-                P2PMessageType::SyncBlocks));
+        data.push_back(static_cast<std::uint8_t>(P2PMessageType::SyncBlocks));
 
-        const auto decoded =
-            P2PFrame::deserialize_binary(data);
+        const auto decoded = P2PFrame::deserialize_binary(data);
 
-        assert(
-            decoded.type ==
-            P2PMessageType::SyncBlocks);
+        assert(decoded.type == P2PMessageType::SyncBlocks);
         assert(decoded.payload.empty());
     }
 
     // 7. Declared payload is larger than bytes actually supplied.
     {
         auto data = u32le(10);
-        data.push_back(
-            static_cast<std::uint8_t>(
-                P2PMessageType::Hello));
+        data.push_back(static_cast<std::uint8_t>(P2PMessageType::Hello));
         data.push_back(0xAA);
         expect_reject(data);
     }
@@ -105,9 +84,7 @@ int main() {
     // 8. Declared payload is smaller than trailing bytes.
     {
         auto data = u32le(1);
-        data.push_back(
-            static_cast<std::uint8_t>(
-                P2PMessageType::Hello));
+        data.push_back(static_cast<std::uint8_t>(P2PMessageType::Hello));
         data.push_back(0xAA);
         data.push_back(0xBB);
         expect_reject(data);
@@ -120,8 +97,7 @@ int main() {
         frame.payload = {};
 
         const auto encoded = frame.serialize_binary();
-        const auto decoded =
-            P2PFrame::deserialize_binary(encoded);
+        const auto decoded = P2PFrame::deserialize_binary(encoded);
 
         assert(decoded.type == P2PMessageType::Ping);
         assert(decoded.payload.empty());
@@ -134,13 +110,10 @@ int main() {
         frame.payload.resize(CZR_P2P_MAX_PAYLOAD, 0x5A);
 
         const auto encoded = frame.serialize_binary();
-        const auto decoded =
-            P2PFrame::deserialize_binary(encoded);
+        const auto decoded = P2PFrame::deserialize_binary(encoded);
 
-        assert(decoded.type ==
-               P2PMessageType::Transaction);
-        assert(decoded.payload.size() ==
-               CZR_P2P_MAX_PAYLOAD);
+        assert(decoded.type == P2PMessageType::Transaction);
+        assert(decoded.payload.size() == CZR_P2P_MAX_PAYLOAD);
         assert(decoded.payload.front() == 0x5A);
         assert(decoded.payload.back() == 0x5A);
     }
@@ -149,10 +122,7 @@ int main() {
     {
         P2PFrame frame;
         frame.type = P2PMessageType::Blocks;
-        frame.payload.resize(
-            static_cast<std::size_t>(
-                CZR_P2P_MAX_PAYLOAD) + 1,
-            0xA5);
+        frame.payload.resize(static_cast<std::size_t>(CZR_P2P_MAX_PAYLOAD) + 1, 0xA5);
 
         bool rejected = false;
 

@@ -30,7 +30,6 @@
 using namespace caesar;
 
 int main() {
-
     // 1. Empty mempool: must be a no-op and must not throw.
     {
         Mempool mempool;

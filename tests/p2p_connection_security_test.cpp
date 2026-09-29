@@ -7,27 +7,17 @@
 
 using namespace caesar;
 
-static void send_raw(
-    P2PTcpSocket& socket,
-    const std::vector<std::uint8_t>& data) {
-
+static void send_raw(P2PTcpSocket& socket, const std::vector<std::uint8_t>& data) {
     socket.send_all(data.data(), data.size());
 }
 
-static std::vector<std::uint8_t> u32le(
-    std::uint32_t value) {
-
-    return {
-        static_cast<std::uint8_t>(value & 0xff),
-        static_cast<std::uint8_t>((value >> 8) & 0xff),
-        static_cast<std::uint8_t>((value >> 16) & 0xff),
-        static_cast<std::uint8_t>((value >> 24) & 0xff)
-    };
+static std::vector<std::uint8_t> u32le(std::uint32_t value) {
+    return {static_cast<std::uint8_t>(value & 0xff), static_cast<std::uint8_t>((value >> 8) & 0xff),
+            static_cast<std::uint8_t>((value >> 16) & 0xff),
+            static_cast<std::uint8_t>((value >> 24) & 0xff)};
 }
 
-static void expect_receive_reject(
-    const std::vector<std::uint8_t>& attack) {
-
+static void expect_receive_reject(const std::vector<std::uint8_t>& attack) {
     constexpr std::uint16_t port = 39423;
 
     P2PTcpSocket listener;
@@ -41,8 +31,7 @@ static void expect_receive_reject(
         send_raw(socket, attack);
     });
 
-    P2PConnection peer(
-        listener.accept_connection());
+    P2PConnection peer(listener.accept_connection());
 
     try {
         (void)peer.receive_frame();
@@ -58,12 +47,9 @@ static void expect_receive_reject(
 int main() {
     // 1. Payload length larger than the protocol limit.
     {
-        auto attack =
-            u32le(CZR_P2P_MAX_PAYLOAD + 1);
+        auto attack = u32le(CZR_P2P_MAX_PAYLOAD + 1);
 
-        attack.push_back(
-            static_cast<std::uint8_t>(
-                P2PMessageType::Hello));
+        attack.push_back(static_cast<std::uint8_t>(P2PMessageType::Hello));
 
         expect_receive_reject(attack);
     }
@@ -88,9 +74,7 @@ int main() {
     //    that the attacker never sends.
     {
         auto attack = u32le(100);
-        attack.push_back(
-            static_cast<std::uint8_t>(
-                P2PMessageType::Hello));
+        attack.push_back(static_cast<std::uint8_t>(P2PMessageType::Hello));
 
         expect_receive_reject(attack);
     }

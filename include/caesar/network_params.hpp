@@ -24,8 +24,7 @@ inline constexpr std::uint32_t NETWORK_TESTNET = 2;
  * change to it produces a different genesis block and therefore a
  * different genesis hash. Do not change it on a live network.
  */
-inline constexpr const char* GENESIS_BURN_RECIPIENT =
-    "CAESAR_GENESIS_BURN";
+inline constexpr const char* GENESIS_BURN_RECIPIENT = "CAESAR_GENESIS_BURN";
 
 /*
  * The recipient string for the Testnet genesis. Deliberately different
@@ -33,8 +32,7 @@ inline constexpr const char* GENESIS_BURN_RECIPIENT =
  * though every other genesis field is identical. Do not change either
  * recipient on a live network: changing genesis is a hard fork.
  */
-inline constexpr const char* TESTNET_BURN_RECIPIENT =
-    "CAESAR_TESTNET_GENESIS_BURN";
+inline constexpr const char* TESTNET_BURN_RECIPIENT = "CAESAR_TESTNET_GENESIS_BURN";
 
 /*
  * Builds the canonical genesis block for Caesar CZR.
@@ -60,9 +58,7 @@ inline constexpr const char* TESTNET_BURN_RECIPIENT =
  * of work, since the genesis is validated structurally rather than
  * by PoW.
  */
-inline Block build_canonical_genesis(
-    const std::string& burn_recipient) {
-
+inline Block build_canonical_genesis(const std::string& burn_recipient) {
     Block genesis;
 
     genesis.header.version = 1;
@@ -73,11 +69,7 @@ inline Block build_canonical_genesis(
     genesis.header.difficulty = 0;
 
     Transaction tx;
-    tx.outputs.push_back(
-        TransactionOutput{
-            1,
-            burn_recipient
-        });
+    tx.outputs.push_back(TransactionOutput{1, burn_recipient});
 
     genesis.transactions.push_back(tx);
     genesis.update_merkle_root();
@@ -144,11 +136,8 @@ inline Hash256 testnet_genesis_hash() {
  *   7e026bb394aff5047e026130bfe0a14d6fbaa971691be66305715f48f612a5bc
  */
 inline const Hash256 GENESIS_HASH_MAINNET = {
-    0x7e, 0x02, 0x6b, 0xb3, 0x94, 0xaf, 0xf5, 0x04,
-    0x7e, 0x02, 0x61, 0x30, 0xbf, 0xe0, 0xa1, 0x4d,
-    0x6f, 0xba, 0xa9, 0x71, 0x69, 0x1b, 0xe6, 0x63,
-    0x05, 0x71, 0x5f, 0x48, 0xf6, 0x12, 0xa5, 0xbc
-};
+    0x7e, 0x02, 0x6b, 0xb3, 0x94, 0xaf, 0xf5, 0x04, 0x7e, 0x02, 0x61, 0x30, 0xbf, 0xe0, 0xa1, 0x4d,
+    0x6f, 0xba, 0xa9, 0x71, 0x69, 0x1b, 0xe6, 0x63, 0x05, 0x71, 0x5f, 0x48, 0xf6, 0x12, 0xa5, 0xbc};
 
 /*
  * Canonical genesis hash for the Testnet.
@@ -164,11 +153,8 @@ inline const Hash256 GENESIS_HASH_MAINNET = {
  *   ba67ed0363858fa4505fd0f6ffea1362f6e79b59ed4d0dd93323e4b549e38ec3
  */
 inline const Hash256 GENESIS_HASH_TESTNET = {
-    0xba, 0x67, 0xed, 0x03, 0x63, 0x85, 0x8f, 0xa4,
-    0x50, 0x5f, 0xd0, 0xf6, 0xff, 0xea, 0x13, 0x62,
-    0xf6, 0xe7, 0x9b, 0x59, 0xed, 0x4d, 0x0d, 0xd9,
-    0x33, 0x23, 0xe4, 0xb5, 0x49, 0xe3, 0x8e, 0xc3
-};
+    0xba, 0x67, 0xed, 0x03, 0x63, 0x85, 0x8f, 0xa4, 0x50, 0x5f, 0xd0, 0xf6, 0xff, 0xea, 0x13, 0x62,
+    0xf6, 0xe7, 0x9b, 0x59, 0xed, 0x4d, 0x0d, 0xd9, 0x33, 0x23, 0xe4, 0xb5, 0x49, 0xe3, 0x8e, 0xc3};
 
 /*
  * Returns a pointer to the pinned genesis hash for a network, or
@@ -180,9 +166,7 @@ inline const Hash256 GENESIS_HASH_TESTNET = {
  * nodes pass GENESIS_HASH_MAINNET explicitly and reject any chain
  * whose first block does not match.
  */
-inline const Hash256* genesis_hash_for_network(
-    std::uint32_t network) noexcept {
-
+inline const Hash256* genesis_hash_for_network(std::uint32_t network) noexcept {
     if (network == NETWORK_MAINNET)
         return &GENESIS_HASH_MAINNET;
 
@@ -205,10 +189,8 @@ inline const Hash256* genesis_hash_for_network(
  * Returns true when expected is nullptr (no network pinned yet) so
  * callers can treat the check as opt-in during testnet rollout.
  */
-inline bool validate_genesis_network_identity(
-    const Block& genesis,
-    const Hash256* expected) noexcept {
-
+inline bool validate_genesis_network_identity(const Block& genesis,
+                                              const Hash256* expected) noexcept {
     if (expected == nullptr)
         return true;
 

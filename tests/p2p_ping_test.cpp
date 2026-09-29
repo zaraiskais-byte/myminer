@@ -11,8 +11,7 @@ int main() {
     ping.nonce = 123456789;
 
     const auto encoded_ping = ping.serialize_binary();
-    const auto decoded_ping =
-        P2PPing::deserialize_binary(encoded_ping);
+    const auto decoded_ping = P2PPing::deserialize_binary(encoded_ping);
 
     assert(decoded_ping.nonce == ping.nonce);
 
@@ -20,8 +19,7 @@ int main() {
     pong.nonce = decoded_ping.nonce;
 
     const auto encoded_pong = pong.serialize_binary();
-    const auto decoded_pong =
-        P2PPong::deserialize_binary(encoded_pong);
+    const auto decoded_pong = P2PPong::deserialize_binary(encoded_pong);
 
     assert(decoded_pong.nonce == ping.nonce);
 

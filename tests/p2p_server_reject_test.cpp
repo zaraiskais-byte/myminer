@@ -14,11 +14,7 @@ int main() {
 
     caesar::P2PServer server;
 
-    server.start(
-        port,
-        "127.0.0.1",
-        server_network,
-        100);
+    server.start(port, "127.0.0.1", server_network, 100);
 
     assert(server.running());
 
@@ -26,18 +22,15 @@ int main() {
     client.connect_to("127.0.0.1", port);
 
     caesar::P2PHello bad_hello;
-    bad_hello.protocol_version =
-        caesar::CZR_P2P_PROTOCOL_VERSION;
+    bad_hello.protocol_version = caesar::CZR_P2P_PROTOCOL_VERSION;
     bad_hello.network_id = wrong_network;
     bad_hello.height = 99;
     bad_hello.timestamp = 123456;
     bad_hello.user_agent = "Caesar-CZR-Bad-Network";
 
-    client.send_frame(
-        caesar::make_hello_frame(bad_hello));
+    client.send_frame(caesar::make_hello_frame(bad_hello));
 
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds(200));
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
     assert(server.peer_count() == 0);
 

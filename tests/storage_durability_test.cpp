@@ -37,18 +37,14 @@
 using namespace caesar;
 
 int main() {
-
-    const auto base =
-        std::filesystem::temp_directory_path() /
-        "caesar_storage_durability_test";
+    const auto base = std::filesystem::temp_directory_path() / "caesar_storage_durability_test";
 
     std::error_code ec;
     std::filesystem::remove_all(base, ec);
     std::filesystem::create_directories(base);
 
     const auto path = base / "blockchain.dat";
-    const auto tmp_path =
-        std::filesystem::path(path.string() + ".tmp");
+    const auto tmp_path = std::filesystem::path(path.string() + ".tmp");
 
     const Block genesis = build_canonical_genesis();
 
@@ -96,9 +92,7 @@ int main() {
     // 4. Leftover .tmp from a simulated crash does not break load().
     {
         {
-            std::ofstream junk(
-                tmp_path,
-                std::ios::binary | std::ios::trunc);
+            std::ofstream junk(tmp_path, std::ios::binary | std::ios::trunc);
             junk << "partial write from a killed process";
         }
         assert(std::filesystem::exists(tmp_path));

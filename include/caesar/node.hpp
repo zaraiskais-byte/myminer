@@ -12,8 +12,8 @@
 #include <vector>
 
 #include <caesar/block_builder.hpp>
-#include <caesar/chain_replacement.hpp>
 #include <caesar/blockchain_storage.hpp>
+#include <caesar/chain_replacement.hpp>
 #include <caesar/mempool.hpp>
 #include <caesar/mempool_reorg.hpp>
 #include <caesar/network_params.hpp>
@@ -24,11 +24,9 @@
 namespace caesar {
 
 class CaesarNode {
-public:
-    explicit CaesarNode(
-        std::filesystem::path data_dir,
-        std::uint16_t p2p_port = 18444,
-        std::uint32_t network_id = 1)
+   public:
+    explicit CaesarNode(std::filesystem::path data_dir, std::uint16_t p2p_port = 18444,
+                        std::uint32_t network_id = 1)
         : data_dir_(std::move(data_dir)),
           chain_path_(data_dir_ / "blockchain.dat"),
           storage_(chain_path_),
@@ -37,14 +35,10 @@ public:
           chain_mutex_(std::make_shared<std::mutex>()),
           relay_(server_, storage_, chain_mutex_) {
         relay_.set_chain_replacement_callback(
-            [this](const std::vector<Block>& candidate) {
-                return replace_chain(candidate);
-            });
+            [this](const std::vector<Block>& candidate) { return replace_chain(candidate); });
 
         relay_.set_transaction_callback(
-            [this](const Transaction& tx) {
-                return accept_transaction(tx).accepted();
-            });
+            [this](const Transaction& tx) { return accept_transaction(tx).accepted(); });
 
         /*
          * Expose a read-only snapshot of the mempool to the relay so
@@ -64,10 +58,7 @@ public:
             return txs;
         });
 
-        relay_.set_mempool_tx_callback(
-            [this](const Hash256& txid)
-                -> std::optional<Transaction> {
-
+        relay_.set_mempool_tx_callback([this](const Hash256& txid) -> std::optional<Transaction> {
             std::lock_guard<std::mutex> lock(mempool_mutex_);
 
             const Transaction* tx = mempool_.get(txid);
@@ -89,8 +80,7 @@ public:
         std::lock_guard<std::mutex> lock(lifecycle_mutex_);
 
         if (running_)
-            throw std::runtime_error(
-                "Caesar node already running");
+            throw std::runtime_error("Caesar node already running");
 
         ensure_chain();
 
@@ -109,22 +99,16 @@ public:
          * a foreign chain to peers.
          */
         {
-            const Hash256* expected =
-                genesis_hash_for_network(network_id_);
+            const Hash256* expected = genesis_hash_for_network(network_id_);
 
-            if (!validate_genesis_network_identity(
-                    chain.front(), expected)) {
+            if (!validate_genesis_network_identity(chain.front(), expected)) {
                 throw std::runtime_error(
                     "storage contains a chain from a different "
                     "network (genesis hash mismatch)");
             }
         }
 
-        server_.start(
-            p2p_port_,
-            "0.0.0.0",
-            network_id_,
-            chain.back().header.height);
+        server_.start(p2p_port_, "0.0.0.0", network_id_, chain.back().header.height);
 
         try {
             relay_.start();
@@ -162,23 +146,18 @@ public:
         if (current.empty())
             return 0;
 
-        return static_cast<std::size_t>(
-            current.back().header.height);
+        return static_cast<std::size_t>(current.back().header.height);
     }
 
     bool replace_chain(const std::vector<Block>& candidate) {
         if (!running_)
-            throw std::runtime_error(
-                "cannot replace chain while node is stopped");
+            throw std::runtime_error("cannot replace chain while node is stopped");
 
         std::lock_guard<std::mutex> lock(*chain_mutex_);
 
         const auto current = storage_.load();
 
-        auto plan =
-            prepare_chain_replacement(
-                current,
-                candidate);
+        auto plan = prepare_chain_replacement(current, candidate);
 
         if (!plan)
             return false;
@@ -206,17 +185,11 @@ public:
         return server_.peer_count();
     }
 
-    std::uint64_t connect_to_peer(
-        const std::string& address,
-        std::uint16_t port) {
-
+    std::uint64_t connect_to_peer(const std::string& address, std::uint16_t port) {
         if (!running_)
-            throw std::runtime_error(
-                "cannot connect while node is stopped");
+            throw std::runtime_error("cannot connect while node is stopped");
 
-        return server_.connect_to_peer(
-            address,
-            port);
+        return server_.connect_to_peer(address, port);
     }
 
     /*
@@ -243,39 +216,28 @@ public:
         return mempool_.contains(txid);
     }
 
-    MempoolValidationResult accept_transaction(
-        const Transaction& tx) {
-
+    MempoolValidationResult accept_transaction(const Transaction& tx) {
         if (!running_)
-            throw std::runtime_error(
-                "cannot accept transaction while node is stopped");
+            throw std::runtime_error("cannot accept transaction while node is stopped");
 
         MempoolValidationResult result;
 
         {
             std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
 
-            const auto current_chain =
-                storage_.load();
+            const auto current_chain = storage_.load();
 
             if (current_chain.empty())
-                throw std::runtime_error(
-                    "cannot accept transaction on empty blockchain");
+                throw std::runtime_error("cannot accept transaction on empty blockchain");
 
-            const UTXOSet utxos =
-                rebuild_utxo_set(current_chain);
+            const UTXOSet utxos = rebuild_utxo_set(current_chain);
 
             if (is_coinbase_transaction(tx)) {
-                result = {
-                    MempoolRejectReason::InvalidTransaction
-                };
+                result = {MempoolRejectReason::InvalidTransaction};
             } else {
-                std::lock_guard<std::mutex> mempool_lock(
-                    mempool_mutex_);
+                std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
 
-                result = mempool_.accept(
-                    tx,
-                    utxos);
+                result = mempool_.accept(tx, utxos);
             }
         }
 
@@ -290,78 +252,46 @@ public:
         return result;
     }
 
-    void mine_one_block(
-        const std::string& miner_recipient,
-        std::uint64_t max_attempts = 1000000) {
-
+    void mine_one_block(const std::string& miner_recipient, std::uint64_t max_attempts = 1000000) {
         if (!running_)
-            throw std::runtime_error(
-                "cannot mine while node is stopped");
+            throw std::runtime_error("cannot mine while node is stopped");
 
         if (miner_recipient.empty())
-            throw std::runtime_error(
-                "miner recipient is empty");
+            throw std::runtime_error("miner recipient is empty");
 
         std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
 
-        std::lock_guard<std::mutex> mempool_lock(
-            mempool_mutex_);
+        std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
 
         auto current_chain = storage_.load();
 
         if (current_chain.empty())
-            throw std::runtime_error(
-                "cannot mine on empty blockchain");
+            throw std::runtime_error("cannot mine on empty blockchain");
 
-        const Block& previous =
-            current_chain.back();
+        const Block& previous = current_chain.back();
 
-        const UTXOSet previous_utxos =
-            rebuild_utxo_set(current_chain);
+        const UTXOSet previous_utxos = rebuild_utxo_set(current_chain);
 
-        const auto now =
-            std::chrono::duration_cast<
-                std::chrono::seconds>(
-                std::chrono::system_clock::now()
-                    .time_since_epoch())
-                .count();
+        const auto now = std::chrono::duration_cast<std::chrono::seconds>(
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
 
-        const std::uint64_t timestamp =
-            static_cast<std::uint64_t>(
-                now < 0 ? 0 : now);
+        const std::uint64_t timestamp = static_cast<std::uint64_t>(now < 0 ? 0 : now);
 
         const std::uint64_t block_timestamp =
-            timestamp < previous.header.timestamp
-                ? previous.header.timestamp
-                : timestamp;
+            timestamp < previous.header.timestamp ? previous.header.timestamp : timestamp;
 
-        const std::uint32_t difficulty =
-            expected_next_difficulty(current_chain);
+        const std::uint32_t difficulty = expected_next_difficulty(current_chain);
 
-        Block candidate =
-            BlockBuilder::build(
-                previous,
-                mempool_,
-                miner_recipient,
-                block_timestamp,
-                difficulty,
-                0,
-                &previous_utxos);
+        Block candidate = BlockBuilder::build(previous, mempool_, miner_recipient, block_timestamp,
+                                              difficulty, 0, &previous_utxos);
 
-        if (!BlockBuilder::mine(
-                candidate,
-                0,
-                max_attempts)) {
-            throw std::runtime_error(
-                "mining failed");
+        if (!BlockBuilder::mine(candidate, 0, max_attempts)) {
+            throw std::runtime_error("mining failed");
         }
 
-        if (!validate_block_consensus(
-                candidate,
-                current_chain,
-                previous_utxos)) {
-            throw std::runtime_error(
-                "mined block failed consensus");
+        if (!validate_block_consensus(candidate, current_chain, previous_utxos)) {
+            throw std::runtime_error("mined block failed consensus");
         }
 
         storage_.append(candidate);
@@ -371,12 +301,11 @@ public:
         relay_.announce_block(candidate);
     }
 
-private:
+   private:
     void ensure_chain() {
         std::lock_guard<std::mutex> lock(*chain_mutex_);
 
-        std::filesystem::create_directories(
-            data_dir_);
+        std::filesystem::create_directories(data_dir_);
 
         if (storage_.exists()) {
             (void)storage_.load();
@@ -384,9 +313,7 @@ private:
         }
 
         const Block genesis =
-            (network_id_ == NETWORK_TESTNET)
-                ? build_testnet_genesis()
-                : build_canonical_genesis();
+            (network_id_ == NETWORK_TESTNET) ? build_testnet_genesis() : build_canonical_genesis();
 
         storage_.save({genesis});
     }

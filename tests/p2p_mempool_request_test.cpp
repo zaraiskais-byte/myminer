@@ -61,8 +61,7 @@ Transaction make_fake(uint64_t tag) {
 }
 
 std::filesystem::path fresh_storage() {
-    const auto p = std::filesystem::temp_directory_path() /
-                   "caesar_p2p_mempool_request_test.dat";
+    const auto p = std::filesystem::temp_directory_path() / "caesar_p2p_mempool_request_test.dat";
     std::error_code ec;
     std::filesystem::remove(p, ec);
     return p;
@@ -71,7 +70,6 @@ std::filesystem::path fresh_storage() {
 } // namespace
 
 int main() {
-
     const auto storage_path = fresh_storage();
 
     P2PServer server;
@@ -81,17 +79,11 @@ int main() {
     P2PRelay relay(server, storage, storage_mutex);
 
     // Fake mempool: three transactions.
-    std::vector<Transaction> pool = {
-        make_fake(1), make_fake(2), make_fake(3)
-    };
+    std::vector<Transaction> pool = {make_fake(1), make_fake(2), make_fake(3)};
 
-    relay.set_mempool_snapshot_callback([&]() {
-        return pool;
-    });
+    relay.set_mempool_snapshot_callback([&]() { return pool; });
 
-    relay.set_mempool_tx_callback(
-        [&](const Hash256& txid)
-            -> std::optional<Transaction> {
+    relay.set_mempool_tx_callback([&](const Hash256& txid) -> std::optional<Transaction> {
         for (const auto& tx : pool)
             if (tx.txid() == txid)
                 return tx;
@@ -102,7 +94,7 @@ int main() {
     P2PTcpSocket listener;
     listener.listen_on(PORT);
 
-    std::vector<std::uint8_t> first_tx_hash;  // hash of first pool tx
+    std::vector<std::uint8_t> first_tx_hash; // hash of first pool tx
     std::vector<Transaction> received;
     bool timeout_hit = false;
 
@@ -116,8 +108,7 @@ int main() {
             for (int i = 0; i < 3; ++i) {
                 const P2PFrame f = c.receive_frame();
                 assert(f.type == P2PMessageType::Transaction);
-                received.push_back(
-                    Transaction::deserialize_full(f.payload));
+                received.push_back(Transaction::deserialize_full(f.payload));
             }
         } catch (...) {
             timeout_hit = true;
@@ -127,8 +118,7 @@ int main() {
         try {
             const P2PFrame f = c.receive_frame();
             assert(f.type == P2PMessageType::Transaction);
-            received.push_back(
-                Transaction::deserialize_full(f.payload));
+            received.push_back(Transaction::deserialize_full(f.payload));
         } catch (...) {
             timeout_hit = true;
         }
@@ -144,31 +134,26 @@ int main() {
     });
 
     P2PConnection accepted(listener.accept_connection());
-    const std::uint64_t peer_id = server.peers().add_peer(
-        std::move(accepted), "127.0.0.1", PORT);
+    const std::uint64_t peer_id = server.peers().add_peer(std::move(accepted), "127.0.0.1", PORT);
 
     // Case 1: GetMempool -> 3 Transaction frames.
     relay.handle_get_mempool(peer_id, {});
 
     // Give the client thread time to read the frames before the next
     // handler runs, to keep the socket buffer clean.
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // Case 2: GetTransaction with a known txid -> 1 Transaction frame.
     const Hash256 known_txid = pool[0].txid();
-    std::vector<std::uint8_t> known_payload(
-        known_txid.begin(), known_txid.end());
+    std::vector<std::uint8_t> known_payload(known_txid.begin(), known_txid.end());
     relay.handle_get_transaction(peer_id, known_payload);
 
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // Case 3: GetTransaction with unknown txid -> no reply.
     Hash256 unknown_txid{};
     unknown_txid[0] = 0xFF;
-    std::vector<std::uint8_t> unknown_payload(
-        unknown_txid.begin(), unknown_txid.end());
+    std::vector<std::uint8_t> unknown_payload(unknown_txid.begin(), unknown_txid.end());
     relay.handle_get_transaction(peer_id, unknown_payload);
 
     client.join();

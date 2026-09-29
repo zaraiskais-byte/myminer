@@ -26,9 +26,7 @@ int main() {
 
     {
         P2PHello oversized;
-        oversized.user_agent.assign(
-            static_cast<std::size_t>(CZR_P2P_MAX_USER_AGENT) + 1,
-            'X');
+        oversized.user_agent.assign(static_cast<std::size_t>(CZR_P2P_MAX_USER_AGENT) + 1, 'X');
 
         bool rejected = false;
 

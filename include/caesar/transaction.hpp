@@ -19,9 +19,7 @@ struct TransactionInput {
 
     std::string serialize() const {
         std::ostringstream out;
-        out << hash_to_hex(previous_txid)
-            << ':'
-            << output_index;
+        out << hash_to_hex(previous_txid) << ':' << output_index;
         return out.str();
     }
 
@@ -36,19 +34,15 @@ struct TransactionInput {
         return writer.data();
     }
 
-    static TransactionInput deserialize(
-        BinaryReader& reader) {
-
+    static TransactionInput deserialize(BinaryReader& reader) {
         TransactionInput input;
 
-        const auto hash =
-            reader.read_bytes(32);
+        const auto hash = reader.read_bytes(32);
 
         for (std::size_t i = 0; i < 32; ++i)
             input.previous_txid[i] = hash[i];
 
-        input.output_index =
-            reader.read_u32();
+        input.output_index = reader.read_u32();
 
         return input;
     }
@@ -60,11 +54,7 @@ struct TransactionOutput {
 
     std::string serialize() const {
         std::ostringstream out;
-        out << amount
-            << ':'
-            << recipient.size()
-            << ':'
-            << recipient;
+        out << amount << ':' << recipient.size() << ':' << recipient;
         return out.str();
     }
 
@@ -77,16 +67,12 @@ struct TransactionOutput {
         return writer.data();
     }
 
-    static TransactionOutput deserialize(
-        BinaryReader& reader) {
-
+    static TransactionOutput deserialize(BinaryReader& reader) {
         TransactionOutput output;
 
-        output.amount =
-            reader.read_u64();
+        output.amount = reader.read_u64();
 
-        output.recipient =
-            reader.read_string();
+        output.recipient = reader.read_string();
 
         return output;
     }
@@ -102,17 +88,12 @@ struct Transaction {
     std::string serialize() const {
         std::ostringstream out;
 
-        out << "TX"
-            << '|'
-            << version
-            << '|'
-            << inputs.size();
+        out << "TX" << '|' << version << '|' << inputs.size();
 
         for (const auto& input : inputs)
             out << '|' << input.serialize();
 
-        out << '|'
-            << outputs.size();
+        out << '|' << outputs.size();
 
         for (const auto& output : outputs)
             out << '|' << output.serialize();
@@ -131,35 +112,23 @@ struct Transaction {
         writer.write_u32(static_cast<std::uint32_t>(coinbase_data.size()));
         writer.write_bytes(coinbase_data);
 
-        if (inputs.size() >
-            static_cast<std::size_t>(UINT32_MAX)) {
-
-            throw std::runtime_error(
-                "too many transaction inputs");
+        if (inputs.size() > static_cast<std::size_t>(UINT32_MAX)) {
+            throw std::runtime_error("too many transaction inputs");
         }
 
-        writer.write_u32(
-            static_cast<std::uint32_t>(
-                inputs.size()));
+        writer.write_u32(static_cast<std::uint32_t>(inputs.size()));
 
         for (const auto& input : inputs)
-            writer.write_bytes(
-                input.serialize_binary());
+            writer.write_bytes(input.serialize_binary());
 
-        if (outputs.size() >
-            static_cast<std::size_t>(UINT32_MAX)) {
-
-            throw std::runtime_error(
-                "too many transaction outputs");
+        if (outputs.size() > static_cast<std::size_t>(UINT32_MAX)) {
+            throw std::runtime_error("too many transaction outputs");
         }
 
-        writer.write_u32(
-            static_cast<std::uint32_t>(
-                outputs.size()));
+        writer.write_u32(static_cast<std::uint32_t>(outputs.size()));
 
         for (const auto& output : outputs)
-            writer.write_bytes(
-                output.serialize_binary());
+            writer.write_bytes(output.serialize_binary());
 
         return writer.data();
     }
@@ -187,9 +156,7 @@ struct Transaction {
         return writer.data();
     }
 
-    static Transaction deserialize_full(
-        const std::vector<std::uint8_t>& data) {
-
+    static Transaction deserialize_full(const std::vector<std::uint8_t>& data) {
         BinaryReader reader(data);
         Transaction tx;
 
@@ -237,73 +204,52 @@ struct Transaction {
         return tx;
     }
 
-    static Transaction deserialize(
-        const std::vector<std::uint8_t>& data) {
-
+    static Transaction deserialize(const std::vector<std::uint8_t>& data) {
         BinaryReader reader(data);
 
         Transaction tx;
 
-        tx.version =
-            reader.read_u32();
+        tx.version = reader.read_u32();
 
-        const std::uint32_t coinbase_data_size =
-            reader.read_u32();
+        const std::uint32_t coinbase_data_size = reader.read_u32();
         if (coinbase_data_size > 128)
             throw std::runtime_error("coinbase data too large");
         tx.coinbase_data = reader.read_bytes(coinbase_data_size);
 
-        const std::uint32_t input_count =
-            reader.read_u32();
+        const std::uint32_t input_count = reader.read_u32();
 
         if (input_count > 1000000)
-            throw std::runtime_error(
-                "too many transaction inputs");
+            throw std::runtime_error("too many transaction inputs");
 
         tx.inputs.reserve(input_count);
 
-        for (std::uint32_t i = 0;
-             i < input_count;
-             ++i) {
-
-            tx.inputs.push_back(
-                TransactionInput::deserialize(reader));
+        for (std::uint32_t i = 0; i < input_count; ++i) {
+            tx.inputs.push_back(TransactionInput::deserialize(reader));
         }
 
-        const std::uint32_t output_count =
-            reader.read_u32();
+        const std::uint32_t output_count = reader.read_u32();
 
         if (output_count > 1000000)
-            throw std::runtime_error(
-                "too many transaction outputs");
+            throw std::runtime_error("too many transaction outputs");
 
         tx.outputs.reserve(output_count);
 
-        for (std::uint32_t i = 0;
-             i < output_count;
-             ++i) {
-
-            tx.outputs.push_back(
-                TransactionOutput::deserialize(reader));
+        for (std::uint32_t i = 0; i < output_count; ++i) {
+            tx.outputs.push_back(TransactionOutput::deserialize(reader));
         }
 
         if (!reader.empty())
-            throw std::runtime_error(
-                "trailing bytes after transaction");
+            throw std::runtime_error("trailing bytes after transaction");
 
         return tx;
     }
 
     Hash256 txid() const {
-        return sha256(
-            bytes_to_binary_string(
-                serialize_binary()));
+        return sha256(bytes_to_binary_string(serialize_binary()));
     }
 
     Hash256 wtxid() const {
-        return sha256(
-            bytes_to_binary_string(
-                serialize_full_binary()));
+        return sha256(bytes_to_binary_string(serialize_full_binary()));
     }
 
     bool validate() const {
@@ -322,10 +268,7 @@ struct Transaction {
             if (output.recipient.empty())
                 return false;
 
-            if (output.amount >
-                std::numeric_limits<std::uint64_t>::max()
-                - output_sum) {
-
+            if (output.amount > std::numeric_limits<std::uint64_t>::max() - output_sum) {
                 return false;
             }
 

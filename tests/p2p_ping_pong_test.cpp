@@ -38,8 +38,7 @@ namespace {
 constexpr std::uint16_t PORT = 39501;
 
 std::filesystem::path fresh_storage() {
-    const auto p = std::filesystem::temp_directory_path() /
-                   "caesar_p2p_ping_pong_test.dat";
+    const auto p = std::filesystem::temp_directory_path() / "caesar_p2p_ping_pong_test.dat";
     std::error_code ec;
     std::filesystem::remove(p, ec);
     return p;
@@ -48,10 +47,9 @@ std::filesystem::path fresh_storage() {
 } // namespace
 
 int main() {
-
     const auto storage_path = fresh_storage();
 
-    P2PServer server;  // not started; only its peer manager is used
+    P2PServer server; // not started; only its peer manager is used
     BlockchainStorage storage(storage_path);
     auto storage_mutex = std::make_shared<std::mutex>();
 
@@ -72,8 +70,7 @@ int main() {
         try {
             const P2PFrame frame = c.receive_frame();
             if (frame.type == P2PMessageType::Pong) {
-                const P2PPong pong =
-                    P2PPong::deserialize_binary(frame.payload);
+                const P2PPong pong = P2PPong::deserialize_binary(frame.payload);
                 received_pong_nonce = pong.nonce;
                 got_pong = true;
             }
@@ -84,8 +81,7 @@ int main() {
 
     P2PConnection accepted(listener.accept_connection());
 
-    const std::uint64_t peer_id = server.peers().add_peer(
-        std::move(accepted), "127.0.0.1", PORT);
+    const std::uint64_t peer_id = server.peers().add_peer(std::move(accepted), "127.0.0.1", PORT);
 
     // --- Case 1: handle_ping replies with Pong carrying same nonce ---
     {

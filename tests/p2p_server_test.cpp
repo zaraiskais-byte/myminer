@@ -3,12 +3,11 @@
 #include <cstdint>
 #include <thread>
 
-#include <caesar/p2p_server.hpp>
 #include <caesar/p2p_connection.hpp>
 #include <caesar/p2p_handshake.hpp>
+#include <caesar/p2p_server.hpp>
 
 int main() {
-
     constexpr std::uint16_t port = 39424;
 
     caesar::P2PServer server;
@@ -27,8 +26,7 @@ int main() {
         if (server.peer_count() == 1)
             break;
 
-        std::this_thread::sleep_for(
-            std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     assert(server.peer_count() == 1);

@@ -27,15 +27,12 @@ struct P2PSyncSessionId {
     }
 };
 
-inline void write_sync_session_id(
-    BinaryWriter& writer,
-    const P2PSyncSessionId& id) {
+inline void write_sync_session_id(BinaryWriter& writer, const P2PSyncSessionId& id) {
     writer.write_u64(id.high);
     writer.write_u64(id.low);
 }
 
-inline P2PSyncSessionId read_sync_session_id(
-    BinaryReader& reader) {
+inline P2PSyncSessionId read_sync_session_id(BinaryReader& reader) {
     P2PSyncSessionId id;
     id.high = reader.read_u64();
     id.low = reader.read_u64();
@@ -50,44 +47,33 @@ struct GetSyncBlocksMessage {
 
     std::vector<std::uint8_t> serialize_binary() const {
         if (block_hashes.empty())
-            throw std::runtime_error(
-                "empty sync block request");
+            throw std::runtime_error("empty sync block request");
 
         if (block_hashes.size() > MAX_HASHES)
-            throw std::runtime_error(
-                "too many sync block hashes");
+            throw std::runtime_error("too many sync block hashes");
 
         BinaryWriter writer;
         write_sync_session_id(writer, session_id);
 
-        writer.write_u32(
-            static_cast<std::uint32_t>(
-                block_hashes.size()));
+        writer.write_u32(static_cast<std::uint32_t>(block_hashes.size()));
 
         for (const auto& hash : block_hashes) {
-            writer.write_bytes(
-                std::vector<std::uint8_t>(
-                    hash.begin(),
-                    hash.end()));
+            writer.write_bytes(std::vector<std::uint8_t>(hash.begin(), hash.end()));
         }
 
         return writer.data();
     }
 
-    static GetSyncBlocksMessage deserialize_binary(
-        const std::vector<std::uint8_t>& data) {
+    static GetSyncBlocksMessage deserialize_binary(const std::vector<std::uint8_t>& data) {
         BinaryReader reader(data);
 
         GetSyncBlocksMessage message;
-        message.session_id =
-            read_sync_session_id(reader);
+        message.session_id = read_sync_session_id(reader);
 
-        const std::uint32_t count =
-            reader.read_u32();
+        const std::uint32_t count = reader.read_u32();
 
         if (count == 0 || count > MAX_HASHES)
-            throw std::runtime_error(
-                "invalid sync block request count");
+            throw std::runtime_error("invalid sync block request count");
 
         message.block_hashes.reserve(count);
 
@@ -95,17 +81,13 @@ struct GetSyncBlocksMessage {
             const auto bytes = reader.read_bytes(32);
 
             Hash256 hash{};
-            std::copy(
-                bytes.begin(),
-                bytes.end(),
-                hash.begin());
+            std::copy(bytes.begin(), bytes.end(), hash.begin());
 
             message.block_hashes.push_back(hash);
         }
 
         if (!reader.empty())
-            throw std::runtime_error(
-                "trailing sync block request data");
+            throw std::runtime_error("trailing sync block request data");
 
         return message;
     }
@@ -119,35 +101,25 @@ struct SyncBlocksMessage {
 
     std::vector<std::uint8_t> serialize_binary() const {
         if (blocks.empty())
-            throw std::runtime_error(
-                "empty sync block response");
+            throw std::runtime_error("empty sync block response");
 
         if (blocks.size() > MAX_BLOCKS)
-            throw std::runtime_error(
-                "too many sync blocks");
+            throw std::runtime_error("too many sync blocks");
 
         BinaryWriter writer;
         write_sync_session_id(writer, session_id);
 
-        writer.write_u32(
-            static_cast<std::uint32_t>(
-                blocks.size()));
+        writer.write_u32(static_cast<std::uint32_t>(blocks.size()));
 
         for (const auto& block : blocks) {
             if (block.empty())
-                throw std::runtime_error(
-                    "empty serialized sync block");
+                throw std::runtime_error("empty serialized sync block");
 
-            if (block.size() >
-                static_cast<std::size_t>(
-                    CZR_P2P_MAX_PAYLOAD)) {
-                throw std::runtime_error(
-                    "sync block too large");
+            if (block.size() > static_cast<std::size_t>(CZR_P2P_MAX_PAYLOAD)) {
+                throw std::runtime_error("sync block too large");
             }
 
-            writer.write_u32(
-                static_cast<std::uint32_t>(
-                    block.size()));
+            writer.write_u32(static_cast<std::uint32_t>(block.size()));
 
             writer.write_bytes(block);
         }
@@ -155,40 +127,31 @@ struct SyncBlocksMessage {
         return writer.data();
     }
 
-    static SyncBlocksMessage deserialize_binary(
-        const std::vector<std::uint8_t>& data) {
+    static SyncBlocksMessage deserialize_binary(const std::vector<std::uint8_t>& data) {
         BinaryReader reader(data);
 
         SyncBlocksMessage message;
-        message.session_id =
-            read_sync_session_id(reader);
+        message.session_id = read_sync_session_id(reader);
 
-        const std::uint32_t count =
-            reader.read_u32();
+        const std::uint32_t count = reader.read_u32();
 
         if (count == 0 || count > MAX_BLOCKS)
-            throw std::runtime_error(
-                "invalid sync block response count");
+            throw std::runtime_error("invalid sync block response count");
 
         message.blocks.reserve(count);
 
         for (std::uint32_t i = 0; i < count; ++i) {
-            const std::uint32_t size =
-                reader.read_u32();
+            const std::uint32_t size = reader.read_u32();
 
-            if (size == 0 ||
-                size > CZR_P2P_MAX_PAYLOAD) {
-                throw std::runtime_error(
-                    "sync block too large");
+            if (size == 0 || size > CZR_P2P_MAX_PAYLOAD) {
+                throw std::runtime_error("sync block too large");
             }
 
-            message.blocks.push_back(
-                reader.read_bytes(size));
+            message.blocks.push_back(reader.read_bytes(size));
         }
 
         if (!reader.empty())
-            throw std::runtime_error(
-                "trailing sync block response data");
+            throw std::runtime_error("trailing sync block response data");
 
         return message;
     }

@@ -19,11 +19,7 @@ static Block make_genesis() {
     genesis.header.difficulty = 0;
 
     Transaction tx;
-    tx.outputs.push_back(
-        TransactionOutput{
-            1,
-            "CAESAR_GENESIS_BURN"
-        });
+    tx.outputs.push_back(TransactionOutput{1, "CAESAR_GENESIS_BURN"});
 
     genesis.transactions.push_back(tx);
     genesis.update_merkle_root();
@@ -42,20 +38,11 @@ int main() {
      * Mine real PoW rather than fabricating nonces.
      */
     for (std::uint64_t height = 1; height <= 3; ++height) {
-        Block block =
-            BlockBuilder::build(
-                chain.back(),
-                mempool,
-                "CZ1_TEST_MINER",
-                height * 120,
-                CZR_INITIAL_MINING_DIFFICULTY);
+        Block block = BlockBuilder::build(chain.back(), mempool, "CZ1_TEST_MINER", height * 120,
+                                          CZR_INITIAL_MINING_DIFFICULTY);
 
-        if (!BlockBuilder::mine(
-                block,
-                0,
-                500000)) {
-            std::cerr << "failed to mine test block "
-                      << height << '\n';
+        if (!BlockBuilder::mine(block, 0, 500000)) {
+            std::cerr << "failed to mine test block " << height << '\n';
             return 1;
         }
 
@@ -89,8 +76,7 @@ int main() {
      */
     {
         auto invalid = chain;
-        invalid[1].header.difficulty =
-            CZR_INITIAL_MINING_DIFFICULTY + 1;
+        invalid[1].header.difficulty = CZR_INITIAL_MINING_DIFFICULTY + 1;
 
         assert(!validate_candidate_chain(invalid));
     }
@@ -100,8 +86,7 @@ int main() {
      */
     {
         auto invalid = chain;
-        invalid[2].header.timestamp =
-            invalid[1].header.timestamp - 1;
+        invalid[2].header.timestamp = invalid[1].header.timestamp - 1;
 
         assert(!validate_candidate_chain(invalid));
     }

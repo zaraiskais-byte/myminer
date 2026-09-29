@@ -47,14 +47,10 @@ struct BlockHeader {
     }
 
     Hash256 hash() const {
-        return sha256(
-            bytes_to_binary_string(
-                serialize_binary()));
+        return sha256(bytes_to_binary_string(serialize_binary()));
     }
 
-    static BlockHeader deserialize_binary(
-        const std::vector<std::uint8_t>& data) {
-
+    static BlockHeader deserialize_binary(const std::vector<std::uint8_t>& data) {
         BinaryReader reader(data);
         BlockHeader header;
 
@@ -75,8 +71,7 @@ struct BlockHeader {
         header.difficulty = reader.read_u32();
 
         if (!reader.empty())
-            throw std::runtime_error(
-                "trailing bytes after block header");
+            throw std::runtime_error("trailing bytes after block header");
 
         return header;
     }
@@ -84,12 +79,10 @@ struct BlockHeader {
 
 struct Block;
 
-inline std::uint32_t expected_next_difficulty(
-    const std::vector<Block>& chain);
+inline std::uint32_t expected_next_difficulty(const std::vector<Block>& chain);
 
-inline std::uint32_t expected_difficulty_at_position(
-    const std::vector<Block>& chain,
-    std::size_t position);
+inline std::uint32_t expected_difficulty_at_position(const std::vector<Block>& chain,
+                                                     std::size_t position);
 
 struct Block {
     BlockHeader header;
@@ -117,39 +110,29 @@ struct Block {
     }
 
     void update_merkle_root() {
-        header.merkle_root =
-            calculate_merkle_root();
+        header.merkle_root = calculate_merkle_root();
 
-        header.witness_root =
-            calculate_witness_root();
+        header.witness_root = calculate_witness_root();
     }
 
     bool validate_witness_root() const {
-        return header.witness_root ==
-               calculate_witness_root();
+        return header.witness_root == calculate_witness_root();
     }
 
     std::vector<std::uint8_t> serialize_binary() const {
         BinaryWriter writer;
 
-        writer.write_bytes(
-            header.serialize_binary());
+        writer.write_bytes(header.serialize_binary());
 
         if (transactions.size() >
-            static_cast<std::size_t>(
-                std::numeric_limits<std::uint32_t>::max())) {
-
-            throw std::runtime_error(
-                "too many block transactions");
+            static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
+            throw std::runtime_error("too many block transactions");
         }
 
-        writer.write_u32(
-            static_cast<std::uint32_t>(
-                transactions.size()));
+        writer.write_u32(static_cast<std::uint32_t>(transactions.size()));
 
         for (const auto& tx : transactions)
-            writer.write_bytes(
-                tx.serialize_binary());
+            writer.write_bytes(tx.serialize_binary());
 
         return writer.data();
     }
@@ -165,18 +148,13 @@ struct Block {
         writer.write_u32(static_cast<std::uint32_t>(transactions.size()));
 
         for (const auto& tx : transactions) {
-            const auto serialized_tx =
-                tx.serialize_full_binary();
+            const auto serialized_tx = tx.serialize_full_binary();
 
             if (serialized_tx.size() >
-                static_cast<std::size_t>(
-                    std::numeric_limits<std::uint32_t>::max()))
-                throw std::runtime_error(
-                    "serialized transaction too large");
+                static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()))
+                throw std::runtime_error("serialized transaction too large");
 
-            writer.write_u32(
-                static_cast<std::uint32_t>(
-                    serialized_tx.size()));
+            writer.write_u32(static_cast<std::uint32_t>(serialized_tx.size()));
 
             writer.write_bytes(serialized_tx);
         }
@@ -184,9 +162,7 @@ struct Block {
         return writer.data();
     }
 
-    static Block deserialize_full(
-        const std::vector<std::uint8_t>& data) {
-
+    static Block deserialize_full(const std::vector<std::uint8_t>& data) {
         BinaryReader reader(data);
         Block block;
 
@@ -206,37 +182,26 @@ struct Block {
         block.header.nonce = reader.read_u64();
         block.header.difficulty = reader.read_u32();
 
-        const std::uint32_t transaction_count =
-            reader.read_u32();
+        const std::uint32_t transaction_count = reader.read_u32();
 
         if (transaction_count > 1000000)
-            throw std::runtime_error(
-                "too many block transactions");
+            throw std::runtime_error("too many block transactions");
 
         block.transactions.reserve(transaction_count);
 
-        for (std::uint32_t i = 0;
-             i < transaction_count;
-             ++i) {
-
-            const std::uint32_t transaction_size =
-                reader.read_u32();
+        for (std::uint32_t i = 0; i < transaction_count; ++i) {
+            const std::uint32_t transaction_size = reader.read_u32();
 
             if (transaction_size > 1000000)
-                throw std::runtime_error(
-                    "serialized transaction too large");
+                throw std::runtime_error("serialized transaction too large");
 
-            const auto transaction_data =
-                reader.read_bytes(transaction_size);
+            const auto transaction_data = reader.read_bytes(transaction_size);
 
-            block.transactions.push_back(
-                Transaction::deserialize_full(
-                    transaction_data));
+            block.transactions.push_back(Transaction::deserialize_full(transaction_data));
         }
 
         if (!reader.empty())
-            throw std::runtime_error(
-                "trailing bytes after full block");
+            throw std::runtime_error("trailing bytes after full block");
 
         return block;
     }
@@ -256,45 +221,30 @@ struct Block {
     }
 
     bool validate_pow() const {
-        return caesar::validate_pow(
-            pow_header(),
-            header.nonce,
-            header.difficulty);
+        return caesar::validate_pow(pow_header(), header.nonce, header.difficulty);
     }
 
     bool validate_merkle_root() const {
-        return header.merkle_root ==
-               calculate_merkle_root();
+        return header.merkle_root == calculate_merkle_root();
     }
 
 
-    bool validate_difficulty_against_history(
-        std::uint32_t previous_difficulty,
-        const std::vector<std::uint64_t>& intervals) const {
-
-        const std::uint32_t expected =
-            adjust_difficulty_window(
-                previous_difficulty,
-                intervals);
+    bool validate_difficulty_against_history(std::uint32_t previous_difficulty,
+                                             const std::vector<std::uint64_t>& intervals) const {
+        const std::uint32_t expected = adjust_difficulty_window(previous_difficulty, intervals);
 
         return header.difficulty == expected;
     }
 
-    bool validate_against_history(
-        std::uint32_t previous_difficulty,
-        const std::vector<std::uint64_t>& intervals) const {
-
+    bool validate_against_history(std::uint32_t previous_difficulty,
+                                  const std::vector<std::uint64_t>& intervals) const {
         if (!validate_basic())
             return false;
 
-        return validate_difficulty_against_history(
-            previous_difficulty,
-            intervals);
+        return validate_difficulty_against_history(previous_difficulty, intervals);
     }
 
-    bool validate_against_chain_history(
-        const std::vector<Block>& chain) const {
-
+    bool validate_against_chain_history(const std::vector<Block>& chain) const {
         if (chain.size() < CZR_DIFFICULTY_WINDOW + 1)
             return false;
 
@@ -308,40 +258,27 @@ struct Block {
         std::vector<std::uint64_t> intervals;
         intervals.reserve(CZR_DIFFICULTY_WINDOW);
 
-        const std::size_t first =
-            previous_index + 1 - CZR_DIFFICULTY_WINDOW;
+        const std::size_t first = previous_index + 1 - CZR_DIFFICULTY_WINDOW;
 
-        for (std::size_t i = first;
-             i <= previous_index;
-             ++i) {
-
+        for (std::size_t i = first; i <= previous_index; ++i) {
             if (i == 0)
                 return false;
 
-            const std::uint64_t current_time =
-                chain[i].header.timestamp;
+            const std::uint64_t current_time = chain[i].header.timestamp;
 
-            const std::uint64_t previous_time =
-                chain[i - 1].header.timestamp;
+            const std::uint64_t previous_time = chain[i - 1].header.timestamp;
 
             if (current_time < previous_time)
                 return false;
 
-            intervals.push_back(
-                current_time - previous_time);
+            intervals.push_back(current_time - previous_time);
         }
 
-        return validate_difficulty_against_history(
-            previous.header.difficulty,
-            intervals);
+        return validate_difficulty_against_history(previous.header.difficulty, intervals);
     }
 
 
-
-
-    bool validate_against_chain(
-        const std::vector<Block>& chain) const {
-
+    bool validate_against_chain(const std::vector<Block>& chain) const {
         if (chain.empty())
             return false;
 
@@ -362,8 +299,7 @@ struct Block {
         if (!validate_basic())
             return false;
 
-        return header.difficulty ==
-            expected_next_difficulty(chain);
+        return header.difficulty == expected_next_difficulty(chain);
     }
 
     bool validate_basic() const {
@@ -374,9 +310,7 @@ struct Block {
             return false;
 
         if (header.height == 0) {
-            for (std::uint8_t byte :
-                 header.previous_hash) {
-
+            for (std::uint8_t byte : header.previous_hash) {
                 if (byte != 0)
                     return false;
             }
@@ -420,21 +354,14 @@ struct Block {
                     return false;
             }
 
-            return !transactions.empty() &&
-                   validate_merkle_root() && validate_witness_root();
+            return !transactions.empty() && validate_merkle_root() && validate_witness_root();
         }
 
-        if (!validate_coinbase_position_and_reward(
-                transactions,
-                header.height)) {
-
+        if (!validate_coinbase_position_and_reward(transactions, header.height)) {
             return false;
         }
 
-        for (std::size_t i = 1;
-             i < transactions.size();
-             ++i) {
-
+        for (std::size_t i = 1; i < transactions.size(); ++i) {
             if (!transactions[i].validate())
                 return false;
         }
@@ -443,39 +370,27 @@ struct Block {
     }
 };
 
-inline bool validate_block_link(
-    const Block& previous,
-    const Block& current) {
-
-    if (!previous.validate_basic() ||
-        !current.validate_basic()) {
-
+inline bool validate_block_link(const Block& previous, const Block& current) {
+    if (!previous.validate_basic() || !current.validate_basic()) {
         return false;
     }
 
-    if (current.header.height !=
-        previous.header.height + 1) {
-
+    if (current.header.height != previous.header.height + 1) {
         return false;
     }
 
-    if (current.header.previous_hash !=
-        previous.hash()) {
-
+    if (current.header.previous_hash != previous.hash()) {
         return false;
     }
 
     return true;
 }
 
-inline bool validate_block_chain(
-    const std::vector<Block>& chain) {
-
+inline bool validate_block_chain(const std::vector<Block>& chain) {
     if (chain.empty())
         return false;
 
-    const Block& genesis =
-        chain.front();
+    const Block& genesis = chain.front();
 
     if (!genesis.validate_basic())
         return false;
@@ -483,14 +398,8 @@ inline bool validate_block_chain(
     if (genesis.header.height != 0)
         return false;
 
-    for (std::size_t i = 1;
-         i < chain.size();
-         ++i) {
-
-        if (!validate_block_link(
-                chain[i - 1],
-                chain[i])) {
-
+    for (std::size_t i = 1; i < chain.size(); ++i) {
+        if (!validate_block_link(chain[i - 1], chain[i])) {
             return false;
         }
     }
@@ -503,17 +412,14 @@ inline bool validate_block_chain(
 // path (mining, storage append, consensus validation). Keeping all
 // callers on this single function is required for mined blocks to
 // pass validation once the difficulty window activates.
-inline std::uint32_t expected_difficulty_at_position(
-    const std::vector<Block>& chain,
-    std::size_t position) {
-
+inline std::uint32_t expected_difficulty_at_position(const std::vector<Block>& chain,
+                                                     std::size_t position) {
     if (position == 0 || position > chain.size())
         return CZR_INITIAL_MINING_DIFFICULTY;
 
     const Block& previous = chain[position - 1];
 
-    if (previous.header.height == 0 &&
-        previous.header.difficulty == 0) {
+    if (previous.header.height == 0 && previous.header.difficulty == 0) {
         return CZR_INITIAL_MINING_DIFFICULTY;
     }
 
@@ -524,19 +430,15 @@ inline std::uint32_t expected_difficulty_at_position(
     intervals.reserve(CZR_DIFFICULTY_WINDOW);
 
     const std::size_t previous_index = position - 1;
-    const std::size_t first =
-        previous_index + 1 - CZR_DIFFICULTY_WINDOW;
+    const std::size_t first = previous_index + 1 - CZR_DIFFICULTY_WINDOW;
 
     for (std::size_t i = first; i <= previous_index; ++i) {
-
         if (i == 0)
             return previous.header.difficulty;
 
-        const std::uint64_t current_time =
-            chain[i].header.timestamp;
+        const std::uint64_t current_time = chain[i].header.timestamp;
 
-        const std::uint64_t prev_time =
-            chain[i - 1].header.timestamp;
+        const std::uint64_t prev_time = chain[i - 1].header.timestamp;
 
         if (current_time < prev_time)
             return previous.header.difficulty;
@@ -544,17 +446,11 @@ inline std::uint32_t expected_difficulty_at_position(
         intervals.push_back(current_time - prev_time);
     }
 
-    return adjust_difficulty_window(
-        previous.header.difficulty,
-        intervals);
+    return adjust_difficulty_window(previous.header.difficulty, intervals);
 }
 
-inline std::uint32_t expected_next_difficulty(
-    const std::vector<Block>& chain) {
-
-    return expected_difficulty_at_position(
-        chain,
-        chain.size());
+inline std::uint32_t expected_next_difficulty(const std::vector<Block>& chain) {
+    return expected_difficulty_at_position(chain, chain.size());
 }
 
 } // namespace caesar

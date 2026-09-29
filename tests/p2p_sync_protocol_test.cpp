@@ -8,20 +8,15 @@
 int main() {
     using namespace caesar;
 
-    P2PSyncSessionId session{
-        0x1122334455667788ULL,
-        0x99aabbccddeeff00ULL
-    };
+    P2PSyncSessionId session{0x1122334455667788ULL, 0x99aabbccddeeff00ULL};
 
     Hash256 hash1{};
     Hash256 hash2{};
 
     for (std::size_t i = 0; i < hash1.size(); ++i) {
-        hash1[i] =
-            static_cast<std::uint8_t>(i);
+        hash1[i] = static_cast<std::uint8_t>(i);
 
-        hash2[i] =
-            static_cast<std::uint8_t>(0xff - i);
+        hash2[i] = static_cast<std::uint8_t>(0xff - i);
     }
 
     {
@@ -29,12 +24,9 @@ int main() {
         message.session_id = session;
         message.block_hashes = {hash1, hash2};
 
-        const auto encoded =
-            message.serialize_binary();
+        const auto encoded = message.serialize_binary();
 
-        const auto decoded =
-            GetSyncBlocksMessage::deserialize_binary(
-                encoded);
+        const auto decoded = GetSyncBlocksMessage::deserialize_binary(encoded);
 
         assert(decoded.session_id == session);
         assert(decoded.block_hashes.size() == 2);
@@ -45,26 +37,16 @@ int main() {
     {
         SyncBlocksMessage message;
         message.session_id = session;
-        message.blocks = {
-            {1, 2, 3, 4},
-            {5, 6, 7, 8, 9}
-        };
+        message.blocks = {{1, 2, 3, 4}, {5, 6, 7, 8, 9}};
 
-        const auto encoded =
-            message.serialize_binary();
+        const auto encoded = message.serialize_binary();
 
-        const auto decoded =
-            SyncBlocksMessage::deserialize_binary(
-                encoded);
+        const auto decoded = SyncBlocksMessage::deserialize_binary(encoded);
 
         assert(decoded.session_id == session);
         assert(decoded.blocks.size() == 2);
-        assert(decoded.blocks[0] ==
-               std::vector<std::uint8_t>(
-                   {1, 2, 3, 4}));
-        assert(decoded.blocks[1] ==
-               std::vector<std::uint8_t>(
-                   {5, 6, 7, 8, 9}));
+        assert(decoded.blocks[0] == std::vector<std::uint8_t>({1, 2, 3, 4}));
+        assert(decoded.blocks[1] == std::vector<std::uint8_t>({5, 6, 7, 8, 9}));
     }
 
     {
@@ -78,8 +60,7 @@ int main() {
         bool rejected = false;
 
         try {
-            (void)GetSyncBlocksMessage::
-                deserialize_binary(encoded);
+            (void)GetSyncBlocksMessage::deserialize_binary(encoded);
         } catch (const std::runtime_error&) {
             rejected = true;
         }
@@ -113,8 +94,7 @@ int main() {
         bool rejected = false;
 
         try {
-            (void)SyncBlocksMessage::
-                deserialize_binary(encoded);
+            (void)SyncBlocksMessage::deserialize_binary(encoded);
         } catch (const std::runtime_error&) {
             rejected = true;
         }
@@ -132,8 +112,7 @@ int main() {
         bool rejected = false;
 
         try {
-            (void)GetSyncBlocksMessage::
-                deserialize_binary(writer.data());
+            (void)GetSyncBlocksMessage::deserialize_binary(writer.data());
         } catch (const std::runtime_error&) {
             rejected = true;
         }

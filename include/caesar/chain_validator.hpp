@@ -17,11 +17,8 @@ struct ChainValidationResult {
     std::uint64_t total_issued = 0;
 };
 
-inline bool apply_block_transactions_canonical(
-    const Block& block,
-    const UTXOSet& previous_utxos,
-    UTXOSet& result) {
-
+inline bool apply_block_transactions_canonical(const Block& block, const UTXOSet& previous_utxos,
+                                               UTXOSet& result) {
     if (!block.validate_basic())
         return false;
 
@@ -30,87 +27,53 @@ inline bool apply_block_transactions_canonical(
     if (block.transactions.empty())
         return false;
 
-    const Transaction& coinbase =
-        block.transactions.front();
+    const Transaction& coinbase = block.transactions.front();
 
-    if (!validate_coinbase_transaction(
-            coinbase,
-            block.header.height)) {
+    if (!validate_coinbase_transaction(coinbase, block.header.height)) {
         return false;
     }
 
-    const Hash256 coinbase_txid =
-        coinbase.txid();
+    const Hash256 coinbase_txid = coinbase.txid();
 
-    for (std::size_t i = 0;
-         i < coinbase.outputs.size();
-         ++i) {
-
-        if (i >
-            static_cast<std::size_t>(
-                std::numeric_limits<std::uint32_t>::max())) {
+    for (std::size_t i = 0; i < coinbase.outputs.size(); ++i) {
+        if (i > static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
             return false;
         }
 
-        const OutPoint point{
-            coinbase_txid,
-            static_cast<std::uint32_t>(i)
-        };
+        const OutPoint point{coinbase_txid, static_cast<std::uint32_t>(i)};
 
-        if (!result.add(
-                point,
-                coinbase.outputs[i])) {
+        if (!result.add(point, coinbase.outputs[i])) {
             return false;
         }
     }
 
-    for (std::size_t tx_index = 1;
-         tx_index < block.transactions.size();
-         ++tx_index) {
-
-        const Transaction& tx =
-            block.transactions[tx_index];
+    for (std::size_t tx_index = 1; tx_index < block.transactions.size(); ++tx_index) {
+        const Transaction& tx = block.transactions[tx_index];
 
         if (is_coinbase_transaction(tx))
             return false;
 
-        if (!validate_transaction_witness(
-                tx,
-                result)) {
+        if (!validate_transaction_witness(tx, result)) {
             return false;
         }
 
         for (const auto& input : tx.inputs) {
-            const OutPoint point{
-                input.previous_txid,
-                input.output_index
-            };
+            const OutPoint point{input.previous_txid, input.output_index};
 
             if (!result.spend(point))
                 return false;
         }
 
-        const Hash256 txid =
-            tx.txid();
+        const Hash256 txid = tx.txid();
 
-        for (std::size_t i = 0;
-             i < tx.outputs.size();
-             ++i) {
-
-            if (i >
-                static_cast<std::size_t>(
-                    std::numeric_limits<std::uint32_t>::max())) {
+        for (std::size_t i = 0; i < tx.outputs.size(); ++i) {
+            if (i > static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
                 return false;
             }
 
-            const OutPoint point{
-                txid,
-                static_cast<std::uint32_t>(i)
-            };
+            const OutPoint point{txid, static_cast<std::uint32_t>(i)};
 
-            if (!result.add(
-                    point,
-                    tx.outputs[i])) {
+            if (!result.add(point, tx.outputs[i])) {
                 return false;
             }
         }
@@ -119,9 +82,7 @@ inline bool apply_block_transactions_canonical(
     return true;
 }
 
-inline bool validate_genesis_canonical(
-    const Block& genesis) {
-
+inline bool validate_genesis_canonical(const Block& genesis) {
     if (genesis.header.height != 0)
         return false;
 
@@ -134,51 +95,40 @@ inline bool validate_genesis_canonical(
     return genesis.validate_basic();
 }
 
-inline bool validate_block_position_with_chain(
-    const std::vector<Block>& chain,
-    std::size_t block_index) {
-
+inline bool validate_block_position_with_chain(const std::vector<Block>& chain,
+                                               std::size_t block_index) {
     if (block_index == 0 || block_index >= chain.size())
         return false;
 
     const Block& previous = chain[block_index - 1];
     const Block& block = chain[block_index];
 
-    if (block.header.height !=
-        previous.header.height + 1) {
+    if (block.header.height != previous.header.height + 1) {
         return false;
     }
 
-    if (block.header.previous_hash !=
-        previous.hash()) {
+    if (block.header.previous_hash != previous.hash()) {
         return false;
     }
 
-    if (block.header.timestamp <
-        previous.header.timestamp) {
+    if (block.header.timestamp < previous.header.timestamp) {
         return false;
     }
 
-    return block.header.difficulty ==
-        expected_difficulty_at_position(chain, block_index);
+    return block.header.difficulty == expected_difficulty_at_position(chain, block_index);
 }
 
-inline bool add_coinbase_issuance(
-    const Block& block,
-    std::uint64_t& total_issued) {
-
+inline bool add_coinbase_issuance(const Block& block, std::uint64_t& total_issued) {
     if (block.transactions.empty())
         return true;
 
-    const auto& coinbase =
-        block.transactions.front();
+    const auto& coinbase = block.transactions.front();
 
     if (!is_coinbase_transaction(coinbase))
         return true;
 
     for (const auto& output : coinbase.outputs) {
-        if (output.amount >
-            CZR_MAX_SUPPLY - total_issued) {
+        if (output.amount > CZR_MAX_SUPPLY - total_issued) {
             return false;
         }
 
@@ -188,52 +138,37 @@ inline bool add_coinbase_issuance(
     return true;
 }
 
-inline bool validate_and_rebuild_chain(
-    const std::vector<Block>& chain,
-    ChainValidationResult& result) {
-
+inline bool validate_and_rebuild_chain(const std::vector<Block>& chain,
+                                       ChainValidationResult& result) {
     if (chain.empty())
         return false;
 
-    if (!validate_genesis_canonical(
-            chain.front())) {
+    if (!validate_genesis_canonical(chain.front())) {
         return false;
     }
 
     UTXOSet utxos;
     std::uint64_t total_issued = 0;
 
-    for (std::size_t i = 1;
-         i < chain.size();
-         ++i) {
+    for (std::size_t i = 1; i < chain.size(); ++i) {
+        const Block& previous = chain[i - 1];
 
-        const Block& previous =
-            chain[i - 1];
-
-        const Block& block =
-            chain[i];
+        const Block& block = chain[i];
 
         if (!block.validate_basic())
             return false;
 
-        if (!validate_block_position_with_chain(
-                chain,
-                i)) {
+        if (!validate_block_position_with_chain(chain, i)) {
             return false;
         }
 
-        if (!add_coinbase_issuance(
-                block,
-                total_issued)) {
+        if (!add_coinbase_issuance(block, total_issued)) {
             return false;
         }
 
         UTXOSet next;
 
-        if (!apply_block_transactions_canonical(
-                block,
-                utxos,
-                next)) {
+        if (!apply_block_transactions_canonical(block, utxos, next)) {
             return false;
         }
 
@@ -246,87 +181,55 @@ inline bool validate_and_rebuild_chain(
     return true;
 }
 
-inline bool validate_candidate_chain(
-    const std::vector<Block>& candidate) {
-
+inline bool validate_candidate_chain(const std::vector<Block>& candidate) {
     ChainValidationResult result;
 
-    return validate_and_rebuild_chain(
-        candidate,
-        result);
+    return validate_and_rebuild_chain(candidate, result);
 }
 
-inline UTXOSet rebuild_utxo_set(
-    const std::vector<Block>& chain) {
-
+inline UTXOSet rebuild_utxo_set(const std::vector<Block>& chain) {
     ChainValidationResult result;
 
-    if (!validate_and_rebuild_chain(
-            chain,
-            result)) {
-        throw std::runtime_error(
-            "cannot rebuild UTXO set from invalid chain");
+    if (!validate_and_rebuild_chain(chain, result)) {
+        throw std::runtime_error("cannot rebuild UTXO set from invalid chain");
     }
 
     return std::move(result.utxo);
 }
 
-inline UTXOSet apply_block_transactions(
-    const Block& block,
-    const UTXOSet& previous_utxos) {
-
+inline UTXOSet apply_block_transactions(const Block& block, const UTXOSet& previous_utxos) {
     UTXOSet result;
 
-    if (!apply_block_transactions_canonical(
-            block,
-            previous_utxos,
-            result)) {
-        throw std::runtime_error(
-            "cannot apply invalid block");
+    if (!apply_block_transactions_canonical(block, previous_utxos, result)) {
+        throw std::runtime_error("cannot apply invalid block");
     }
 
     return result;
 }
 
-inline bool validate_total_coinbase_issuance(
-    const Block& block,
-    const std::vector<Block>& chain) {
-
+inline bool validate_total_coinbase_issuance(const Block& block, const std::vector<Block>& chain) {
     std::uint64_t total_issued = 0;
 
     for (const auto& previous : chain) {
         if (previous.header.height == 0)
             continue;
 
-        if (!add_coinbase_issuance(
-                previous,
-                total_issued)) {
+        if (!add_coinbase_issuance(previous, total_issued)) {
             return false;
         }
     }
 
-    return add_coinbase_issuance(
-        block,
-        total_issued);
+    return add_coinbase_issuance(block, total_issued);
 }
 
-inline bool validate_block_against_utxo(
-    const Block& block,
-    const UTXOSet& previous_utxos) {
-
+inline bool validate_block_against_utxo(const Block& block, const UTXOSet& previous_utxos) {
     UTXOSet result;
 
-    return apply_block_transactions_canonical(
-        block,
-        previous_utxos,
-        result);
+    return apply_block_transactions_canonical(block, previous_utxos, result);
 }
 
-inline bool validate_block_consensus(
-    const Block& block,
-    const std::vector<Block>& chain,
-    const UTXOSet& previous_utxos) {
-
+inline bool validate_block_consensus(const Block& block, const std::vector<Block>& chain,
+                                     const UTXOSet& previous_utxos) {
     if (chain.empty())
         return false;
 
@@ -335,35 +238,27 @@ inline bool validate_block_consensus(
 
     const Block& previous = chain.back();
 
-    if (block.header.height !=
-        previous.header.height + 1) {
+    if (block.header.height != previous.header.height + 1) {
         return false;
     }
 
-    if (block.header.previous_hash !=
-        previous.hash()) {
+    if (block.header.previous_hash != previous.hash()) {
         return false;
     }
 
-    if (block.header.timestamp <
-        previous.header.timestamp) {
+    if (block.header.timestamp < previous.header.timestamp) {
         return false;
     }
 
-    if (block.header.difficulty !=
-        expected_next_difficulty(chain)) {
+    if (block.header.difficulty != expected_next_difficulty(chain)) {
         return false;
     }
 
-    if (!validate_block_against_utxo(
-            block,
-            previous_utxos)) {
+    if (!validate_block_against_utxo(block, previous_utxos)) {
         return false;
     }
 
-    return validate_total_coinbase_issuance(
-        block,
-        chain);
+    return validate_total_coinbase_issuance(block, chain);
 }
 
 } // namespace caesar

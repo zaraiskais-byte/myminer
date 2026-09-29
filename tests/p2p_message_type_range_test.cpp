@@ -34,13 +34,10 @@ using namespace caesar;
 
 namespace {
 
-std::vector<std::uint8_t> make_frame_bytes(
-    std::uint8_t raw_type,
-    const std::vector<std::uint8_t>& payload) {
-
+std::vector<std::uint8_t> make_frame_bytes(std::uint8_t raw_type,
+                                           const std::vector<std::uint8_t>& payload) {
     BinaryWriter writer;
-    writer.write_u32(
-        static_cast<std::uint32_t>(payload.size()));
+    writer.write_u32(static_cast<std::uint32_t>(payload.size()));
     writer.write_u8(raw_type);
     writer.write_bytes(payload);
     return writer.data();
@@ -49,21 +46,12 @@ std::vector<std::uint8_t> make_frame_bytes(
 } // namespace
 
 int main() {
-
     // Every message type we ship must lie within [MIN, MAX].
     const P2PMessageType all_types[] = {
-        P2PMessageType::Hello,
-        P2PMessageType::Ping,
-        P2PMessageType::Pong,
-        P2PMessageType::GetHeaders,
-        P2PMessageType::Headers,
-        P2PMessageType::GetBlocks,
-        P2PMessageType::Blocks,
-        P2PMessageType::GetMempool,
-        P2PMessageType::Transaction,
-        P2PMessageType::GetTransaction,
-        P2PMessageType::Reject,
-        P2PMessageType::GetSyncBlocks,
+        P2PMessageType::Hello,          P2PMessageType::Ping,       P2PMessageType::Pong,
+        P2PMessageType::GetHeaders,     P2PMessageType::Headers,    P2PMessageType::GetBlocks,
+        P2PMessageType::Blocks,         P2PMessageType::GetMempool, P2PMessageType::Transaction,
+        P2PMessageType::GetTransaction, P2PMessageType::Reject,     P2PMessageType::GetSyncBlocks,
         P2PMessageType::SyncBlocks,
     };
 
@@ -77,12 +65,9 @@ int main() {
             observed_max = raw;
     }
 
-    std::cout << "[range] MIN="
-              << static_cast<int>(P2P_MESSAGE_TYPE_MIN)
-              << " MAX="
-              << static_cast<int>(P2P_MESSAGE_TYPE_MAX)
-              << " observed_max="
-              << static_cast<int>(observed_max) << "\n";
+    std::cout << "[range] MIN=" << static_cast<int>(P2P_MESSAGE_TYPE_MIN)
+              << " MAX=" << static_cast<int>(P2P_MESSAGE_TYPE_MAX)
+              << " observed_max=" << static_cast<int>(observed_max) << "\n";
 
     assert(observed_max == P2P_MESSAGE_TYPE_MAX &&
            "highest P2PMessageType value does not match "
@@ -109,10 +94,7 @@ int main() {
     bool above_max_rejected = false;
     try {
         (void)P2PFrame::deserialize_binary(
-            make_frame_bytes(
-                static_cast<std::uint8_t>(
-                    P2P_MESSAGE_TYPE_MAX + 1),
-                {}));
+            make_frame_bytes(static_cast<std::uint8_t>(P2P_MESSAGE_TYPE_MAX + 1), {}));
     } catch (const std::exception&) {
         above_max_rejected = true;
     }

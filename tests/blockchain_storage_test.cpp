@@ -18,11 +18,7 @@ caesar::Block make_genesis() {
     genesis.header.difficulty = 0;
 
     caesar::Transaction tx;
-    tx.outputs.push_back(
-        caesar::TransactionOutput{
-            1,
-            "CAESAR_GENESIS_BURN"
-        });
+    tx.outputs.push_back(caesar::TransactionOutput{1, "CAESAR_GENESIS_BURN"});
 
     genesis.transactions.push_back(tx);
     genesis.update_merkle_root();
@@ -30,18 +26,14 @@ caesar::Block make_genesis() {
     return genesis;
 }
 
-}
+} // namespace
 
 int main() {
-    const auto path =
-        std::filesystem::temp_directory_path() /
-        "caesar_blockchain_storage_test.dat";
+    const auto path = std::filesystem::temp_directory_path() / "caesar_blockchain_storage_test.dat";
 
     std::error_code ec;
     std::filesystem::remove(path, ec);
-    std::filesystem::remove(
-        path.string() + ".tmp",
-        ec);
+    std::filesystem::remove(path.string() + ".tmp", ec);
 
     caesar::BlockchainStorage storage(path);
 
@@ -57,39 +49,22 @@ int main() {
 
     caesar::Mempool mempool;
 
-    auto block1 =
-        caesar::BlockBuilder::build(
-            chain.back(),
-            mempool,
-            "CAESAR_TEST_MINER",
-            1,
-            caesar::CZR_INITIAL_MINING_DIFFICULTY);
+    auto block1 = caesar::BlockBuilder::build(chain.back(), mempool, "CAESAR_TEST_MINER", 1,
+                                              caesar::CZR_INITIAL_MINING_DIFFICULTY);
 
-    assert(
-        block1.header.difficulty ==
-        caesar::CZR_INITIAL_MINING_DIFFICULTY);
+    assert(block1.header.difficulty == caesar::CZR_INITIAL_MINING_DIFFICULTY);
 
-    const bool mined = caesar::BlockBuilder::mine(
-        block1,
-        0,
-        1000000);
+    const bool mined = caesar::BlockBuilder::mine(block1, 0, 1000000);
 
     if (!mined)
-        throw std::runtime_error(
-            "failed to mine storage test block");
+        throw std::runtime_error("failed to mine storage test block");
 
     if (!block1.validate_pow())
-        throw std::runtime_error(
-            "storage test block has invalid PoW after mining");
+        throw std::runtime_error("storage test block has invalid PoW after mining");
 
-    const caesar::UTXOSet previous_utxos =
-        caesar::rebuild_utxo_set(chain);
+    const caesar::UTXOSet previous_utxos = caesar::rebuild_utxo_set(chain);
 
-    assert(
-        caesar::validate_block_consensus(
-            block1,
-            chain,
-            previous_utxos));
+    assert(caesar::validate_block_consensus(block1, chain, previous_utxos));
 
     assert(block1.validate_pow());
 
@@ -99,9 +74,7 @@ int main() {
 
     assert(chain.size() == 2);
     assert(chain.back().header.height == 1);
-    assert(
-        chain.back().header.previous_hash ==
-        chain[0].hash());
+    assert(chain.back().header.previous_hash == chain[0].hash());
     assert(caesar::validate_block_chain(chain));
 
     // Full-chain replacement uses the same atomic write path.
@@ -112,8 +85,7 @@ int main() {
     const auto replaced = storage.load();
 
     assert(replaced.size() == canonical_before_replace.size());
-    assert(replaced.back().hash() ==
-           canonical_before_replace.back().hash());
+    assert(replaced.back().hash() == canonical_before_replace.back().hash());
 
     // An invalid replacement must fail before touching canonical storage.
     auto invalid_replacement = chain;
@@ -123,8 +95,7 @@ int main() {
 
     try {
         storage.replace(invalid_replacement);
-    }
-    catch (const std::exception&) {
+    } catch (const std::exception&) {
         rejected = true;
     }
 
@@ -132,20 +103,14 @@ int main() {
 
     const auto after_rejected_replace = storage.load();
 
-    assert(after_rejected_replace.size() ==
-           canonical_before_replace.size());
+    assert(after_rejected_replace.size() == canonical_before_replace.size());
 
-    for (std::size_t i = 0;
-         i < after_rejected_replace.size();
-         ++i) {
-        assert(after_rejected_replace[i].hash() ==
-               canonical_before_replace[i].hash());
+    for (std::size_t i = 0; i < after_rejected_replace.size(); ++i) {
+        assert(after_rejected_replace[i].hash() == canonical_before_replace[i].hash());
     }
 
     std::filesystem::remove(path, ec);
-    std::filesystem::remove(
-        path.string() + ".tmp",
-        ec);
+    std::filesystem::remove(path.string() + ".tmp", ec);
 
     return 0;
 }

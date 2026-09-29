@@ -10,8 +10,7 @@ static Transaction make_transaction() {
     Transaction tx;
 
     TransactionInput input;
-    input.previous_txid =
-        sha256("previous transaction");
+    input.previous_txid = sha256("previous transaction");
     input.output_index = 2;
 
     tx.inputs.push_back(input);
@@ -38,8 +37,7 @@ int main() {
 
         std::cout << "[PASS] Valid transaction accepted\n";
 
-        const auto binary =
-            tx.serialize_binary();
+        const auto binary = tx.serialize_binary();
 
         if (binary.empty()) {
             std::cerr << "[FAIL] Empty binary serialization\n";
@@ -48,11 +46,9 @@ int main() {
 
         std::cout << "[PASS] Binary serialization generated\n";
 
-        const Hash256 original_id =
-            tx.txid();
+        const Hash256 original_id = tx.txid();
 
-        Transaction restored =
-            Transaction::deserialize(binary);
+        Transaction restored = Transaction::deserialize(binary);
 
         if (!restored.validate()) {
             std::cerr << "[FAIL] Deserialized transaction invalid\n";
@@ -75,8 +71,7 @@ int main() {
 
         std::cout << "[PASS] Deserialized TXID matches original\n";
 
-        std::vector<std::uint8_t> truncated =
-            binary;
+        std::vector<std::uint8_t> truncated = binary;
 
         truncated.pop_back();
 
@@ -90,8 +85,7 @@ int main() {
             std::cout << "[PASS] Truncated transaction rejected\n";
         }
 
-        std::vector<std::uint8_t> trailing =
-            binary;
+        std::vector<std::uint8_t> trailing = binary;
 
         trailing.push_back(0xCA);
 
@@ -142,8 +136,7 @@ int main() {
 
         std::cout << "[PASS] Witness mutation changes WTXID\n";
 
-        std::cout << "TXID: "
-                  << hash_to_hex(original_id) << '\n';
+        std::cout << "TXID: " << hash_to_hex(original_id) << '\n';
 
         std::cout << "ALL TRANSACTION TESTS PASSED\n";
         return EXIT_SUCCESS;

@@ -50,53 +50,44 @@ P2PConnection make_connection(std::uint16_t port) {
 } // namespace
 
 int main() {
-
     P2PPeerManager manager;
 
     // 1. New peer starts with PEER_SCORE_INITIAL.
     {
-        const auto id = manager.add_peer(
-            make_connection(PORT_A), "127.0.0.1", PORT_A);
-        assert(manager.score(id) ==
-               P2PPeerManager::PEER_SCORE_INITIAL);
+        const auto id = manager.add_peer(make_connection(PORT_A), "127.0.0.1", PORT_A);
+        assert(manager.score(id) == P2PPeerManager::PEER_SCORE_INITIAL);
         manager.remove_peer(id);
     }
     std::cout << "[score] initial: OK\n";
 
     // 2. reward() increments up to cap.
     {
-        const auto id = manager.add_peer(
-            make_connection(PORT_A), "127.0.0.1", PORT_A);
+        const auto id = manager.add_peer(make_connection(PORT_A), "127.0.0.1", PORT_A);
 
         for (int i = 0; i < 200; ++i)
             manager.reward(id, 1);
 
-        assert(manager.score(id) ==
-               P2PPeerManager::PEER_SCORE_MAX);
+        assert(manager.score(id) == P2PPeerManager::PEER_SCORE_MAX);
         manager.remove_peer(id);
     }
     std::cout << "[score] reward capped: OK\n";
 
     // 3. penalize() decrements.
     {
-        const auto id = manager.add_peer(
-            make_connection(PORT_A), "127.0.0.1", PORT_A);
+        const auto id = manager.add_peer(make_connection(PORT_A), "127.0.0.1", PORT_A);
 
         manager.penalize(id, 30);
-        assert(manager.score(id) ==
-               P2PPeerManager::PEER_SCORE_INITIAL - 30);
+        assert(manager.score(id) == P2PPeerManager::PEER_SCORE_INITIAL - 30);
         manager.remove_peer(id);
     }
     std::cout << "[score] penalize decrements: OK\n";
 
     // 4. Penalize to BAN_THRESHOLD removes and bans.
     {
-        const auto id = manager.add_peer(
-            make_connection(PORT_B), "127.0.0.1", PORT_B);
+        const auto id = manager.add_peer(make_connection(PORT_B), "127.0.0.1", PORT_B);
 
         const int hits_needed =
-            P2PPeerManager::PEER_SCORE_INITIAL /
-            P2PPeerManager::DEFAULT_PENALTY;
+            P2PPeerManager::PEER_SCORE_INITIAL / P2PPeerManager::DEFAULT_PENALTY;
 
         for (int i = 0; i < hits_needed; ++i)
             manager.penalize(id, P2PPeerManager::DEFAULT_PENALTY);
@@ -111,8 +102,7 @@ int main() {
         bool threw = false;
         std::string message;
         try {
-            (void)manager.add_peer(
-                make_connection(PORT_B), "127.0.0.1", PORT_B);
+            (void)manager.add_peer(make_connection(PORT_B), "127.0.0.1", PORT_B);
         } catch (const std::exception& e) {
             threw = true;
             message = e.what();
@@ -127,8 +117,7 @@ int main() {
         manager.unban("127.0.0.1");
         assert(!manager.is_banned("127.0.0.1"));
 
-        const auto id = manager.add_peer(
-            make_connection(PORT_C), "127.0.0.1", PORT_C);
+        const auto id = manager.add_peer(make_connection(PORT_C), "127.0.0.1", PORT_C);
         assert(manager.contains(id));
         manager.remove_peer(id);
     }

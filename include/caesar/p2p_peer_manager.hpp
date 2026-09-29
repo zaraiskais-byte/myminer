@@ -24,7 +24,7 @@ struct P2PPeerInfo {
 };
 
 class P2PPeerManager {
-public:
+   public:
     static constexpr std::size_t MAX_PEERS = 64;
 
     /*
@@ -51,16 +51,12 @@ public:
     static constexpr int DEFAULT_REWARD = 1;
 
     using BanDuration = std::chrono::seconds;
-    static constexpr BanDuration DEFAULT_BAN_DURATION =
-        std::chrono::hours(24);
+    static constexpr BanDuration DEFAULT_BAN_DURATION = std::chrono::hours(24);
 
     P2PPeerManager() = default;
 
-    std::uint64_t add_peer(
-        P2PConnection connection,
-        const std::string& address,
-        std::uint16_t port) {
-
+    std::uint64_t add_peer(P2PConnection connection, const std::string& address,
+                           std::uint16_t port) {
         if (!connection.valid())
             throw std::runtime_error("Cannot add invalid P2P peer");
 
@@ -74,19 +70,13 @@ public:
                 throw std::runtime_error("P2P peer limit reached");
 
             if (is_banned_locked(address)) {
-                throw std::runtime_error(
-                    "Cannot add banned P2P peer");
+                throw std::runtime_error("Cannot add banned P2P peer");
             }
 
             id = next_id_++;
 
-            peers_.emplace(
-                id,
-                PeerEntry{
-                    P2PPeerInfo{id, address, port, true,
-                                PEER_SCORE_INITIAL},
-                    std::make_shared<P2PConnection>(std::move(connection))
-                });
+            peers_.emplace(id, PeerEntry{P2PPeerInfo{id, address, port, true, PEER_SCORE_INITIAL},
+                                         std::make_shared<P2PConnection>(std::move(connection))});
 
             callback = peer_added_callback_;
         }
@@ -127,10 +117,7 @@ public:
         peers_.clear();
     }
 
-    void send_to(
-        std::uint64_t id,
-        const P2PFrame& frame) {
-
+    void send_to(std::uint64_t id, const P2PFrame& frame) {
         std::shared_ptr<P2PConnection> connection;
 
         {
@@ -147,7 +134,6 @@ public:
     }
 
     void broadcast(const P2PFrame& frame) {
-
         std::vector<std::shared_ptr<P2PConnection>> connections;
 
         {
@@ -165,16 +151,12 @@ public:
             connection->send_frame(frame);
     }
 
-    void set_peer_added_callback(
-        std::function<void(std::uint64_t)> cb) {
-
+    void set_peer_added_callback(std::function<void(std::uint64_t)> cb) {
         std::lock_guard<std::mutex> lock(mutex_);
         peer_added_callback_ = std::move(cb);
     }
 
-    std::shared_ptr<P2PConnection> connection(
-        std::uint64_t id) const {
-
+    std::shared_ptr<P2PConnection> connection(std::uint64_t id) const {
         std::lock_guard<std::mutex> lock(mutex_);
         const auto it = peers_.find(id);
 
@@ -250,9 +232,7 @@ public:
      */
     void ban(const std::string& address) {
         std::lock_guard<std::mutex> lock(mutex_);
-        banned_addresses_[address] =
-            std::chrono::steady_clock::now() +
-            DEFAULT_BAN_DURATION;
+        banned_addresses_[address] = std::chrono::steady_clock::now() + DEFAULT_BAN_DURATION;
     }
 
     /*
@@ -263,7 +243,7 @@ public:
         banned_addresses_.erase(address);
     }
 
-private:
+   private:
     struct PeerEntry {
         P2PPeerInfo info;
         std::shared_ptr<P2PConnection> connection;
@@ -293,8 +273,8 @@ private:
      * expired entries. The mutex_ member is mutable for the same
      * reason.
      */
-    mutable std::unordered_map<std::string,
-        std::chrono::steady_clock::time_point> banned_addresses_;
+    mutable std::unordered_map<std::string, std::chrono::steady_clock::time_point>
+        banned_addresses_;
     mutable std::mutex mutex_;
     std::uint64_t next_id_{1};
     std::function<void(std::uint64_t)> peer_added_callback_;

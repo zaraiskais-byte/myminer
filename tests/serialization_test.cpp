@@ -26,27 +26,16 @@ int main() {
 
         std::cout << "[PASS] Deterministic binary serialization size\n";
 
-        if (data[0] != 0xCA ||
-            data[1] != 0x04 ||
-            data[2] != 0x03 ||
-            data[3] != 0x02 ||
+        if (data[0] != 0xCA || data[1] != 0x04 || data[2] != 0x03 || data[3] != 0x02 ||
             data[4] != 0x01) {
-
             std::cerr << "[FAIL] Little-endian u32 encoding\n";
             return EXIT_FAILURE;
         }
 
         std::cout << "[PASS] Little-endian u32 encoding\n";
 
-        if (data[5] != 0x08 ||
-            data[6] != 0x07 ||
-            data[7] != 0x06 ||
-            data[8] != 0x05 ||
-            data[9] != 0x04 ||
-            data[10] != 0x03 ||
-            data[11] != 0x02 ||
-            data[12] != 0x01) {
-
+        if (data[5] != 0x08 || data[6] != 0x07 || data[7] != 0x06 || data[8] != 0x05 ||
+            data[9] != 0x04 || data[10] != 0x03 || data[11] != 0x02 || data[12] != 0x01) {
             std::cerr << "[FAIL] Little-endian u64 encoding\n";
             return EXIT_FAILURE;
         }

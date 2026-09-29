@@ -12,13 +12,9 @@
 
 using namespace caesar;
 
-static Transaction make_spend(
-    const Hash256& funding_txid,
-    std::uint32_t output_index,
-    std::uint64_t amount,
-    const std::string& recipient,
-    const Wallet& signer) {
-
+static Transaction make_spend(const Hash256& funding_txid, std::uint32_t output_index,
+                              std::uint64_t amount, const std::string& recipient,
+                              const Wallet& signer) {
     Transaction tx;
 
     TransactionInput input;
@@ -33,41 +29,28 @@ static Transaction make_spend(
 
     TransactionWitness witness;
     witness.public_key = signer.public_key();
-    witness.signature =
-        sign_transaction_input(
-            tx,
-            0,
-            signer.private_key());
+    witness.signature = sign_transaction_input(tx, 0, signer.private_key());
 
-    tx.witness.inputs.push_back(
-        std::move(witness));
+    tx.witness.inputs.push_back(std::move(witness));
 
     return tx;
 }
 
-static bool wait_for_mempool(
-    const CaesarNode& node,
-    const Hash256& txid,
-    int attempts = 100) {
-
+static bool wait_for_mempool(const CaesarNode& node, const Hash256& txid, int attempts = 100) {
     for (int i = 0; i < attempts; ++i) {
         if (node.mempool_contains(txid))
             return true;
 
-        std::this_thread::sleep_for(
-            std::chrono::milliseconds(20));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
     return false;
 }
 
 int main() {
-    std::cout
-        << "=== Caesar CZR Transaction Relay Tests ===\n";
+    std::cout << "=== Caesar CZR Transaction Relay Tests ===\n";
 
-    const auto base =
-        std::filesystem::temp_directory_path() /
-        "caesar_transaction_relay_test";
+    const auto base = std::filesystem::temp_directory_path() / "caesar_transaction_relay_test";
 
     std::error_code ec;
     std::filesystem::remove_all(base, ec);
@@ -82,15 +65,9 @@ int main() {
         Wallet alice;
         Wallet bob;
 
-        CaesarNode node_a(
-            node_a_dir,
-            port_a,
-            1);
+        CaesarNode node_a(node_a_dir, port_a, 1);
 
-        CaesarNode node_b(
-            node_b_dir,
-            port_b,
-            1);
+        CaesarNode node_b(node_b_dir, port_b, 1);
 
         node_a.start();
         node_b.start();
@@ -103,9 +80,7 @@ int main() {
          * Install the resulting chain on node B so both
          * nodes have the same UTXO view before relay.
          */
-        node_a.mine_one_block(
-            alice.address(),
-            1000000);
+        node_a.mine_one_block(alice.address(), 1000000);
 
         const auto chain_a = node_a.chain();
 
@@ -118,117 +93,78 @@ int main() {
         const auto chain_b = node_b.chain();
 
         assert(chain_b.size() == 2);
-        assert(chain_b.back().hash() ==
-               chain_a.back().hash());
+        assert(chain_b.back().hash() == chain_a.back().hash());
 
-        std::cout
-            << "[PASS] Both nodes share the same funded chain\n";
+        std::cout << "[PASS] Both nodes share the same funded chain\n";
 
-        const auto peer_id =
-            node_a.connect_to_peer(
-                "127.0.0.1",
-                port_b);
+        const auto peer_id = node_a.connect_to_peer("127.0.0.1", port_b);
 
         assert(peer_id != 0);
 
-        for (int i = 0;
-             i < 100 && node_b.peer_count() == 0;
-             ++i) {
-
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(20));
+        for (int i = 0; i < 100 && node_b.peer_count() == 0; ++i) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
 
         assert(node_a.peer_count() == 1);
         assert(node_b.peer_count() == 1);
 
-        std::cout
-            << "[PASS] Node A connected to Node B\n";
+        std::cout << "[PASS] Node A connected to Node B\n";
 
-        const Block& funding_block =
-            chain_a.back();
+        const Block& funding_block = chain_a.back();
 
         assert(!funding_block.transactions.empty());
 
-        const Transaction& coinbase =
-            funding_block.transactions.front();
+        const Transaction& coinbase = funding_block.transactions.front();
 
         assert(!coinbase.outputs.empty());
 
-        assert(
-            coinbase.outputs.front().recipient ==
-            alice.address());
+        assert(coinbase.outputs.front().recipient == alice.address());
 
-        const Hash256 funding_txid =
-            coinbase.txid();
+        const Hash256 funding_txid = coinbase.txid();
 
-        const std::uint64_t spend_amount =
-            coinbase.outputs.front().amount;
+        const std::uint64_t spend_amount = coinbase.outputs.front().amount;
 
-        Transaction tx =
-            make_spend(
-                funding_txid,
-                0,
-                spend_amount,
-                bob.address(),
-                alice);
+        Transaction tx = make_spend(funding_txid, 0, spend_amount, bob.address(), alice);
 
         const Hash256 txid = tx.txid();
 
-        const auto accepted =
-            node_a.accept_transaction(tx);
+        const auto accepted = node_a.accept_transaction(tx);
 
         assert(accepted.accepted());
 
-        std::cout
-            << "[PASS] Node A accepted signed transaction\n";
+        std::cout << "[PASS] Node A accepted signed transaction\n";
 
-        assert(
-            wait_for_mempool(
-                node_b,
-                txid));
+        assert(wait_for_mempool(node_b, txid));
 
-        std::cout
-            << "[PASS] Transaction relayed to Node B mempool\n";
+        std::cout << "[PASS] Transaction relayed to Node B mempool\n";
 
-        const auto duplicate =
-            node_a.accept_transaction(tx);
+        const auto duplicate = node_a.accept_transaction(tx);
 
         assert(!duplicate.accepted());
 
-        assert(
-            duplicate.reason ==
-            MempoolRejectReason::Duplicate);
+        assert(duplicate.reason == MempoolRejectReason::Duplicate);
 
-        std::cout
-            << "[PASS] Duplicate transaction rejected\n";
+        std::cout << "[PASS] Duplicate transaction rejected\n";
 
         Transaction invalid = tx;
 
-        assert(
-            !invalid.witness.inputs.empty());
+        assert(!invalid.witness.inputs.empty());
 
-        assert(
-            !invalid.witness.inputs.front()
-                .signature.empty());
+        assert(!invalid.witness.inputs.front().signature.empty());
 
-        invalid.witness.inputs.front()
-            .signature.front() ^= 0x01;
+        invalid.witness.inputs.front().signature.front() ^= 0x01;
 
-        const auto invalid_result =
-            node_a.accept_transaction(invalid);
+        const auto invalid_result = node_a.accept_transaction(invalid);
 
         assert(!invalid_result.accepted());
 
-        std::cout
-            << "[PASS] Invalid-signature transaction rejected\n";
+        std::cout << "[PASS] Invalid-signature transaction rejected\n";
 
         assert(node_a.mempool_size() == 1);
         assert(node_b.mempool_size() == 1);
         assert(node_b.mempool_contains(txid));
 
-        std::cout
-            << "[PASS] Relay admission state remains consistent\n";
+        std::cout << "[PASS] Relay admission state remains consistent\n";
 
         node_a.stop();
         node_b.stop();
@@ -238,16 +174,12 @@ int main() {
 
         std::filesystem::remove_all(base, ec);
 
-        std::cout
-            << "ALL TRANSACTION RELAY TESTS PASSED\n";
+        std::cout << "ALL TRANSACTION RELAY TESTS PASSED\n";
 
         return 0;
 
     } catch (const std::exception& e) {
-        std::cerr
-            << "[FAIL] "
-            << e.what()
-            << '\n';
+        std::cerr << "[FAIL] " << e.what() << '\n';
 
         std::filesystem::remove_all(base, ec);
         return 1;

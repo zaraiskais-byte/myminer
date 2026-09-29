@@ -5,10 +5,7 @@
 
 using namespace caesar;
 
-static TransactionOutput make_output(
-    std::uint64_t amount,
-    const std::string& recipient) {
-
+static TransactionOutput make_output(std::uint64_t amount, const std::string& recipient) {
     TransactionOutput output;
     output.amount = amount;
     output.recipient = recipient;
@@ -20,16 +17,11 @@ int main() {
 
     UTXOSet utxos;
 
-    const Hash256 funding_txid =
-        sha256("funding transaction");
+    const Hash256 funding_txid = sha256("funding transaction");
 
-    const OutPoint funded{
-        funding_txid,
-        0
-    };
+    const OutPoint funded{funding_txid, 0};
 
-    const TransactionOutput funded_output =
-        make_output(5000000, "CZ1ALICE");
+    const TransactionOutput funded_output = make_output(5000000, "CZ1ALICE");
 
     if (!utxos.add(funded, funded_output)) {
         std::cerr << "[FAIL] Add UTXO\n";
@@ -43,8 +35,7 @@ int main() {
     }
     std::cout << "[PASS] UTXO lookup\n";
 
-    const TransactionOutput* stored =
-        utxos.get(funded);
+    const TransactionOutput* stored = utxos.get(funded);
 
     if (!stored || stored->amount != 5000000) {
         std::cerr << "[FAIL] UTXO value\n";
@@ -58,12 +49,9 @@ int main() {
 
     Transaction spend;
     spend.inputs.push_back(input);
-    spend.outputs.push_back(
-        make_output(4000000, "CZ1BOB"));
+    spend.outputs.push_back(make_output(4000000, "CZ1BOB"));
 
-    if (!validate_transaction_against_utxo(
-            spend, utxos)) {
-
+    if (!validate_transaction_against_utxo(spend, utxos)) {
         std::cerr << "[FAIL] Valid UTXO spend rejected\n";
         return EXIT_FAILURE;
     }
@@ -81,9 +69,7 @@ int main() {
     }
     std::cout << "[PASS] Spent UTXO removed\n";
 
-    if (validate_transaction_against_utxo(
-            spend, utxos)) {
-
+    if (validate_transaction_against_utxo(spend, utxos)) {
         std::cerr << "[FAIL] Double spend accepted\n";
         return EXIT_FAILURE;
     }
@@ -96,12 +82,9 @@ int main() {
     duplicate_input.inputs.push_back(input);
     duplicate_input.inputs.push_back(input);
 
-    duplicate_input.outputs.push_back(
-        make_output(4000000, "CZ1BOB"));
+    duplicate_input.outputs.push_back(make_output(4000000, "CZ1BOB"));
 
-    if (validate_transaction_against_utxo(
-            duplicate_input, duplicate_utxos)) {
-
+    if (validate_transaction_against_utxo(duplicate_input, duplicate_utxos)) {
         std::cerr << "[FAIL] Duplicate input accepted\n";
         return EXIT_FAILURE;
     }

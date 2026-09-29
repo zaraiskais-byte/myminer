@@ -17,9 +17,7 @@ struct P2PPing {
         return writer.data();
     }
 
-    static P2PPing deserialize_binary(
-        const std::vector<std::uint8_t>& data) {
-
+    static P2PPing deserialize_binary(const std::vector<std::uint8_t>& data) {
         BinaryReader reader(data);
 
         P2PPing ping;
@@ -41,9 +39,7 @@ struct P2PPong {
         return writer.data();
     }
 
-    static P2PPong deserialize_binary(
-        const std::vector<std::uint8_t>& data) {
-
+    static P2PPong deserialize_binary(const std::vector<std::uint8_t>& data) {
         BinaryReader reader(data);
 
         P2PPong pong;
@@ -56,4 +52,4 @@ struct P2PPong {
     }
 };
 
-}
+} // namespace caesar

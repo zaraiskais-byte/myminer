@@ -10,11 +10,8 @@ using namespace caesar;
 
 namespace {
 
-Block make_synthetic_block(
-    std::uint64_t height,
-    std::uint64_t timestamp,
-    std::uint32_t difficulty) {
-
+Block make_synthetic_block(std::uint64_t height, std::uint64_t timestamp,
+                           std::uint32_t difficulty) {
     Block b;
     b.header.version = 1;
     b.header.height = height;
@@ -26,7 +23,6 @@ Block make_synthetic_block(
 } // namespace
 
 int main() {
-
     // ---- CASE 1: chain shorter than window -> carry previous difficulty ----
     {
         std::vector<Block> chain;
@@ -84,21 +80,15 @@ int main() {
 
         std::vector<std::uint64_t> intervals;
         const std::size_t prev_idx = chain.size() - 1;
-        const std::size_t first =
-            prev_idx + 1 - CZR_DIFFICULTY_WINDOW;
+        const std::size_t first = prev_idx + 1 - CZR_DIFFICULTY_WINDOW;
 
         for (std::size_t i = first; i <= prev_idx; ++i)
-            intervals.push_back(
-                chain[i].header.timestamp -
-                chain[i - 1].header.timestamp);
+            intervals.push_back(chain[i].header.timestamp - chain[i - 1].header.timestamp);
 
-        const std::uint32_t via_helper =
-            expected_next_difficulty(chain);
-        const std::uint32_t via_raw =
-            adjust_difficulty_window(12, intervals);
+        const std::uint32_t via_helper = expected_next_difficulty(chain);
+        const std::uint32_t via_raw = adjust_difficulty_window(12, intervals);
 
-        std::cout << "[case5] helper=" << via_helper
-                  << " raw=" << via_raw << "\n";
+        std::cout << "[case5] helper=" << via_helper << " raw=" << via_raw << "\n";
         assert(via_helper == via_raw);
     }
 

@@ -8,10 +8,7 @@
 
 namespace {
 
-caesar::Block make_block(
-    std::uint64_t height,
-    std::uint32_t difficulty) {
-
+caesar::Block make_block(std::uint64_t height, std::uint32_t difficulty) {
     caesar::Block block;
     block.header.version = 1;
     block.header.height = height;
@@ -19,9 +16,7 @@ caesar::Block make_block(
     return block;
 }
 
-std::vector<caesar::Block> make_chain(
-    std::initializer_list<std::uint32_t> difficulties) {
-
+std::vector<caesar::Block> make_chain(std::initializer_list<std::uint32_t> difficulties) {
     std::vector<caesar::Block> chain;
     chain.reserve(difficulties.size());
 
@@ -48,9 +43,7 @@ int main() {
         const auto candidate = make_chain({0, 12, 12});
 
         assert(!caesar::has_more_work(candidate, current));
-        assert(!caesar::prepare_chain_replacement(
-            current,
-            candidate));
+        assert(!caesar::prepare_chain_replacement(current, candidate));
     }
 
     // A longer chain can still have less cumulative work.
@@ -60,9 +53,7 @@ int main() {
 
         assert(candidate.size() > current.size());
         assert(!caesar::has_more_work(candidate, current));
-        assert(!caesar::prepare_chain_replacement(
-            current,
-            candidate));
+        assert(!caesar::prepare_chain_replacement(current, candidate));
     }
 
     // A shorter chain with greater cumulative work is eligible
@@ -75,11 +66,10 @@ int main() {
         assert(caesar::has_more_work(candidate, current));
     }
 
-    std::cout
-        << "Equal-work replacement rejected: PASS\n"
-        << "Longer lower-work replacement rejected: PASS\n"
-        << "Shorter higher-work chain recognized: PASS\n"
-        << "CHAIN REPLACEMENT REJECTION TEST PASSED\n";
+    std::cout << "Equal-work replacement rejected: PASS\n"
+              << "Longer lower-work replacement rejected: PASS\n"
+              << "Shorter higher-work chain recognized: PASS\n"
+              << "CHAIN REPLACEMENT REJECTION TEST PASSED\n";
 
     return 0;
 }

@@ -24,68 +24,43 @@ enum class MempoolRejectReason {
 };
 
 struct MempoolValidationResult {
-    MempoolRejectReason reason{
-        MempoolRejectReason::None
-    };
+    MempoolRejectReason reason{MempoolRejectReason::None};
 
     bool accepted() const {
         return reason == MempoolRejectReason::None;
     }
 };
 
-inline MempoolValidationResult validate_for_mempool(
-    const Transaction& tx,
-    const UTXOSet& utxos) {
-
+inline MempoolValidationResult validate_for_mempool(const Transaction& tx, const UTXOSet& utxos) {
     if (!tx.validate()) {
-        return {
-            MempoolRejectReason::InvalidTransaction
-        };
+        return {MempoolRejectReason::InvalidTransaction};
     }
 
-    std::unordered_set<
-        OutPoint,
-        OutPointHasher> seen_inputs;
+    std::unordered_set<OutPoint, OutPointHasher> seen_inputs;
 
     std::uint64_t input_sum = 0;
 
     for (const auto& input : tx.inputs) {
-
-        const OutPoint point{
-            input.previous_txid,
-            input.output_index
-        };
+        const OutPoint point{input.previous_txid, input.output_index};
 
         // Reject the same input twice inside one transaction.
         if (!seen_inputs.insert(point).second) {
-            return {
-                MempoolRejectReason::DuplicateInput
-            };
+            return {MempoolRejectReason::DuplicateInput};
         }
 
         // Every input must reference an existing unspent output.
         if (!utxos.contains(point)) {
-            return {
-                MempoolRejectReason::MissingInput
-            };
+            return {MempoolRejectReason::MissingInput};
         }
 
-        const TransactionOutput* previous =
-            utxos.get(point);
+        const TransactionOutput* previous = utxos.get(point);
 
         if (!previous) {
-            return {
-                MempoolRejectReason::MissingInput
-            };
+            return {MempoolRejectReason::MissingInput};
         }
 
-        if (previous->amount >
-            std::numeric_limits<std::uint64_t>::max()
-            - input_sum) {
-
-            return {
-                MempoolRejectReason::OutputOverflow
-            };
+        if (previous->amount > std::numeric_limits<std::uint64_t>::max() - input_sum) {
+            return {MempoolRejectReason::OutputOverflow};
         }
 
         input_sum += previous->amount;
@@ -94,41 +69,25 @@ inline MempoolValidationResult validate_for_mempool(
     std::uint64_t output_sum = 0;
 
     for (const auto& output : tx.outputs) {
-
-        if (output.amount == 0 ||
-            output.recipient.empty()) {
-
-            return {
-                MempoolRejectReason::InvalidTransaction
-            };
+        if (output.amount == 0 || output.recipient.empty()) {
+            return {MempoolRejectReason::InvalidTransaction};
         }
 
-        if (output.amount >
-            std::numeric_limits<std::uint64_t>::max()
-            - output_sum) {
-
-            return {
-                MempoolRejectReason::OutputOverflow
-            };
+        if (output.amount > std::numeric_limits<std::uint64_t>::max() - output_sum) {
+            return {MempoolRejectReason::OutputOverflow};
         }
 
         output_sum += output.amount;
     }
 
     if (input_sum < output_sum) {
-        return {
-            MempoolRejectReason::InsufficientInputValue
-        };
+        return {MempoolRejectReason::InsufficientInputValue};
     }
 
-    return {
-        MempoolRejectReason::None
-    };
+    return {MempoolRejectReason::None};
 }
 
-inline const char* mempool_reject_reason_string(
-    MempoolRejectReason reason) {
-
+inline const char* mempool_reject_reason_string(MempoolRejectReason reason) {
     switch (reason) {
         case MempoolRejectReason::None:
             return "none";

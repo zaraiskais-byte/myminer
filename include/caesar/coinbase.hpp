@@ -15,21 +15,15 @@ namespace caesar {
 // These values are protocol candidates and must be finalized
 // before any public/mainnet launch.
 
-constexpr std::uint64_t CZR_ATOMIC_UNITS =
-    100000000ULL;
+constexpr std::uint64_t CZR_ATOMIC_UNITS = 100000000ULL;
 
-constexpr std::uint64_t CZR_MAX_SUPPLY =
-    21000000ULL * CZR_ATOMIC_UNITS;
+constexpr std::uint64_t CZR_MAX_SUPPLY = 21000000ULL * CZR_ATOMIC_UNITS;
 
-constexpr std::uint64_t CZR_INITIAL_SUBSIDY =
-    50ULL * CZR_ATOMIC_UNITS;
+constexpr std::uint64_t CZR_INITIAL_SUBSIDY = 50ULL * CZR_ATOMIC_UNITS;
 
-constexpr std::uint64_t CZR_HALVING_INTERVAL =
-    210000ULL;
+constexpr std::uint64_t CZR_HALVING_INTERVAL = 210000ULL;
 
-inline bool is_zero_hash(
-    const Hash256& hash) {
-
+inline bool is_zero_hash(const Hash256& hash) {
     for (std::uint8_t byte : hash) {
         if (byte != 0)
             return false;
@@ -38,14 +32,11 @@ inline bool is_zero_hash(
     return true;
 }
 
-inline std::uint64_t block_subsidy(
-    std::uint64_t height) {
-
+inline std::uint64_t block_subsidy(std::uint64_t height) {
     if (height == 0)
         return 0;
 
-    const std::uint64_t halvings =
-        height / CZR_HALVING_INTERVAL;
+    const std::uint64_t halvings = height / CZR_HALVING_INTERVAL;
 
     if (halvings >= 64)
         return 0;
@@ -53,18 +44,13 @@ inline std::uint64_t block_subsidy(
     return CZR_INITIAL_SUBSIDY >> halvings;
 }
 
-inline Transaction make_coinbase_transaction(
-    std::uint64_t height,
-    const std::string& recipient,
-    std::uint64_t extra_nonce = 0) {
-
+inline Transaction make_coinbase_transaction(std::uint64_t height, const std::string& recipient,
+                                             std::uint64_t extra_nonce = 0) {
     if (height == 0)
-        throw std::runtime_error(
-            "genesis block cannot use normal coinbase");
+        throw std::runtime_error("genesis block cannot use normal coinbase");
 
     if (recipient.empty())
-        throw std::runtime_error(
-            "coinbase recipient is empty");
+        throw std::runtime_error("coinbase recipient is empty");
 
     Transaction tx;
 
@@ -74,21 +60,18 @@ inline Transaction make_coinbase_transaction(
     input.previous_txid = Hash256{};
 
     // UINT32_MAX marks a coinbase input.
-    input.output_index =
-        std::numeric_limits<std::uint32_t>::max();
+    input.output_index = std::numeric_limits<std::uint32_t>::max();
 
     tx.inputs.push_back(input);
 
     tx.coinbase_data.resize(sizeof(extra_nonce));
     for (std::size_t i = 0; i < sizeof(extra_nonce); ++i) {
-        tx.coinbase_data[i] = static_cast<std::uint8_t>(
-            (extra_nonce >> (i * 8)) & 0xff);
+        tx.coinbase_data[i] = static_cast<std::uint8_t>((extra_nonce >> (i * 8)) & 0xff);
     }
 
     TransactionOutput output;
 
-    output.amount =
-        block_subsidy(height);
+    output.amount = block_subsidy(height);
 
     output.recipient = recipient;
 
@@ -97,31 +80,22 @@ inline Transaction make_coinbase_transaction(
     return tx;
 }
 
-inline bool is_coinbase_transaction(
-    const Transaction& tx) {
-
+inline bool is_coinbase_transaction(const Transaction& tx) {
     if (tx.inputs.size() != 1)
         return false;
 
-    if (tx.inputs[0].output_index !=
-        std::numeric_limits<std::uint32_t>::max()) {
-
+    if (tx.inputs[0].output_index != std::numeric_limits<std::uint32_t>::max()) {
         return false;
     }
 
-    if (!is_zero_hash(
-            tx.inputs[0].previous_txid)) {
-
+    if (!is_zero_hash(tx.inputs[0].previous_txid)) {
         return false;
     }
 
     return true;
 }
 
-inline bool validate_coinbase_transaction(
-    const Transaction& tx,
-    std::uint64_t height) {
-
+inline bool validate_coinbase_transaction(const Transaction& tx, std::uint64_t height) {
     if (!is_coinbase_transaction(tx))
         return false;
 
@@ -131,12 +105,9 @@ inline bool validate_coinbase_transaction(
     if (tx.outputs.size() != 1)
         return false;
 
-    const auto& output =
-        tx.outputs.front();
+    const auto& output = tx.outputs.front();
 
-    if (output.amount !=
-        block_subsidy(height)) {
-
+    if (output.amount != block_subsidy(height)) {
         return false;
     }
 
@@ -146,33 +117,21 @@ inline bool validate_coinbase_transaction(
     return true;
 }
 
-inline bool validate_coinbase_position_and_reward(
-    const std::vector<Transaction>& transactions,
-    std::uint64_t height) {
-
+inline bool validate_coinbase_position_and_reward(const std::vector<Transaction>& transactions,
+                                                  std::uint64_t height) {
     if (transactions.empty())
         return false;
 
-    if (!is_coinbase_transaction(
-            transactions.front())) {
-
+    if (!is_coinbase_transaction(transactions.front())) {
         return false;
     }
 
-    if (!validate_coinbase_transaction(
-            transactions.front(),
-            height)) {
-
+    if (!validate_coinbase_transaction(transactions.front(), height)) {
         return false;
     }
 
-    for (std::size_t i = 1;
-         i < transactions.size();
-         ++i) {
-
-        if (is_coinbase_transaction(
-                transactions[i])) {
-
+    for (std::size_t i = 1; i < transactions.size(); ++i) {
+        if (is_coinbase_transaction(transactions[i])) {
             return false;
         }
     }

@@ -16,8 +16,7 @@ namespace caesar {
  * clock skew would reject valid blocks; loosening it opens the door
  * to timestamp manipulation for difficulty retargeting.
  */
-inline constexpr std::uint64_t CZR_MAX_FUTURE_DRIFT =
-    2 * 60 * 60;
+inline constexpr std::uint64_t CZR_MAX_FUTURE_DRIFT = 2 * 60 * 60;
 
 /*
  * Number of trailing blocks sampled when computing median-time-past
@@ -39,9 +38,7 @@ inline constexpr std::size_t CZR_MEDIAN_TIME_WINDOW = 11;
  *
  * Takes the vector by value so the caller's data is not reordered.
  */
-inline std::uint64_t median_of_timestamps(
-    std::vector<std::uint64_t> values) noexcept {
-
+inline std::uint64_t median_of_timestamps(std::vector<std::uint64_t> values) noexcept {
     if (values.empty())
         return 0;
 
@@ -61,17 +58,13 @@ inline std::uint64_t median_of_timestamps(
  * floor below the median of the preceding window, which limits how
  * far they can push timestamps around for difficulty retargeting.
  */
-inline std::uint64_t compute_median_time_past(
-    const std::vector<Block>& chain) noexcept {
-
+inline std::uint64_t compute_median_time_past(const std::vector<Block>& chain) noexcept {
     if (chain.empty())
         return 0;
 
-    const std::size_t sample_size =
-        std::min(chain.size(), CZR_MEDIAN_TIME_WINDOW);
+    const std::size_t sample_size = std::min(chain.size(), CZR_MEDIAN_TIME_WINDOW);
 
-    const std::size_t start =
-        chain.size() - sample_size;
+    const std::size_t start = chain.size() - sample_size;
 
     std::vector<std::uint64_t> timestamps;
     timestamps.reserve(sample_size);
@@ -90,9 +83,7 @@ inline std::uint64_t compute_median_time_past(
  * median-time-past of the chain it extends. Equality is forbidden so
  * a miner cannot freeze the clock by always reusing the current MTP.
  */
-inline std::uint64_t minimum_allowed_timestamp(
-    const std::vector<Block>& chain) noexcept {
-
+inline std::uint64_t minimum_allowed_timestamp(const std::vector<Block>& chain) noexcept {
     if (chain.empty())
         return 0;
 
@@ -103,8 +94,7 @@ inline std::uint64_t minimum_allowed_timestamp(
  * Highest timestamp a valid block is allowed to carry given the
  * receiving node's current wall-clock time.
  */
-inline std::uint64_t maximum_allowed_timestamp(
-    std::uint64_t now) noexcept {
+inline std::uint64_t maximum_allowed_timestamp(std::uint64_t now) noexcept {
     return now + CZR_MAX_FUTURE_DRIFT;
 }
 
@@ -123,19 +113,13 @@ inline std::uint64_t maximum_allowed_timestamp(
  *
  * Returns true if the block satisfies both rules.
  */
-inline bool validate_block_timestamp_canonical(
-    const Block& block,
-    const std::vector<Block>& chain,
-    std::uint64_t now) noexcept {
-
-    if (block.header.timestamp >
-        maximum_allowed_timestamp(now)) {
+inline bool validate_block_timestamp_canonical(const Block& block, const std::vector<Block>& chain,
+                                               std::uint64_t now) noexcept {
+    if (block.header.timestamp > maximum_allowed_timestamp(now)) {
         return false;
     }
 
-    if (!chain.empty() &&
-        block.header.timestamp <=
-            compute_median_time_past(chain)) {
+    if (!chain.empty() && block.header.timestamp <= compute_median_time_past(chain)) {
         return false;
     }
 

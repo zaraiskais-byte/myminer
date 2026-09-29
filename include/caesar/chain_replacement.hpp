@@ -21,10 +21,8 @@ struct ChainReplacementPlan {
 // structural assembly; full consensus validation belongs to
 // prepare_chain_replacement().
 inline std::optional<std::vector<Block>> assemble_candidate_chain(
-    const std::vector<Block>& current,
-    const std::vector<BlockHeader>& headers,
+    const std::vector<Block>& current, const std::vector<BlockHeader>& headers,
     const std::vector<Block>& blocks) {
-
     if (current.empty() || headers.empty() || blocks.empty())
         return std::nullopt;
 
@@ -48,14 +46,10 @@ inline std::optional<std::vector<Block>> assemble_candidate_chain(
     std::vector<Block> candidate;
     candidate.reserve(ancestor_index + 1 + blocks.size());
 
-    candidate.insert(
-        candidate.end(),
-        current.begin(),
-        current.begin() + ancestor_index + 1);
+    candidate.insert(candidate.end(), current.begin(), current.begin() + ancestor_index + 1);
 
     Hash256 previous_hash = current[ancestor_index].hash();
-    std::uint64_t expected_height =
-        current[ancestor_index].header.height + 1;
+    std::uint64_t expected_height = current[ancestor_index].header.height + 1;
 
     for (std::size_t i = 0; i < blocks.size(); ++i) {
         const auto& header = headers[i];
@@ -85,15 +79,12 @@ inline std::optional<std::vector<Block>> assemble_candidate_chain(
 // Expensive preparation stage.
 // The current canonical state is never modified here.
 inline std::optional<ChainReplacementPlan> prepare_chain_replacement(
-    const std::vector<Block>& current,
-    const std::vector<Block>& candidate) {
-
+    const std::vector<Block>& current, const std::vector<Block>& candidate) {
     if (candidate.empty())
         return std::nullopt;
 
     // A replacement must keep the same canonical genesis.
-    if (!current.empty() &&
-        candidate.front().hash() != current.front().hash()) {
+    if (!current.empty() && candidate.front().hash() != current.front().hash()) {
         return std::nullopt;
     }
 
@@ -102,8 +93,7 @@ inline std::optional<ChainReplacementPlan> prepare_chain_replacement(
         return std::nullopt;
 
     // Equal work does not replace the current canonical chain.
-    if (!current.empty() &&
-        !has_more_work(candidate, current)) {
+    if (!current.empty() && !has_more_work(candidate, current)) {
         return std::nullopt;
     }
 
@@ -119,11 +109,8 @@ inline std::optional<ChainReplacementPlan> prepare_chain_replacement(
 
 // Tiny commit stage.
 // All expensive operations must already have succeeded.
-inline void commit_chain_replacement(
-    std::vector<Block>& canonical_chain,
-    UTXOSet& canonical_utxo,
-    ChainReplacementPlan&& plan) noexcept {
-
+inline void commit_chain_replacement(std::vector<Block>& canonical_chain, UTXOSet& canonical_utxo,
+                                     ChainReplacementPlan&& plan) noexcept {
     canonical_chain.swap(plan.chain);
     canonical_utxo = std::move(plan.utxo);
 }

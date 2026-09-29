@@ -22,11 +22,10 @@ const char* MAINNET_DATA_DIR = "data";
 const char* TESTNET_DATA_DIR = "data-testnet";
 
 void print_usage(const char* argv0) {
-    std::cerr
-        << "Usage: " << argv0 << " [--mine] [--testnet]\n"
-        << "  --mine     Mine exactly one block then exit.\n"
-        << "  --testnet  Run on Caesar CZR Testnet (network id 2).\n"
-        << "             Without this flag the node runs on Mainnet.\n";
+    std::cerr << "Usage: " << argv0 << " [--mine] [--testnet]\n"
+              << "  --mine     Mine exactly one block then exit.\n"
+              << "  --testnet  Run on Caesar CZR Testnet (network id 2).\n"
+              << "             Without this flag the node runs on Mainnet.\n";
 }
 
 bool parse_cli(int argc, char** argv, CliOptions& out) {
@@ -57,20 +56,16 @@ int main(int argc, char** argv) {
         if (!parse_cli(argc, argv, opts))
             return 2;
 
-        const std::uint16_t port =
-            opts.testnet ? TESTNET_PORT : MAINNET_PORT;
+        const std::uint16_t port = opts.testnet ? TESTNET_PORT : MAINNET_PORT;
 
         const std::uint32_t network =
-            opts.testnet ? caesar::NETWORK_TESTNET
-                         : caesar::NETWORK_MAINNET;
+            opts.testnet ? caesar::NETWORK_TESTNET : caesar::NETWORK_MAINNET;
 
-        const char* data_dir =
-            opts.testnet ? TESTNET_DATA_DIR : MAINNET_DATA_DIR;
+        const char* data_dir = opts.testnet ? TESTNET_DATA_DIR : MAINNET_DATA_DIR;
 
         std::cout << "=== Caesar CZR Node ===\n";
-        std::cout << "Network: "
-                  << (opts.testnet ? "testnet" : "mainnet")
-                  << " (id=" << network << ")\n";
+        std::cout << "Network: " << (opts.testnet ? "testnet" : "mainnet") << " (id=" << network
+                  << ")\n";
         std::cout << "Port: " << port << "\n";
         std::cout << "Data: " << data_dir << "\n";
 
@@ -78,33 +73,25 @@ int main(int argc, char** argv) {
         node.start();
 
         std::cout << "Node: RUNNING\n";
-        std::cout << "Blockchain height: "
-                  << node.height() << "\n";
-        std::cout << "Peers: "
-                  << node.peer_count() << "\n";
+        std::cout << "Blockchain height: " << node.height() << "\n";
+        std::cout << "Peers: " << node.peer_count() << "\n";
 
         if (opts.mine_one_block) {
             std::cout << "Mining one block...\n";
 
-            node.mine_one_block(
-                "CAESAR_MINER_CZR1",
-                1000000);
+            node.mine_one_block("CAESAR_MINER_CZR1", 1000000);
 
             std::cout << "Mined successfully.\n";
-            std::cout << "New blockchain height: "
-                      << node.height() << "\n";
+            std::cout << "New blockchain height: " << node.height() << "\n";
         }
 
-        std::cout << "Storage: "
-                  << data_dir << "/blockchain.dat\n";
+        std::cout << "Storage: " << data_dir << "/blockchain.dat\n";
 
         if (!opts.mine_one_block) {
-            std::cout
-                << "Node is running. Press Ctrl+C to stop.\n";
+            std::cout << "Node is running. Press Ctrl+C to stop.\n";
 
             while (node.running()) {
-                std::this_thread::sleep_for(
-                    std::chrono::seconds(1));
+                std::this_thread::sleep_for(std::chrono::seconds(1));
             }
         }
 
@@ -114,10 +101,7 @@ int main(int argc, char** argv) {
         return 0;
 
     } catch (const std::exception& e) {
-        std::cerr
-            << "Caesar node error: "
-            << e.what()
-            << "\n";
+        std::cerr << "Caesar node error: " << e.what() << "\n";
         return 1;
     }
 }

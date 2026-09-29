@@ -15,8 +15,7 @@ struct OutPoint {
     std::uint32_t output_index{};
 
     bool operator==(const OutPoint& other) const {
-        return txid == other.txid &&
-               output_index == other.output_index;
+        return txid == other.txid && output_index == other.output_index;
     }
 };
 
@@ -27,19 +26,15 @@ struct OutPointHasher {
         for (std::uint8_t byte : point.txid)
             h = (h * 131) ^ byte;
 
-        h ^= static_cast<std::size_t>(point.output_index) +
-             0x9e3779b9u +
-             (h << 6) +
-             (h >> 2);
+        h ^= static_cast<std::size_t>(point.output_index) + 0x9e3779b9u + (h << 6) + (h >> 2);
 
         return h;
     }
 };
 
 class UTXOSet {
-public:
-    bool add(const OutPoint& outpoint,
-             const TransactionOutput& output) {
+   public:
+    bool add(const OutPoint& outpoint, const TransactionOutput& output) {
         return entries_.emplace(outpoint, output).second;
     }
 
@@ -64,14 +59,11 @@ public:
         return entries_.size();
     }
 
-private:
+   private:
     std::unordered_map<OutPoint, TransactionOutput, OutPointHasher> entries_;
 };
 
-inline bool validate_transaction_against_utxo(
-    const Transaction& tx,
-    const UTXOSet& utxos) {
-
+inline bool validate_transaction_against_utxo(const Transaction& tx, const UTXOSet& utxos) {
     if (!tx.validate())
         return false;
 
@@ -79,10 +71,7 @@ inline bool validate_transaction_against_utxo(
     std::unordered_set<OutPoint, OutPointHasher> seen_inputs;
 
     for (const auto& input : tx.inputs) {
-        const OutPoint point{
-            input.previous_txid,
-            input.output_index
-        };
+        const OutPoint point{input.previous_txid, input.output_index};
 
         if (!seen_inputs.insert(point).second)
             return false;
@@ -92,8 +81,7 @@ inline bool validate_transaction_against_utxo(
         if (!previous)
             return false;
 
-        if (previous->amount >
-            std::numeric_limits<std::uint64_t>::max() - input_sum)
+        if (previous->amount > std::numeric_limits<std::uint64_t>::max() - input_sum)
             return false;
 
         input_sum += previous->amount;
@@ -102,8 +90,7 @@ inline bool validate_transaction_against_utxo(
     std::uint64_t output_sum = 0;
 
     for (const auto& output : tx.outputs) {
-        if (output.amount >
-            std::numeric_limits<std::uint64_t>::max() - output_sum)
+        if (output.amount > std::numeric_limits<std::uint64_t>::max() - output_sum)
             return false;
 
         output_sum += output.amount;

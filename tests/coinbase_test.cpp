@@ -7,167 +7,102 @@ using namespace caesar;
 
 int main() {
     try {
-        std::cout
-            << "=== Caesar CZR Coinbase Tests ===\n";
+        std::cout << "=== Caesar CZR Coinbase Tests ===\n";
 
         if (block_subsidy(0) != 0) {
-            std::cerr
-                << "[FAIL] Genesis subsidy must be zero\n";
+            std::cerr << "[FAIL] Genesis subsidy must be zero\n";
             return EXIT_FAILURE;
         }
 
-        if (block_subsidy(1) !=
-            CZR_INITIAL_SUBSIDY) {
-
-            std::cerr
-                << "[FAIL] Initial subsidy incorrect\n";
+        if (block_subsidy(1) != CZR_INITIAL_SUBSIDY) {
+            std::cerr << "[FAIL] Initial subsidy incorrect\n";
             return EXIT_FAILURE;
         }
 
-        std::cout
-            << "[PASS] Initial subsidy verified\n";
+        std::cout << "[PASS] Initial subsidy verified\n";
 
-        const auto first_halving =
-            block_subsidy(
-                CZR_HALVING_INTERVAL);
+        const auto first_halving = block_subsidy(CZR_HALVING_INTERVAL);
 
-        if (first_halving !=
-            CZR_INITIAL_SUBSIDY / 2) {
-
-            std::cerr
-                << "[FAIL] First halving incorrect\n";
+        if (first_halving != CZR_INITIAL_SUBSIDY / 2) {
+            std::cerr << "[FAIL] First halving incorrect\n";
             return EXIT_FAILURE;
         }
 
-        std::cout
-            << "[PASS] Halving rule verified\n";
+        std::cout << "[PASS] Halving rule verified\n";
 
-        Transaction coinbase =
-            make_coinbase_transaction(
-                1,
-                "CZ1-miner");
+        Transaction coinbase = make_coinbase_transaction(1, "CZ1-miner");
 
-        if (!is_coinbase_transaction(
-                coinbase)) {
-
-            std::cerr
-                << "[FAIL] Coinbase not recognized\n";
+        if (!is_coinbase_transaction(coinbase)) {
+            std::cerr << "[FAIL] Coinbase not recognized\n";
             return EXIT_FAILURE;
         }
 
-        if (!validate_coinbase_transaction(
-                coinbase,
-                1)) {
-
-            std::cerr
-                << "[FAIL] Valid coinbase rejected\n";
+        if (!validate_coinbase_transaction(coinbase, 1)) {
+            std::cerr << "[FAIL] Valid coinbase rejected\n";
             return EXIT_FAILURE;
         }
 
-        std::cout
-            << "[PASS] Valid coinbase accepted\n";
+        std::cout << "[PASS] Valid coinbase accepted\n";
 
-        Transaction nonce_a =
-            make_coinbase_transaction(
-                1,
-                "CZ1-miner",
-                1);
+        Transaction nonce_a = make_coinbase_transaction(1, "CZ1-miner", 1);
 
-        Transaction nonce_b =
-            make_coinbase_transaction(
-                1,
-                "CZ1-miner",
-                2);
+        Transaction nonce_b = make_coinbase_transaction(1, "CZ1-miner", 2);
 
         if (nonce_a.txid() == nonce_b.txid()) {
-            std::cerr
-                << "[FAIL] Different coinbase extra_nonce values kept the same TXID\\n";
+            std::cerr << "[FAIL] Different coinbase extra_nonce values kept the same TXID\\n";
             return EXIT_FAILURE;
         }
 
-        std::cout
-            << "[PASS] Coinbase extra_nonce changes TXID\n";
+        std::cout << "[PASS] Coinbase extra_nonce changes TXID\n";
 
-        Transaction oversized =
-            coinbase;
+        Transaction oversized = coinbase;
 
         oversized.outputs[0].amount++;
 
-        if (validate_coinbase_transaction(
-                oversized,
-                1)) {
-
-            std::cerr
-                << "[FAIL] Oversized coinbase accepted\n";
+        if (validate_coinbase_transaction(oversized, 1)) {
+            std::cerr << "[FAIL] Oversized coinbase accepted\n";
             return EXIT_FAILURE;
         }
 
-        std::cout
-            << "[PASS] Oversized coinbase rejected\n";
+        std::cout << "[PASS] Oversized coinbase rejected\n";
 
-        Transaction normal =
-            coinbase;
+        Transaction normal = coinbase;
 
         normal.inputs[0].output_index = 0;
 
         if (is_coinbase_transaction(normal)) {
-            std::cerr
-                << "[FAIL] Normal input mistaken for coinbase\n";
+            std::cerr << "[FAIL] Normal input mistaken for coinbase\n";
             return EXIT_FAILURE;
         }
 
-        std::cout
-            << "[PASS] Normal input distinguished from coinbase\n";
+        std::cout << "[PASS] Normal input distinguished from coinbase\n";
 
-        Transaction wrong_height =
-            make_coinbase_transaction(
-                2,
-                "CZ1-miner");
+        Transaction wrong_height = make_coinbase_transaction(2, "CZ1-miner");
 
-        if (!validate_coinbase_transaction(
-                wrong_height,
-                1)) {
-
-            std::cerr
-                << "[FAIL] Wrong-height coinbase rejected\n";
+        if (!validate_coinbase_transaction(wrong_height, 1)) {
+            std::cerr << "[FAIL] Wrong-height coinbase rejected\n";
             return EXIT_FAILURE;
         }
 
-        std::cout
-            << "[PASS] Wrong-height coinbase rejected\n";
+        std::cout << "[PASS] Wrong-height coinbase rejected\n";
 
-        Transaction second =
-            make_coinbase_transaction(
-                1,
-                "CZ1-second-miner");
+        Transaction second = make_coinbase_transaction(1, "CZ1-second-miner");
 
-        std::vector<Transaction> many{
-            coinbase,
-            second
-        };
+        std::vector<Transaction> many{coinbase, second};
 
-        if (validate_coinbase_position_and_reward(
-                many,
-                1)) {
-
-            std::cerr
-                << "[FAIL] Multiple coinbases accepted\n";
+        if (validate_coinbase_position_and_reward(many, 1)) {
+            std::cerr << "[FAIL] Multiple coinbases accepted\n";
             return EXIT_FAILURE;
         }
 
-        std::cout
-            << "[PASS] Multiple coinbases rejected\n";
+        std::cout << "[PASS] Multiple coinbases rejected\n";
 
-        std::cout
-            << "ALL COINBASE TESTS PASSED\n";
+        std::cout << "ALL COINBASE TESTS PASSED\n";
 
         return EXIT_SUCCESS;
 
     } catch (const std::exception& e) {
-        std::cerr
-            << "[FAIL] "
-            << e.what()
-            << '\n';
+        std::cerr << "[FAIL] " << e.what() << '\n';
 
         return EXIT_FAILURE;
     }

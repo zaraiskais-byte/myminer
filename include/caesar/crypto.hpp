@@ -6,8 +6,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include <openssl/evp.h>
 
@@ -24,11 +24,9 @@ inline Hash256 sha256(const std::string& input) {
 
     unsigned int size = 0;
 
-    const bool ok =
-        EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) == 1 &&
-        EVP_DigestUpdate(ctx, input.data(), input.size()) == 1 &&
-        EVP_DigestFinal_ex(ctx, result.data(), &size) == 1 &&
-        size == result.size();
+    const bool ok = EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) == 1 &&
+                    EVP_DigestUpdate(ctx, input.data(), input.size()) == 1 &&
+                    EVP_DigestFinal_ex(ctx, result.data(), &size) == 1 && size == result.size();
 
     EVP_MD_CTX_free(ctx);
 
@@ -66,8 +64,7 @@ inline Hash256 merkle_root(std::vector<Hash256> hashes) {
 
         for (std::size_t i = 0; i < hashes.size(); i += 2) {
             const Hash256& left = hashes[i];
-            const Hash256& right =
-                (i + 1 < hashes.size()) ? hashes[i + 1] : hashes[i];
+            const Hash256& right = (i + 1 < hashes.size()) ? hashes[i + 1] : hashes[i];
 
             next.push_back(hash_pair(left, right));
         }
