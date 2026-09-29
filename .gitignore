@@ -1,7 +1,7 @@
-Testing/
-fuzz/corpus/
-fuzz/artifacts/
+# Build directories
 build/
+build-*/
+cmake-build-*/
 sanitizer-build/
 caesar-build/
 caesar-sanitizer-build/
@@ -9,4 +9,53 @@ caesar-fuzz-build/
 fuzz-build/
 build-real/
 build-user/
+
+# Compiled objects and libraries
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+*.ninja
+.ninja_deps
+.ninja_log
+Testing/
+
+# Data directories
 data/
+data-*/
+*.dat
+*.log
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.before_*
+*.orig
+
+# Fuzzing artifacts
+fuzz/artifacts/
+fuzz/corpus/

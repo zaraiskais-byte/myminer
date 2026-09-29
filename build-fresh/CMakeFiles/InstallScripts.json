@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/data/data/com.termux/files/home/caesar-czr/build-fresh/cmake_install.cmake"
-	],
-	"Parallel" : false
-}
