@@ -398,7 +398,16 @@ struct Block {
                     if (output.amount != 1)
                         return false;
 
-                    if (output.recipient != "CAESAR_GENESIS_BURN")
+                    /*
+                     * The exact recipient is a network parameter,
+                     * not a hardcoded string. Identity is enforced
+                     * by validate_genesis_network_identity() against
+                     * the pinned genesis hash for each network. Here
+                     * we only require that the recipient is not
+                     * empty, so a Testnet genesis with a different
+                     * burn recipient is accepted structurally.
+                     */
+                    if (output.recipient.empty())
                         return false;
 
                     if (!tx.witness.empty())
