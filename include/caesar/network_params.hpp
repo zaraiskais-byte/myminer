@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 #include <caesar/block.hpp>
 
@@ -27,6 +28,15 @@ inline constexpr const char* GENESIS_BURN_RECIPIENT =
     "CAESAR_GENESIS_BURN";
 
 /*
+ * The recipient string for the Testnet genesis. Deliberately different
+ * from Mainnet's so the two chains have different genesis hashes even
+ * though every other genesis field is identical. Do not change either
+ * recipient on a live network: changing genesis is a hard fork.
+ */
+inline constexpr const char* TESTNET_BURN_RECIPIENT =
+    "CAESAR_TESTNET_GENESIS_BURN";
+
+/*
  * Builds the canonical genesis block for Caesar CZR.
  *
  * This function is the single source of truth for how the genesis
@@ -50,7 +60,8 @@ inline constexpr const char* GENESIS_BURN_RECIPIENT =
  * of work, since the genesis is validated structurally rather than
  * by PoW.
  */
-inline Block build_canonical_genesis() {
+inline Block build_canonical_genesis(
+    const std::string& burn_recipient) {
 
     Block genesis;
 
@@ -65,13 +76,34 @@ inline Block build_canonical_genesis() {
     tx.outputs.push_back(
         TransactionOutput{
             1,
-            GENESIS_BURN_RECIPIENT
+            burn_recipient
         });
 
     genesis.transactions.push_back(tx);
     genesis.update_merkle_root();
 
     return genesis;
+}
+
+/*
+ * Canonical genesis block for the Mainnet.
+ * Uses the Mainnet burn recipient. Kept as a no-arg overload so
+ * existing callers continue to work unchanged.
+ */
+inline Block build_canonical_genesis() {
+    return build_canonical_genesis(GENESIS_BURN_RECIPIENT);
+}
+
+/*
+ * Canonical genesis block for the Testnet.
+ *
+ * Structurally identical to Mainnet except for the burn recipient,
+ * which produces a distinct genesis hash. This is what makes the two
+ * chains incompatible: a Mainnet node rejects a Testnet chain at the
+ * genesis-identity check and vice versa.
+ */
+inline Block build_testnet_genesis() {
+    return build_canonical_genesis(TESTNET_BURN_RECIPIENT);
 }
 
 /*
@@ -84,6 +116,15 @@ inline Block build_canonical_genesis() {
  */
 inline Hash256 canonical_genesis_hash() {
     return build_canonical_genesis().hash();
+}
+
+/*
+ * Returns the hash of the canonical Testnet genesis block.
+ * Deterministic, like canonical_genesis_hash(), and distinct from it
+ * because the burn recipient differs.
+ */
+inline Hash256 testnet_genesis_hash() {
+    return build_testnet_genesis().hash();
 }
 
 
@@ -110,6 +151,26 @@ inline const Hash256 GENESIS_HASH_MAINNET = {
 };
 
 /*
+ * Canonical genesis hash for the Testnet.
+ *
+ * Computed once from build_testnet_genesis().hash() and pinned here.
+ * Distinct from GENESIS_HASH_MAINNET because the burn recipient is
+ * different. A Mainnet node and a Testnet node will reject each
+ * other's chains at the genesis-identity check.
+ *
+ * Source of the bytes: printed by CaesarGenesisCanonicalTest in the
+ * commit that introduced this constant:
+ *
+ *   ba67ed0363858fa4505fd0f6ffea1362f6e79b59ed4d0dd93323e4b549e38ec3
+ */
+inline const Hash256 GENESIS_HASH_TESTNET = {
+    0xba, 0x67, 0xed, 0x03, 0x63, 0x85, 0x8f, 0xa4,
+    0x50, 0x5f, 0xd0, 0xf6, 0xff, 0xea, 0x13, 0x62,
+    0xf6, 0xe7, 0x9b, 0x59, 0xed, 0x4d, 0x0d, 0xd9,
+    0x33, 0x23, 0xe4, 0xb5, 0x49, 0xe3, 0x8e, 0xc3
+};
+
+/*
  * Returns a pointer to the pinned genesis hash for a network, or
  * nullptr if the network has no pinned genesis yet.
  *
@@ -124,6 +185,9 @@ inline const Hash256* genesis_hash_for_network(
 
     if (network == NETWORK_MAINNET)
         return &GENESIS_HASH_MAINNET;
+
+    if (network == NETWORK_TESTNET)
+        return &GENESIS_HASH_TESTNET;
 
     return nullptr;
 }

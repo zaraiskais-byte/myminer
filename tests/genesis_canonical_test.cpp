@@ -86,7 +86,9 @@ int main() {
     // 8. genesis_hash_for_network() returns the right pointer.
     assert(genesis_hash_for_network(NETWORK_MAINNET) != nullptr);
     assert(*genesis_hash_for_network(NETWORK_MAINNET) == g1.hash());
-    assert(genesis_hash_for_network(NETWORK_TESTNET) == nullptr);
+    assert(genesis_hash_for_network(NETWORK_TESTNET) != nullptr);
+    assert(*genesis_hash_for_network(NETWORK_TESTNET) ==
+           GENESIS_HASH_TESTNET);
 
     // 9. validate_genesis_network_identity accepts correct hash,
     //    rejects wrong hash, and passes through when unpinned.
@@ -102,6 +104,31 @@ int main() {
     assert(fake.hash() != GENESIS_HASH_MAINNET);
     assert(!validate_genesis_network_identity(
         fake, &GENESIS_HASH_MAINNET));
+
+    // 10. Testnet genesis is structurally valid and distinct from
+    //     the Mainnet one. The hash is printed so it can be pinned
+    //     as GENESIS_HASH_TESTNET in a follow-up commit.
+    {
+        const Block t = build_testnet_genesis();
+
+        assert(validate_genesis_canonical(t));
+        assert(t.hash() != g1.hash());
+        assert(t.hash() != GENESIS_HASH_MAINNET);
+        assert(t.transactions.size() == 1);
+        assert(t.transactions.front().outputs.size() == 1);
+        assert(t.transactions.front().outputs.front().recipient ==
+               TESTNET_BURN_RECIPIENT);
+
+        std::cout << "[genesis] testnet hash = ";
+        for (std::uint8_t b : t.hash()) {
+            std::cout << std::hex << std::setfill('0')
+                      << std::setw(2) << static_cast<int>(b);
+        }
+        std::cout << std::dec << "\n";
+
+        assert(testnet_genesis_hash() == t.hash());
+        assert(t.hash() == GENESIS_HASH_TESTNET);
+    }
 
     std::cout << "CaesarGenesisCanonicalTest: PASS\n";
     return 0;
