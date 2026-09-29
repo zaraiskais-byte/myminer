@@ -20,6 +20,7 @@
 #include <caesar/p2p_frame.hpp>
 #include <caesar/p2p_peer_manager.hpp>
 #include <caesar/p2p_protocol.hpp>
+#include <caesar/p2p_ping.hpp>
 #include <caesar/chain_replacement.hpp>
 #include <caesar/p2p_sync_protocol.hpp>
 #include <caesar/p2p_server.hpp>
@@ -113,6 +114,22 @@ public:
     void announce_block(const Block& block) {
         server_.peers().broadcast(
             make_blocks_frame(block));
+    }
+
+    /*
+     * Sends a Ping to a specific peer with the given nonce. The peer
+     * is expected to reply with Pong carrying the same nonce; the
+     * reply is handled by handle_pong().
+     */
+    void send_ping(std::uint64_t id, std::uint64_t nonce) {
+        P2PPing ping;
+        ping.nonce = nonce;
+
+        P2PFrame frame;
+        frame.type = P2PMessageType::Ping;
+        frame.payload = ping.serialize_binary();
+
+        server_.peers().send_to(id, frame);
     }
 
     void announce_transaction(const Transaction& tx) {
@@ -383,6 +400,18 @@ private:
 
             case P2PMessageType::Transaction:
                 handle_transaction(id, frame.payload);
+                break;
+
+            case P2PMessageType::Ping:
+                handle_ping(id, frame.payload);
+                break;
+
+            case P2PMessageType::Pong:
+                handle_pong(id, frame.payload);
+                break;
+
+            case P2PMessageType::Reject:
+                handle_reject(id, frame.payload);
                 break;
 
             default:
@@ -682,6 +711,58 @@ private:
              * The connection remains usable for subsequent messages.
              */
         }
+    }
+
+    /*
+     * Ping / Pong.
+     *
+     * Ping and Pong carry an 8-byte nonce. A peer that receives Ping
+     * must answer with Pong carrying the same nonce. The nonce is
+     * opaque to the protocol; it is currently unused for RTT tracking
+     * but the field is reserved so a future liveness monitor can
+     * measure round-trip time without a protocol change.
+     */
+    void handle_ping(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        const P2PPing ping = P2PPing::deserialize_binary(payload);
+
+        P2PPong pong;
+        pong.nonce = ping.nonce;
+
+        P2PFrame frame;
+        frame.type = P2PMessageType::Pong;
+        frame.payload = pong.serialize_binary();
+
+        server_.peers().send_to(id, frame);
+    }
+
+    void handle_pong(
+        std::uint64_t /*id*/,
+        const std::vector<std::uint8_t>& payload) {
+
+        /*
+         * Validate that the payload is a well-formed Pong. RTT
+         * tracking will be added by a follow-up that owns a liveness
+         * timer per peer.
+         */
+        (void)P2PPong::deserialize_binary(payload);
+    }
+
+    /*
+     * Reject.
+     *
+     * A peer sends Reject to decline a request it cannot or will not
+     * serve. The payload schema is not yet defined; until send_reject
+     * is implemented, receiving one is a no-op. A follow-up will
+     * define the payload as [u8 rejected_type][string reason] and
+     * log it at the relay level.
+     */
+    void handle_reject(
+        std::uint64_t /*id*/,
+        const std::vector<std::uint8_t>& /*payload*/) {
+        // intentionally empty
     }
 
     void handle_get_headers(
