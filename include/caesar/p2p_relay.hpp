@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 #include <mutex>
+#include <optional>
 #include <random>
 #include <stdexcept>
 #include <thread>
@@ -40,6 +41,29 @@ public:
     using TransactionCallback =
         std::function<bool(const Transaction&)>;
 
+    /*
+     * Mempool accessors.
+     *
+     * The relay does not own a mempool; the node does. These callbacks
+     * let the node expose a read-only view of its mempool to the relay
+     * without the relay having to know about mempool_mutex_ or the
+     * Mempool class directly.
+     *
+     *   MempoolSnapshotCallback
+     *       Returns the full current contents of the mempool. Called
+     *       when answering GetMempool.
+     *
+     *   MempoolTxCallback
+     *       Looks up a single transaction by txid. Called when
+     *       answering GetTransaction. Returns std::nullopt if the
+     *       txid is not in the mempool.
+     */
+    using MempoolSnapshotCallback =
+        std::function<std::vector<Transaction>()>;
+
+    using MempoolTxCallback =
+        std::function<std::optional<Transaction>(const Hash256&)>;
+
     P2PRelay(
         P2PServer& server,
         BlockchainStorage& storage,
@@ -58,6 +82,18 @@ public:
         TransactionCallback callback) {
         std::lock_guard<std::mutex> lock(transaction_callback_mutex_);
         transaction_callback_ = std::move(callback);
+    }
+
+    void set_mempool_snapshot_callback(
+        MempoolSnapshotCallback callback) {
+        std::lock_guard<std::mutex> lock(mempool_callback_mutex_);
+        mempool_snapshot_callback_ = std::move(callback);
+    }
+
+    void set_mempool_tx_callback(
+        MempoolTxCallback callback) {
+        std::lock_guard<std::mutex> lock(mempool_callback_mutex_);
+        mempool_tx_callback_ = std::move(callback);
     }
 
     ~P2PRelay() { stop(); }
@@ -129,6 +165,28 @@ public:
         frame.type = P2PMessageType::Ping;
         frame.payload = ping.serialize_binary();
 
+        server_.peers().send_to(id, frame);
+    }
+
+    /*
+     * Sends a GetMempool request (empty payload) to a peer.
+     */
+    void send_get_mempool(std::uint64_t id) {
+        P2PFrame frame;
+        frame.type = P2PMessageType::GetMempool;
+        frame.payload = {};
+        server_.peers().send_to(id, frame);
+    }
+
+    /*
+     * Sends a GetTransaction request for a single txid.
+     */
+    void send_get_transaction(
+        std::uint64_t id, const Hash256& txid) {
+
+        P2PFrame frame;
+        frame.type = P2PMessageType::GetTransaction;
+        frame.payload.assign(txid.begin(), txid.end());
         server_.peers().send_to(id, frame);
     }
 
@@ -412,6 +470,14 @@ private:
 
             case P2PMessageType::Reject:
                 handle_reject(id, frame.payload);
+                break;
+
+            case P2PMessageType::GetMempool:
+                handle_get_mempool(id, frame.payload);
+                break;
+
+            case P2PMessageType::GetTransaction:
+                handle_get_transaction(id, frame.payload);
                 break;
 
             default:
@@ -763,6 +829,85 @@ private:
         std::uint64_t /*id*/,
         const std::vector<std::uint8_t>& /*payload*/) {
         // intentionally empty
+    }
+
+    /*
+     * GetMempool.
+     *
+     * Request payload: empty.
+     * Response: a sequence of Transaction frames, one per mempool
+     * entry, sent to the requesting peer. The sender does not include
+     * a terminator frame; the peer infers completion from context
+     * (its own request timeout or, eventually, a Mempool message
+     * type).
+     *
+     * If the node has not registered a snapshot callback, the request
+     * is silently ignored. There is no mandatory rejection schema
+     * yet; a follow-up will add a Reject payload.
+     */
+    void handle_get_mempool(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        if (!payload.empty())
+            throw std::runtime_error(
+                "GetMempool payload must be empty");
+
+        MempoolSnapshotCallback callback;
+        {
+            std::lock_guard<std::mutex> lock(mempool_callback_mutex_);
+            callback = mempool_snapshot_callback_;
+        }
+
+        if (!callback)
+            return;
+
+        const std::vector<Transaction> txs = callback();
+
+        for (const auto& tx : txs) {
+            if (!server_.peers().contains(id))
+                return;
+            server_.peers().send_to(id, make_transaction_frame(tx));
+        }
+    }
+
+    /*
+     * GetTransaction.
+     *
+     * Request payload: exactly 32 bytes, the txid.
+     * Response: a single Transaction frame if the txid is in the
+     * mempool; otherwise no response.
+     */
+    void handle_get_transaction(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        if (payload.size() != 32)
+            throw std::runtime_error(
+                "GetTransaction payload must be 32 bytes");
+
+        Hash256 txid{};
+        for (std::size_t i = 0; i < 32; ++i)
+            txid[i] = payload[i];
+
+        MempoolTxCallback callback;
+        {
+            std::lock_guard<std::mutex> lock(mempool_callback_mutex_);
+            callback = mempool_tx_callback_;
+        }
+
+        if (!callback)
+            return;
+
+        const std::optional<Transaction> tx = callback(txid);
+        if (!tx)
+            return;
+
+        if (!server_.peers().contains(id))
+            return;
+
+        server_.peers().send_to(
+            id, make_transaction_frame(*tx));
     }
 
     void handle_get_headers(
@@ -1256,6 +1401,10 @@ private:
     ChainReplacementCallback chain_replacement_callback_;
     mutable std::mutex transaction_callback_mutex_;
     TransactionCallback transaction_callback_;
+
+    mutable std::mutex mempool_callback_mutex_;
+    MempoolSnapshotCallback mempool_snapshot_callback_;
+    MempoolTxCallback mempool_tx_callback_;
 
     std::atomic<bool> running_{false};
 

@@ -45,6 +45,37 @@ public:
             [this](const Transaction& tx) {
                 return accept_transaction(tx).accepted();
             });
+
+        /*
+         * Expose a read-only snapshot of the mempool to the relay so
+         * it can answer GetMempool and GetTransaction from peers.
+         * Both callbacks take mempool_mutex_ for the duration of the
+         * read, so a peer request cannot observe a half-updated pool.
+         */
+        relay_.set_mempool_snapshot_callback([this]() {
+            std::lock_guard<std::mutex> lock(mempool_mutex_);
+
+            std::vector<Transaction> txs;
+            txs.reserve(mempool_.size());
+
+            for (const auto& entry : mempool_.transactions())
+                txs.push_back(entry.second);
+
+            return txs;
+        });
+
+        relay_.set_mempool_tx_callback(
+            [this](const Hash256& txid)
+                -> std::optional<Transaction> {
+
+            std::lock_guard<std::mutex> lock(mempool_mutex_);
+
+            const Transaction* tx = mempool_.get(txid);
+            if (!tx)
+                return std::nullopt;
+
+            return *tx;
+        });
     }
 
     ~CaesarNode() {
