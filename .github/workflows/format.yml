@@ -1,0 +1,38 @@
+name: Code Formatting
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check C++ formatting
+        run: |
+          FAIL=0
+          while IFS= read -r f; do
+            if ! clang-format --dry-run --Werror "$f" >/dev/null 2>&1; then
+              echo "NEEDS FORMAT: $f"
+              FAIL=1
+            fi
+          done < <(find src include tests fuzz \
+            -type f \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' -o -name '*.cc' \))
+
+          if [ "$FAIL" -eq 1 ]; then
+            echo ""
+            echo "Formatting issues detected."
+            echo "Run locally: ./scripts/format.sh fix"
+            exit 1
+          fi
+          echo "All files are properly formatted."
