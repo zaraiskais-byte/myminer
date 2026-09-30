@@ -1,0 +1,23 @@
+plugins{id 'com.android.application'}
+android {
+    namespace 'com.caesarczr.wallet'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.caesarczr.wallet"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release { minifyEnabled false }
+        debug { debuggable true }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    packagingOptions { jniLibs { useLegacyPackaging = true } }
+    aaptOptions { noCompress "caesar_web" }
+    sourceSets { main { assets.srcDirs = ['src/main/assets'] } }
+}

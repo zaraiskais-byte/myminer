@@ -62,3 +62,11 @@ fuzz/corpus/
 
 # B2 backups
 *.b2backup
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/app/src/main/assets/caesar_web
