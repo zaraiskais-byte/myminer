@@ -32,6 +32,9 @@ class Wallet {
     Wallet() : keys_(generate_keypair()) {
     }
 
+    explicit Wallet(KeyPair&& keys) : keys_(std::move(keys)) {
+    }
+
     Wallet(const Wallet&) = delete;
     Wallet& operator=(const Wallet&) = delete;
 

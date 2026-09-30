@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
         caesar::CaesarNode node(data_dir, p2p_port, 1);
         node.start();
 
-        caesar::HttpRpcServer rpc(node, rpc_port);
+        caesar::HttpRpcServer rpc(node, rpc_port, data_dir);
         rpc.start();
 
         std::cout << "Node height: " << node.height() << "\n";

@@ -252,6 +252,24 @@ class CaesarNode {
         return result;
     }
 
+    bool submit_transaction(const Transaction& tx) {
+        std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
+        std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
+        const auto current_chain = storage_.load();
+        const UTXOSet utxos = rebuild_utxo_set(current_chain);
+        const auto result = mempool_.accept(tx, utxos);
+        return result.accepted();
+    }
+
+    std::vector<Transaction> mempool_transactions() const {
+        std::lock_guard<std::mutex> lock(mempool_mutex_);
+        std::vector<Transaction> out;
+        for (const auto& entry : mempool_.transactions()) {
+            out.push_back(entry.second);
+        }
+        return out;
+    }
+
     void mine_one_block(const std::string& miner_recipient, std::uint64_t max_attempts = 1000000) {
         if (!running_)
             throw std::runtime_error("cannot mine while node is stopped");

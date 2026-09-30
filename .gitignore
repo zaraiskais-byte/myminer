@@ -59,3 +59,6 @@ Thumbs.db
 # Fuzzing artifacts
 fuzz/artifacts/
 fuzz/corpus/
+
+# B2 backups
+*.b2backup
