@@ -231,6 +231,15 @@ class PersistentWallet {
     bool is_file_encrypted() const {
         std::error_code ec;
         if (!std::filesystem::exists(key_path_, ec) || ec) return false;
+
+        const auto sz = std::filesystem::file_size(key_path_, ec);
+        if (ec) return false;
+
+        // Our encrypted envelope is at least salt(16)+iv(12)+tag(16)+1 = 45 bytes.
+        constexpr std::size_t MIN_ENCRYPTED_SIZE = 45;
+        if (sz < MIN_ENCRYPTED_SIZE) return false;
+
+        // A valid PEM starts with '-'. Encrypted data does not.
         FILE* fp = std::fopen(key_path_.string().c_str(), "rb");
         if (!fp) return false;
         unsigned char first = 0;
@@ -279,24 +288,34 @@ class PersistentWallet {
                 "existing wallet path is not a regular file");
         }
 
-        FILE* peek = std::fopen(key_path_.string().c_str(), "rb");
-        if (!peek) {
-            throw std::runtime_error(
-                "existing wallet key cannot be opened; refusing replacement");
-        }
-        unsigned char first = 0;
-        std::fread(&first, 1, 1, peek);
-        std::fclose(peek);
-
-        if (first != '-') {
-            wallet_ = nullptr;
+        // Attempt to parse as plaintext PEM. This is the authoritative
+        // test for "is this a valid key file?" -- not the first byte.
+        if (try_load_plaintext_pem()) {
             return;
         }
 
-        load_plaintext_pem();
+        // Not a valid PEM. Distinguish encrypted from corrupted:
+        // our encrypted envelope is salt(16) + iv(12) + tag(16) + >=1 byte,
+        // i.e. at least 45 bytes on disk. Anything smaller cannot be
+        // a valid encrypted wallet and must be treated as corruption.
+        std::error_code size_ec;
+        const auto fsize = std::filesystem::file_size(key_path_, size_ec);
+        if (size_ec) {
+            throw std::runtime_error(
+                "cannot stat existing wallet key file");
+        }
+
+        constexpr std::size_t MIN_ENCRYPTED_SIZE = 45;
+        if (fsize < MIN_ENCRYPTED_SIZE) {
+            throw std::runtime_error(
+                "existing wallet key is invalid; refusing replacement");
+        }
+
+        // Large enough to be encrypted. Defer loading until unlock.
+        wallet_ = nullptr;
     }
 
-    void load_plaintext_pem() {
+    bool try_load_plaintext_pem() {
         FILE* fp = std::fopen(key_path_.string().c_str(), "rb");
         if (!fp) {
             throw std::runtime_error(
@@ -307,8 +326,7 @@ class PersistentWallet {
         const int close_result = std::fclose(fp);
 
         if (!key) {
-            throw std::runtime_error(
-                "existing wallet key is invalid; refusing replacement");
+            return false;
         }
         if (close_result != 0) {
             EVP_PKEY_free(key);
@@ -328,7 +346,10 @@ class PersistentWallet {
                 "existing wallet key failed validation");
         }
         wallet_ = std::move(loaded);
+        return true;
     }
+
+
 };
 
 }  // namespace caesar
