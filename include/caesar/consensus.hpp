@@ -150,7 +150,21 @@ inline bool mine_pow(const std::vector<std::uint8_t>& header, std::uint32_t diff
 
 constexpr std::size_t CZR_DIFFICULTY_WINDOW = 11;
 constexpr std::uint64_t CZR_TARGET_BLOCK_TIME = 120;
-constexpr std::uint32_t CZR_MIN_DIFFICULTY = 0;
+/*
+ * Minimum difficulty floor.
+ *
+ * With CZR_MIN_DIFFICULTY = 0, a sufficiently slow network could
+ * drive the difficulty down to zero over time, at which point any
+ * hash satisfies proof of work and the chain offers no meaningful
+ * cost to produce a block. This is a well-known weakness in
+ * variable-difficulty chains.
+ *
+ * 8 leading zero bits requires on average 256 hashes per block,
+ * which is trivial for any real miner but prevents the "no work"
+ * degenerate case. Real Bitcoin-like chains enforce a similar
+ * floor; Bitcoin itself never goes below difficulty 1.
+ */
+constexpr std::uint32_t CZR_MIN_DIFFICULTY = 8;
 constexpr std::uint32_t CZR_INITIAL_MINING_DIFFICULTY = 12;
 constexpr std::uint32_t CZR_MAX_DIFFICULTY = 256;
 
