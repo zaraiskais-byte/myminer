@@ -150,6 +150,28 @@ async function doSend(){
 function doRefresh(){refreshStatus();refreshWallet();log('Refreshed');}
 refreshStatus();refreshWallet();
 setInterval(refreshStatus,3000);
+
+async function checkAuth(){
+  try{
+    var r = await fetch('/api/auth/status', {cache:'no-store'});
+    var d = await r.json();
+    var lock = document.getElementById('lockScreen');
+    var wallet = document.getElementById('walletContent');
+    if (d.unlocked) {
+      lock.style.display = 'none';
+      wallet.style.display = 'block';
+      refreshStatus();
+      refreshWallet();
+    } else {
+      lock.style.display = 'flex';
+      wallet.style.display = 'none';
+    }
+  } catch(e) {
+    document.getElementById('lockScreen').style.display = 'flex';
+    document.getElementById('walletContent').style.display = 'none';
+  }
+}
+
 checkAuth();
 </script>
 <script>
@@ -181,7 +203,9 @@ function bindUnlockBtn() {
                 msg.textContent = 'Success!';
                 setTimeout(function() {
                     document.getElementById('lockScreen').style.display = 'none';
-                    location.reload();
+                    document.getElementById('walletContent').style.display = 'block';
+                    refreshStatus();
+                    refreshWallet();
                 }, 300);
             } else {
                 msg.style.color = '#ff6b6b';
@@ -422,6 +446,12 @@ class HttpRpcServer {
                 std::string pin = req.body.substr(start + 1, end - start - 1);
                 if (pin.size() < 4) throw std::runtime_error("PIN must be 4+ digits");
 
+                if (!wallet_->is_loaded()) {
+                    throw std::runtime_error(
+                        "wallet is encrypted on disk and pin.hash is missing; "
+                        "manual intervention required");
+                }
+
                 std::string mnemonic;
 
                 if (!wallet_preexisting_) {
@@ -483,6 +513,9 @@ class HttpRpcServer {
                 std::string pin = req.body.substr(start + 1, end - start - 1);
                 if (!std::filesystem::exists(pin_path_)) throw std::runtime_error("no PIN set");
                 if (caesar::verify_pin(pin_path_, pin)) {
+                    if (!wallet_->is_loaded()) {
+                        wallet_->unlock_with_pin(pin);
+                    }
                     std::string new_token;
                     {
                         std::lock_guard<std::mutex> lk(auth_mutex_);
@@ -564,6 +597,46 @@ class HttpRpcServer {
 
                 res.set_header("Set-Cookie", "caesar_session=" + session_token_ + "; Path=/; Max-Age=604800; SameSite=Strict; HttpOnly");
                 res.set_content("{\"status\":\"ok\",\"unlocked\":true,\"address\":\"" + addr + "\"}", "application/json");
+            } catch (const std::exception& e) {
+                res.status = 400;
+                res.set_content(std::string("{\"error\":\"") + e.what() + "\"}", "application/json");
+            }
+        });
+
+        server_.Post("/api/auth/encrypt-wallet", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_csrf_safe(req)) {
+                res.status = 403;
+                res.set_content("{\"error\":\"csrf\"}", "application/json");
+                return;
+            }
+            try {
+                auto pos = req.body.find("\"pin\"");
+                if (pos == std::string::npos) {
+                    throw std::runtime_error("missing pin");
+                }
+                auto start = req.body.find('"', pos + 5);
+                auto end = req.body.find('"', start + 1);
+                std::string pin = req.body.substr(start + 1, end - start - 1);
+                if (pin.size() < 4) {
+                    throw std::runtime_error("PIN must be 4+ digits");
+                }
+                if (!std::filesystem::exists(pin_path_)) {
+                    throw std::runtime_error("no PIN set; run /api/auth/setup first");
+                }
+                if (!caesar::verify_pin(pin_path_, pin)) {
+                    res.status = 401;
+                    res.set_content("{\"error\":\"invalid PIN\"}", "application/json");
+                    return;
+                }
+                if (wallet_->is_file_encrypted()) {
+                    res.set_content("{\"status\":\"already_encrypted\"}", "application/json");
+                    return;
+                }
+                if (!wallet_->is_loaded()) {
+                    wallet_->unlock_with_pin(pin);
+                }
+                wallet_->save_encrypted(pin);
+                res.set_content("{\"status\":\"ok\",\"encrypted\":true}", "application/json");
             } catch (const std::exception& e) {
                 res.status = 400;
                 res.set_content(std::string("{\"error\":\"") + e.what() + "\"}", "application/json");

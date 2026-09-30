@@ -243,3 +243,27 @@ before opening a PR.
 ## License
 
 See the repository for license details.
+
+## Wallet Recovery
+
+Wallets are derived from a BIP39 mnemonic and can be fully recovered.
+
+    # Set up a new wallet
+    curl -X POST http://127.0.0.1:8443/api/auth/setup \
+        -H "Content-Type: application/json" \
+        -d '{"pin":"12345678"}'
+    # Returns: {"status":"ok","mnemonic":"...","address":"CZ1..."}
+
+    # Recover from mnemonic on a fresh device
+    curl -X POST http://127.0.0.1:8443/api/auth/recover \
+        -H "Content-Type: application/json" \
+        -d '{"mnemonic":"...","new_pin":"87654321"}'
+    # Returns: {"status":"ok","address":"CZ1..."} same address
+
+Encrypt an existing plaintext wallet:
+
+    curl -X POST http://127.0.0.1:8443/api/auth/encrypt-wallet \
+        -H "Content-Type: application/json" \
+        -d '{"pin":"12345678"}'
+
+See SECURITY.md for the full threat model.

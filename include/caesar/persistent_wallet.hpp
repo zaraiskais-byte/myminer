@@ -27,21 +27,24 @@ class PersistentWallet {
    public:
     explicit PersistentWallet(const std::filesystem::path& key_path)
         : key_path_(key_path) {
-        load_or_create();
+        load_or_defer();
     }
 
     PersistentWallet(const PersistentWallet&) = delete;
     PersistentWallet& operator=(const PersistentWallet&) = delete;
 
     std::string public_key() const {
+        if (!wallet_) throw std::runtime_error("wallet not loaded");
         return wallet_->public_key();
     }
 
     std::string address() const {
+        if (!wallet_) throw std::runtime_error("wallet not loaded");
         return wallet_->address();
     }
 
     EVP_PKEY* private_key() const {
+        if (!wallet_) throw std::runtime_error("wallet not loaded");
         return wallet_->private_key();
     }
 
@@ -220,68 +223,111 @@ class PersistentWallet {
         return mnemonic;
     }
 
+    // ==========================================================
+    // Deferred-load helpers
+    // ==========================================================
+    bool is_loaded() const { return wallet_ != nullptr; }
+
+    bool is_file_encrypted() const {
+        std::error_code ec;
+        if (!std::filesystem::exists(key_path_, ec) || ec) return false;
+        FILE* fp = std::fopen(key_path_.string().c_str(), "rb");
+        if (!fp) return false;
+        unsigned char first = 0;
+        std::fread(&first, 1, 1, fp);
+        std::fclose(fp);
+        return first != '-';
+    }
+
+    void unlock_with_pin(const std::string& pin) {
+        auto plaintext = SecureWalletStorage::decrypt(key_path_, pin);
+        BIO* bio = BIO_new_mem_buf(plaintext.data(),
+                                    static_cast<int>(plaintext.size()));
+        if (!bio) throw std::runtime_error("unlock_with_pin: BIO alloc");
+        EVP_PKEY* key = PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
+        BIO_free(bio);
+        if (!key) throw std::runtime_error("unlock_with_pin: PEM parse");
+        if (EVP_PKEY_base_id(key) != EVP_PKEY_ED25519) {
+            EVP_PKEY_free(key);
+            throw std::runtime_error("unlock_with_pin: not Ed25519");
+        }
+        KeyPair kp(key);
+        auto loaded = std::make_unique<Wallet>(std::move(kp));
+        if (!loaded->valid()) {
+            throw std::runtime_error("unlock_with_pin: invalid");
+        }
+        wallet_ = std::move(loaded);
+    }
+
    private:
     std::filesystem::path key_path_;
     std::unique_ptr<Wallet> wallet_;
 
-    void load_or_create() {
+    void load_or_defer() {
         std::error_code ec;
         const bool exists = std::filesystem::exists(key_path_, ec);
+        if (ec) throw std::runtime_error("cannot inspect wallet key path");
 
-        if (ec) {
-            throw std::runtime_error("cannot inspect wallet key path");
-        }
-
-        if (exists) {
-            if (!std::filesystem::is_regular_file(key_path_, ec) || ec) {
-                throw std::runtime_error(
-                    "existing wallet path is not a regular file");
-            }
-
-            FILE* fp = std::fopen(key_path_.string().c_str(), "rb");
-            if (!fp) {
-                throw std::runtime_error(
-                    "existing wallet key cannot be opened; refusing replacement");
-            }
-
-            EVP_PKEY* key = PEM_read_PrivateKey(fp, nullptr, nullptr, nullptr);
-            const int close_result = std::fclose(fp);
-
-            if (!key) {
-                throw std::runtime_error(
-                    "existing wallet key is invalid; refusing replacement");
-            }
-
-            if (close_result != 0) {
-                EVP_PKEY_free(key);
-                throw std::runtime_error(
-                    "failed to close existing wallet key file");
-            }
-
-            if (EVP_PKEY_base_id(key) != EVP_PKEY_ED25519) {
-                EVP_PKEY_free(key);
-                throw std::runtime_error(
-                    "existing wallet key is not Ed25519; refusing replacement");
-            }
-
-            // KeyPair takes the PEM_read_PrivateKey reference and adds
-            // a second reference for its public/private handles.
-            // Do not free key separately after successful construction.
-            KeyPair kp(key);
-            auto loaded = std::make_unique<Wallet>(std::move(kp));
-
-            if (!loaded->valid()) {
-                throw std::runtime_error(
-                    "existing wallet key failed validation");
-            }
-
-            wallet_ = std::move(loaded);
+        if (!exists) {
+            wallet_ = std::make_unique<Wallet>();
+            save();
             return;
         }
 
-        // Preserve the existing behavior only when no key file exists.
-        wallet_ = std::make_unique<Wallet>();
-        save();
+        if (!std::filesystem::is_regular_file(key_path_, ec) || ec) {
+            throw std::runtime_error(
+                "existing wallet path is not a regular file");
+        }
+
+        FILE* peek = std::fopen(key_path_.string().c_str(), "rb");
+        if (!peek) {
+            throw std::runtime_error(
+                "existing wallet key cannot be opened; refusing replacement");
+        }
+        unsigned char first = 0;
+        std::fread(&first, 1, 1, peek);
+        std::fclose(peek);
+
+        if (first != '-') {
+            wallet_ = nullptr;
+            return;
+        }
+
+        load_plaintext_pem();
+    }
+
+    void load_plaintext_pem() {
+        FILE* fp = std::fopen(key_path_.string().c_str(), "rb");
+        if (!fp) {
+            throw std::runtime_error(
+                "existing wallet key cannot be opened; refusing replacement");
+        }
+
+        EVP_PKEY* key = PEM_read_PrivateKey(fp, nullptr, nullptr, nullptr);
+        const int close_result = std::fclose(fp);
+
+        if (!key) {
+            throw std::runtime_error(
+                "existing wallet key is invalid; refusing replacement");
+        }
+        if (close_result != 0) {
+            EVP_PKEY_free(key);
+            throw std::runtime_error(
+                "failed to close existing wallet key file");
+        }
+        if (EVP_PKEY_base_id(key) != EVP_PKEY_ED25519) {
+            EVP_PKEY_free(key);
+            throw std::runtime_error(
+                "existing wallet key is not Ed25519; refusing replacement");
+        }
+
+        KeyPair kp(key);
+        auto loaded = std::make_unique<Wallet>(std::move(kp));
+        if (!loaded->valid()) {
+            throw std::runtime_error(
+                "existing wallet key failed validation");
+        }
+        wallet_ = std::move(loaded);
     }
 };
 

@@ -84,3 +84,20 @@ android/local.properties
 android/.idea/
 android/app/src/main/assets/caesar_web
 caesar_web.pre-phase1-20260930-210351
+
+# Wallet secrets — never commit
+*.pem
+wallet.pem
+pin.hash
+session.txt
+seed.txt
+.caesar/
+caesar-wallet-export-*.tar.gz
+wallet.pem.*
+caesar_web.pre-*
+http_rpc.hpp.pre-*
+http_rpc.hpp.audit-*
+persistent_wallet.hpp.pre-*
+node.hpp.b2backup
+web.cpp.b2backup
+http_rpc.hpp.b2backup
