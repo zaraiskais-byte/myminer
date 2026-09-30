@@ -7,7 +7,7 @@ permissions:
   contents: write
 jobs:
   build-apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -15,7 +15,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 11076708
       - name: Install NDK
         run: |
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
