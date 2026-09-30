@@ -1,3 +1,12 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -e
+
+echo "=== [1/6] Removing old workflow ==="
+rm -f .github/workflows/build-apk.yml
+
+echo "=== [2/6] Writing robust workflow ==="
+mkdir -p .github/workflows
+cat > .github/workflows/build-apk.yml << 'YML'
 name: Build APK
 on:
   workflow_dispatch:
@@ -67,3 +76,46 @@ jobs:
           tag_name: apk-${{ github.run_number }}
           name: "Caesar CZR v${{ github.run_number }}"
           files: android/app/build/outputs/apk/debug/*.apk
+YML
+
+echo "=== [3/6] Adding launcher icon ==="
+mkdir -p android/app/src/main/res/mipmap-anydpi-v26
+cat > android/app/src/main/res/drawable/ic_launcher.xml << 'XML' 2>/dev/null || true
+XML
+mkdir -p android/app/src/main/res/drawable
+cat > android/app/src/main/res/drawable/ic_launcher.xml << 'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#f0c040"/>
+</shape>
+XML
+
+echo "=== [4/6] Fixing OpenSSL path in CMake ==="
+cat > android/app/src/main/cpp/CMakeLists.txt << 'CMK'
+cmake_minimum_required(VERSION 3.20)
+project(caesar_web_android CXX)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../..")
+add_executable(caesar_web "${REPO_ROOT}/src/web.cpp")
+target_include_directories(caesar_web PRIVATE
+    "${REPO_ROOT}/include"
+    "${REPO_ROOT}/third_party"
+    "${OPENSSL_ROOT}/include")
+target_link_libraries(caesar_web PRIVATE
+    "${OPENSSL_ROOT}/lib/libcrypto.a"
+    log)
+target_link_options(caesar_web PRIVATE -Wl,--gc-sections)
+CMK
+
+echo "=== [5/6] Cleaning old commits ==="
+git add -A
+git commit -m "Fix: robust Android APK build (auto-generated)" || true
+
+echo "=== [6/6] Pushing ==="
+git push origin main
+
+echo ""
+echo "=== DONE ==="
+echo "Go to: https://github.com/zaraiskais-byte/myminer/actions"
+echo "Wait 15 min. If green -> check Releases"
