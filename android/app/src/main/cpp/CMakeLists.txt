@@ -11,4 +11,4 @@ target_include_directories(caesar_web PRIVATE
 target_link_libraries(caesar_web PRIVATE
     "${OPENSSL_ROOT}/lib/libcrypto.a"
     log)
-target_link_options(caesar_web PRIVATE -Wl,--gc-sections)
+target_link_options(caesar_web PRIVATE -Wl,--gc-sections -Wl,--exclude-libs,ALL)
