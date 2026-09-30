@@ -1,0 +1,58 @@
+name: Auto Error Reporter
+
+on:
+  workflow_run:
+    workflows: ["Build APK"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  report:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download failed logs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run_id = context.payload.workflow_run.id;
+            const jobs = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: run_id
+            });
+            
+            let errorReport = `# Build Failed\n\n`;
+            errorReport += `**Run:** [#${run_id}](${context.payload.workflow_run.html_url})\n`;
+            errorReport += `**Commit:** ${context.payload.workflow_run.head_sha.substring(0, 8)}\n`;
+            errorReport += `**Time:** ${new Date().toISOString()}\n\n`;
+            errorReport += `## Failed Steps\n\n`;
+            
+            for (const job of jobs.data.jobs) {
+              if (job.conclusion === 'failure') {
+                errorReport += `### Job: \`${job.name}\`\n\n`;
+                for (const step of job.steps) {
+                  if (step.conclusion === 'failure') {
+                    errorReport += `❌ **Step:** \`${step.name}\`\n\n`;
+                  }
+                }
+              }
+            }
+            
+            errorReport += `\n## What to do\n\n`;
+            errorReport += `Take a screenshot of the failed step from:\n`;
+            errorReport += `${context.payload.workflow_run.html_url}\n`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Build Failed - Run ${run_id}`,
+              body: errorReport,
+              labels: ['build-failure', 'auto-report']
+            });
+            
+            console.log('Issue created with error report');
