@@ -4,17 +4,23 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
+#include <openssl/rand.h>
+
 #include <httplib.h>
 
 #include <caesar/node.hpp>
 #include <caesar/persistent_wallet.hpp>
+#include <caesar/wallet_auth.hpp>
+#include <caesar/bip39.hpp>
 #include <caesar/transaction_signature.hpp>
 #include <caesar/utxo.hpp>
 #include <caesar/witness.hpp>
@@ -25,7 +31,15 @@ inline const char* WALLET_HTML = R"HTML(<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f0c040">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Caesar">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon-192.svg" type="image/svg+xml">
 <title>Caesar CZR Wallet</title>
 <style>
 body{font-family:monospace;background:#0f1115;color:#e8e8e8;padding:12px;margin:0}
@@ -42,6 +56,17 @@ pre{background:#000;padding:8px;border-radius:4px;font-size:11px;max-height:180p
 </style>
 </head>
 <body>
+
+<!-- PIN Lock Screen -->
+<div id="lockScreen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0f1115;z-index:9999;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;box-sizing:border-box">
+  <h1 style="color:#f0c040;font-size:26px;margin-bottom:24px;font-family:monospace">&#9889; Caesar CZR</h1>
+  <div id="lockTitle" style="color:#e8e8e8;font-size:15px;margin-bottom:14px;font-family:monospace">Enter your PIN</div>
+  <input id="pinInput" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="PIN" autocomplete="off" style="background:#000;color:#fff;border:2px solid #f0c040;border-radius:8px;padding:14px;font-size:24px;text-align:center;width:220px;letter-spacing:8px;margin:8px 0;font-family:monospace" maxlength="12">
+  <button id="unlockBtn" type="button" style="background:#f0c040;color:#000;border:none;padding:14px 50px;font-size:16px;font-weight:bold;border-radius:8px;margin-top:14px;cursor:pointer;font-family:monospace">UNLOCK</button>
+  <div id="lockMsg" style="color:#ff6b6b;font-size:13px;margin-top:14px;min-height:20px;text-align:center;max-width:280px;font-family:monospace"></div>
+</div>
+
+<div id="walletContent" style="display:none">
 <h1>⚡ Caesar CZR Wallet</h1>
 
 <div class="card">
@@ -125,7 +150,62 @@ async function doSend(){
 function doRefresh(){refreshStatus();refreshWallet();log('Refreshed');}
 refreshStatus();refreshWallet();
 setInterval(refreshStatus,3000);
+checkAuth();
 </script>
+<script>
+function bindUnlockBtn() {
+    var btn = document.getElementById('unlockBtn');
+    var inp = document.getElementById('pinInput');
+    var msg = document.getElementById('lockMsg');
+    if (!btn || !inp || !msg) return;
+
+    function doUnlock(e) {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        var pin = inp.value.trim();
+        if (pin.length < 4) {
+            msg.style.color = '#ff6b6b';
+            msg.textContent = 'PIN must be at least 4 characters';
+            return false;
+        }
+        msg.style.color = '#5fdc7a';
+        msg.textContent = 'Checking...';
+
+        fetch('/api/auth/unlock', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({pin: pin})
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.unlocked) {
+                msg.textContent = 'Success!';
+                setTimeout(function() {
+                    document.getElementById('lockScreen').style.display = 'none';
+                    location.reload();
+                }, 300);
+            } else {
+                msg.style.color = '#ff6b6b';
+                msg.textContent = d.error || 'Wrong PIN';
+            }
+        })
+        .catch(function(e) {
+            msg.style.color = '#ff6b6b';
+            msg.textContent = 'Error: ' + e.message;
+        });
+        return false;
+    }
+
+    btn.addEventListener('click', doUnlock);
+    btn.addEventListener('touchend', doUnlock);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindUnlockBtn);
+} else {
+    bindUnlockBtn();
+}
+</script>
+</div>
 </body>
 </html>)HTML";
 
@@ -136,12 +216,22 @@ class HttpRpcServer {
         : node_(node),
           port_(port),
           started_at_(std::chrono::steady_clock::now()),
-          wallet_path_(data_dir / "wallet.pem") {
-        try {
-            wallet_ = std::make_unique<PersistentWallet>(wallet_path_);
-        } catch (...) {
-            wallet_ = nullptr;
+          wallet_path_(data_dir / "wallet.pem"),
+          pin_path_(data_dir / "pin.hash"),
+          session_file_(data_dir / "session.txt") {
+        std::ifstream sf(session_file_);
+        if (sf) std::getline(sf, session_token_);
+
+        // Record whether the wallet pre-existed BEFORE PersistentWallet
+        // may create a fresh one.
+        {
+            std::error_code ec;
+            const bool exists = std::filesystem::exists(wallet_path_, ec);
+            wallet_preexisting_ = (!ec && exists &&
+                std::filesystem::file_size(wallet_path_, ec) > 0 && !ec);
         }
+
+        wallet_ = std::make_unique<PersistentWallet>(wallet_path_);
         setup_routes();
     }
 
@@ -149,7 +239,7 @@ class HttpRpcServer {
     HttpRpcServer& operator=(const HttpRpcServer&) = delete;
 
     void start() {
-        thread_ = std::thread([this]() { server_.listen("0.0.0.0", port_); });
+        thread_ = std::thread([this]() { server_.listen("127.0.0.1", port_); });
         for (int i = 0; i < 100; ++i) {
             if (server_.is_running()) break;
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -170,7 +260,15 @@ class HttpRpcServer {
     std::thread thread_;
     std::chrono::steady_clock::time_point started_at_;
     std::filesystem::path wallet_path_;
+    std::filesystem::path pin_path_;
     std::unique_ptr<PersistentWallet> wallet_;
+    bool wallet_preexisting_ = false;
+    bool unlocked_ = false;
+    std::string session_token_;
+    std::filesystem::path session_file_;
+    mutable std::mutex auth_mutex_;
+    mutable std::mutex auth_failures_mutex_;
+    std::unordered_map<std::string, std::pair<int, std::chrono::steady_clock::time_point>> auth_failures_;
 
     struct WalletUtxo {
         Hash256 txid;
@@ -226,7 +324,271 @@ class HttpRpcServer {
         return total;
     }
 
+    static std::string generate_session_token() {
+        unsigned char bytes[32];
+
+        if (RAND_bytes(bytes, sizeof(bytes)) != 1) {
+            throw std::runtime_error("secure session token generation failed");
+        }
+
+        static constexpr char hex[] = "0123456789abcdef";
+
+        std::string token;
+        token.reserve(sizeof(bytes) * 2);
+
+        for (unsigned char byte : bytes) {
+            token.push_back(hex[(byte >> 4) & 0x0f]);
+            token.push_back(hex[byte & 0x0f]);
+        }
+
+        return token;
+    }
+
+    bool is_authenticated(const httplib::Request& req) const {
+        std::lock_guard<std::mutex> lk(auth_mutex_);
+        if (!unlocked_) return false;
+        if (session_token_.empty()) return false;
+        auto cookie = req.get_header_value("Cookie");
+        if (cookie.empty()) return false;
+        std::string needle = "caesar_session=" + session_token_;
+        auto pos = cookie.find(needle);
+        if (pos == std::string::npos) return false;
+        size_t after = pos + needle.size();
+        if (after < cookie.size()) {
+            char c = cookie[after];
+            if (c != ';' && c != ' ') return false;
+        }
+        return true;
+    }
+
+    bool is_csrf_safe(const httplib::Request& req) const {
+        auto origin = req.get_header_value("Origin");
+        if (origin.empty()) return true;
+        return origin.find("http://127.0.0.1:") != std::string::npos ||
+               origin.find("http://localhost:") != std::string::npos;
+    }
+
+    bool check_rate_limit(const std::string& ip) {
+        std::lock_guard<std::mutex> lk(auth_failures_mutex_);
+        auto now = std::chrono::steady_clock::now();
+        auto it = auth_failures_.find(ip);
+        if (it == auth_failures_.end()) return true;
+        if (it->second.first >= 5) {
+            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - it->second.second).count();
+            if (elapsed < 300) return false;
+            auth_failures_.erase(it);
+        }
+        return true;
+    }
+
+    void record_auth_failure(const std::string& ip) {
+        std::lock_guard<std::mutex> lk(auth_failures_mutex_);
+        auto& entry = auth_failures_[ip];
+        entry.first++;
+        entry.second = std::chrono::steady_clock::now();
+    }
+
+    void clear_auth_failures(const std::string& ip) {
+        std::lock_guard<std::mutex> lk(auth_failures_mutex_);
+        auth_failures_.erase(ip);
+    }
+
     void setup_routes() {
+        // PWA routes
+// PIN + auth routes
+        server_.Get("/api/auth/status", [this](const httplib::Request& req, httplib::Response& res) {
+            bool unlocked = is_authenticated(req);
+            std::ostringstream out;
+            out << "{\"has_pin\":" << (std::filesystem::exists(pin_path_) ? "true" : "false")
+                << ",\"unlocked\":" << (unlocked ? "true" : "false") << "}";
+            res.set_header("Cache-Control", "no-store");
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Post("/api/auth/setup", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_csrf_safe(req)) {
+                res.status = 403;
+                res.set_content("{\"error\":\"csrf\"}", "application/json");
+                return;
+            }
+            try {
+                if (std::filesystem::exists(pin_path_)) {
+                    throw std::runtime_error("PIN already set. Use /api/auth/unlock");
+                }
+                auto pos = req.body.find("\"pin\"");
+                if (pos == std::string::npos) throw std::runtime_error("missing pin");
+                auto start = req.body.find('"', pos + 5);
+                auto end = req.body.find('"', start + 1);
+                std::string pin = req.body.substr(start + 1, end - start - 1);
+                if (pin.size() < 4) throw std::runtime_error("PIN must be 4+ digits");
+
+                std::string mnemonic;
+
+                if (!wallet_preexisting_) {
+                    // Fresh wallet on disk: generate a BIP39-backed one.
+                    mnemonic = wallet_->create_new_hd_wallet();
+                    wallet_->save_encrypted(pin);
+                } else {
+                    // Legacy wallet (random, no mnemonic) — encrypt it with PIN
+                    // so the file is no longer plaintext, but no mnemonic exists.
+                    wallet_->save_encrypted(pin);
+                }
+
+                caesar::save_pin(pin_path_, pin);
+
+                {
+                    std::lock_guard<std::mutex> lk(auth_mutex_);
+                    unlocked_ = true;
+                    session_token_ = generate_session_token();
+                }
+                std::ofstream sf(session_file_);
+                sf << session_token_;
+
+                std::string addr;
+                try { addr = wallet_->address(); } catch (...) {}
+
+                std::ostringstream out;
+                out << "{\"status\":\"ok\",\"unlocked\":true";
+                if (!mnemonic.empty()) {
+                    out << ",\"mnemonic\":\"" << mnemonic << "\"";
+                }
+                out << ",\"address\":\"" << addr << "\"";
+                out << "}";
+
+                res.set_header("Set-Cookie", "caesar_session=" + session_token_ + "; Path=/; Max-Age=604800; SameSite=Strict; HttpOnly");
+                res.set_content(out.str(), "application/json");
+            } catch (const std::exception& e) {
+                res.status = 400;
+                res.set_content(std::string("{\"error\":\"") + e.what() + "\"}", "application/json");
+            }
+        });
+
+        server_.Post("/api/auth/unlock", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_csrf_safe(req)) {
+                res.status = 403;
+                res.set_content("{\"error\":\"csrf\"}", "application/json");
+                return;
+            }
+            std::string client_ip = req.remote_addr.empty() ? "local" : req.remote_addr;
+            if (!check_rate_limit(client_ip)) {
+                res.status = 429;
+                res.set_content("{\"error\":\"too many attempts, wait 5 minutes\"}", "application/json");
+                return;
+            }
+            try {
+                auto pos = req.body.find("\"pin\"");
+                if (pos == std::string::npos) throw std::runtime_error("missing pin");
+                auto start = req.body.find('"', pos + 5);
+                auto end = req.body.find('"', start + 1);
+                std::string pin = req.body.substr(start + 1, end - start - 1);
+                if (!std::filesystem::exists(pin_path_)) throw std::runtime_error("no PIN set");
+                if (caesar::verify_pin(pin_path_, pin)) {
+                    std::string new_token;
+                    {
+                        std::lock_guard<std::mutex> lk(auth_mutex_);
+                        unlocked_ = true;
+                        session_token_ = generate_session_token();
+                        new_token = session_token_;
+                    }
+                    std::ofstream sf(session_file_);
+                    sf << new_token;
+                    clear_auth_failures(client_ip);
+                    res.set_header("Set-Cookie", "caesar_session=" + new_token + "; Path=/; Max-Age=604800; SameSite=Strict; HttpOnly");
+                    res.set_content("{\"status\":\"ok\",\"unlocked\":true}", "application/json");
+                } else {
+                    record_auth_failure(client_ip);
+                    res.status = 401;
+                    res.set_content("{\"error\":\"invalid PIN\"}", "application/json");
+                }
+            } catch (const std::exception& e) {
+                res.status = 400;
+                res.set_content(std::string("{\"error\":\"") + e.what() + "\"}", "application/json");
+            }
+        });
+
+        // unlock-get removed: PIN-in-URL security issue
+
+        server_.Post("/api/auth/recover", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_csrf_safe(req)) {
+                res.status = 403;
+                res.set_content("{\"error\":\"csrf\"}", "application/json");
+                return;
+            }
+            std::string client_ip = req.remote_addr.empty() ? "local" : req.remote_addr;
+            if (!check_rate_limit(client_ip)) {
+                res.status = 429;
+                res.set_content("{\"error\":\"too many attempts, wait 5 minutes\"}", "application/json");
+                return;
+            }
+            try {
+                // Parse mnemonic
+                auto mpos = req.body.find("\"mnemonic\"");
+                if (mpos == std::string::npos) {
+                    throw std::runtime_error("missing mnemonic");
+                }
+                auto mstart = req.body.find('"', mpos + 10);
+                auto mend = req.body.find('"', mstart + 1);
+                std::string mnemonic = req.body.substr(mstart + 1, mend - mstart - 1);
+
+                // Parse new_pin
+                auto ppos = req.body.find("\"new_pin\"");
+                if (ppos == std::string::npos) {
+                    throw std::runtime_error("missing new_pin");
+                }
+                auto pstart = req.body.find('"', ppos + 9);
+                auto pend = req.body.find('"', pstart + 1);
+                std::string new_pin = req.body.substr(pstart + 1, pend - pstart - 1);
+
+                if (new_pin.size() < 4) {
+                    throw std::runtime_error("PIN must be 4+ digits");
+                }
+                if (!caesar::bip39::validate_mnemonic(mnemonic)) {
+                    throw std::runtime_error("invalid mnemonic");
+                }
+
+                // Replace current wallet with mnemonic-derived one
+                wallet_->replace_with_mnemonic(mnemonic);
+                wallet_->save_encrypted(new_pin);
+                caesar::save_pin(pin_path_, new_pin);
+
+                std::string addr;
+                try { addr = wallet_->address(); } catch (...) {}
+
+                {
+                    std::lock_guard<std::mutex> lk(auth_mutex_);
+                    unlocked_ = true;
+                    session_token_ = generate_session_token();
+                }
+                std::ofstream sf(session_file_);
+                sf << session_token_;
+
+                res.set_header("Set-Cookie", "caesar_session=" + session_token_ + "; Path=/; Max-Age=604800; SameSite=Strict; HttpOnly");
+                res.set_content("{\"status\":\"ok\",\"unlocked\":true,\"address\":\"" + addr + "\"}", "application/json");
+            } catch (const std::exception& e) {
+                res.status = 400;
+                res.set_content(std::string("{\"error\":\"") + e.what() + "\"}", "application/json");
+            }
+        });
+
+        server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res) {
+            res.set_content(
+                R"({"name":"Caesar CZR Wallet","short_name":"Caesar","start_url":"/","display":"standalone","background_color":"#0f1115","theme_color":"#f0c040","orientation":"portrait","icons":[{"src":"/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"}]})",
+                "application/manifest+json");
+        });
+
+        server_.Get("/icon-192.svg", [](const httplib::Request&, httplib::Response& res) {
+            res.set_content(
+                R"(<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192"><rect width="192" height="192" rx="42" fill="#f0c040"/><text x="96" y="130" font-family="monospace" font-size="120" font-weight="bold" fill="#0f1115" text-anchor="middle">C</text></svg>)",
+                "image/svg+xml");
+        });
+
+        server_.Get("/sw.js", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-cache, no-store, must-revalidate");
+            res.set_content(
+                R"(self.addEventListener('install',e=>{self.skipWaiting();}); self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).then(()=>self.clients.claim()));}); self.addEventListener('fetch',e=>{if(e.request.url.includes('/api/'))return; if(e.request.mode==='navigate'){e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));return;} e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});)",
+                "application/javascript");
+        });
+
         server_.Get("/", [](const httplib::Request&, httplib::Response& res) {
             res.set_content(WALLET_HTML, "text/html; charset=utf-8");
         });
@@ -243,7 +605,12 @@ class HttpRpcServer {
             res.set_content(out.str(), "application/json");
         });
 
-        server_.Get("/api/wallet", [this](const httplib::Request&, httplib::Response& res) {
+        server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_authenticated(req)) {
+                res.status = 401;
+                res.set_content("{\"error\":\"unauthorized\"}", "application/json");
+                return;
+            }
             std::string pk, addr;
             try {
                 if (wallet_) {
@@ -255,13 +622,23 @@ class HttpRpcServer {
                             "application/json");
         });
 
-        server_.Get("/api/balance", [this](const httplib::Request&, httplib::Response& res) {
+        server_.Get("/api/balance", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_authenticated(req)) {
+                res.status = 401;
+                res.set_content("{\"error\":\"unauthorized\"}", "application/json");
+                return;
+            }
             std::ostringstream out;
             out << "{\"balance\":" << compute_balance() << "}";
             res.set_content(out.str(), "application/json");
         });
 
-        server_.Get("/api/history", [this](const httplib::Request&, httplib::Response& res) {
+        server_.Get("/api/history", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_authenticated(req)) {
+                res.status = 401;
+                res.set_content("{\"error\":\"unauthorized\"}", "application/json");
+                return;
+            }
             const std::string addr = my_address();
             std::ostringstream out;
             out << "{\"transactions\":[";
@@ -285,8 +662,18 @@ class HttpRpcServer {
             res.set_content(out.str(), "application/json");
         });
 
-        server_.Post("/api/mine_default", [this](const httplib::Request&,
+        server_.Post("/api/mine_default", [this](const httplib::Request& req,
                                                   httplib::Response& res) {
+            if (!is_authenticated(req)) {
+                res.status = 401;
+                res.set_content("{\"error\":\"unauthorized\"}", "application/json");
+                return;
+            }
+            if (!is_csrf_safe(req)) {
+                res.status = 403;
+                res.set_content("{\"error\":\"csrf\"}", "application/json");
+                return;
+            }
             try {
                 std::string recipient = my_address();
                 if (recipient.empty()) recipient = "CAESAR_MINER_CZR1";
@@ -302,6 +689,16 @@ class HttpRpcServer {
         });
 
         server_.Post("/api/send", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_authenticated(req)) {
+                res.status = 401;
+                res.set_content("{\"error\":\"unauthorized\"}", "application/json");
+                return;
+            }
+            if (!is_csrf_safe(req)) {
+                res.status = 403;
+                res.set_content("{\"error\":\"csrf\"}", "application/json");
+                return;
+            }
             try {
                 if (!wallet_) throw std::runtime_error("wallet unavailable");
 

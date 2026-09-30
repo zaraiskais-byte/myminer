@@ -162,6 +162,74 @@ add_executable(caesar_wallet_test
 target_include_directories(caesar_wallet_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_link_libraries(caesar_wallet_test PRIVATE OpenSSL::Crypto)
 
+add_executable(caesar_persistent_wallet_test
+    tests/persistent_wallet_test.cpp
+)
+
+target_include_directories(caesar_persistent_wallet_test
+    PRIVATE ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_persistent_wallet_test
+    PRIVATE OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarPersistentWalletTest
+    COMMAND caesar_persistent_wallet_test
+)
+
+add_executable(caesar_bip39_test
+    tests/bip39_test.cpp
+)
+
+target_include_directories(caesar_bip39_test
+    PRIVATE ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_bip39_test
+    PRIVATE OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarBip39Test
+    COMMAND caesar_bip39_test
+)
+
+add_executable(caesar_slip10_test
+    tests/slip10_test.cpp
+)
+
+target_include_directories(caesar_slip10_test
+    PRIVATE ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_slip10_test
+    PRIVATE OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarSlip10Test
+    COMMAND caesar_slip10_test
+)
+
+add_executable(caesar_wallet_hd_test
+    tests/wallet_hd_test.cpp
+)
+
+target_include_directories(caesar_wallet_hd_test
+    PRIVATE ${CMAKE_SOURCE_DIR}/include
+)
+
+target_link_libraries(caesar_wallet_hd_test
+    PRIVATE OpenSSL::Crypto
+)
+
+add_test(
+    NAME CaesarWalletHdTest
+    COMMAND caesar_wallet_hd_test
+)
+
 add_executable(caesar_ownership_test
     tests/ownership_test.cpp
 )
