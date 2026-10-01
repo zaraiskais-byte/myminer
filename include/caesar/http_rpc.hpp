@@ -643,6 +643,122 @@ class HttpRpcServer {
             }
         });
 
+        server_.Get("/api/blocks", [this](const httplib::Request& req, httplib::Response& res) {
+            try {
+                std::size_t limit = 50;
+                auto it = req.params.find("limit");
+                if (it != req.params.end()) {
+                    try { limit = std::stoul(it->second); } catch (...) {}
+                    if (limit == 0 || limit > 500) limit = 50;
+                }
+
+                std::vector<Block> chain;
+                try {
+                    chain = node_.chain();
+                } catch (...) {
+                    chain.clear();
+                }
+
+                std::ostringstream out;
+                out << "{\"height\":" << (chain.empty() ? 0 : chain.size() - 1)
+                    << ",\"count\":" << chain.size()
+                    << ",\"blocks\":[";
+
+                const std::size_t start =
+                    chain.size() > limit ? chain.size() - limit : 0;
+
+                for (std::size_t i = start; i < chain.size(); ++i) {
+                    if (i > start) out << ",";
+                    const auto& blk = chain[i];
+                    const auto h = blk.hash();
+
+                    out << "{\"height\":" << blk.header.height;
+                    out << ",\"hash\":\"" << hash_to_hex(h) << "\"";
+                    out << ",\"prev\":\"" << hash_to_hex(blk.header.previous_hash) << "\"";
+                    out << ",\"timestamp\":" << blk.header.timestamp;
+                    out << ",\"difficulty\":" << blk.header.difficulty;
+                    out << ",\"nonce\":" << blk.header.nonce;
+                    out << ",\"txs\":" << blk.transactions.size();
+                    out << "}";
+                }
+
+                out << "]}";
+                res.set_header("Cache-Control", "no-store");
+                res.set_content(out.str(), "application/json");
+            } catch (const std::exception& e) {
+                res.status = 500;
+                res.set_content(std::string("{\"error\":\"") + e.what() + "\"}", "application/json");
+            }
+        });
+
+        server_.Get("/explorer", [](const httplib::Request&, httplib::Response& res) {
+            const char* html = R"HTML(<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Caesar CZR - Block Explorer</title>
+<style>
+body { font-family: monospace; background: #0f1115; color: #e8e8e8; margin: 0; padding: 20px; }
+h1 { color: #f0c040; }
+.top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+button, a.btn { background: #f0c040; color: #000; border: none; padding: 10px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; text-decoration: none; font-family: monospace; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { color: #f0c040; text-align: left; padding: 8px; border-bottom: 1px solid #333; }
+td { padding: 8px; border-bottom: 1px solid #1a1a1a; }
+tr:hover { background: #1a1a1a; }
+.hash { font-size: 11px; color: #5fdc7a; word-break: break-all; }
+#info { color: #5fdc7a; margin-bottom: 15px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Caesar CZR Explorer</h1>
+  <div>
+    <a class="btn" href="/">Wallet</a>
+    <button onclick="load()">Refresh</button>
+  </div>
+</div>
+<div id="info">Loading...</div>
+<table>
+  <thead>
+    <tr><th>Height</th><th>Hash</th><th>Time</th><th>Diff</th><th>Nonce</th><th>Txs</th></tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+<script>
+async function load() {
+  try {
+    const r = await fetch('/api/blocks?limit=100', {cache:'no-store'});
+    const d = await r.json();
+    document.getElementById('info').textContent =
+      'Height: ' + d.height + ' | Total: ' + d.count + ' blocks';
+    const rows = document.getElementById('rows');
+    rows.innerHTML = '';
+    d.blocks.slice().reverse().forEach(b => {
+      const tr = document.createElement('tr');
+      const when = new Date(b.timestamp * 1000).toISOString().replace('T',' ').substring(0,19);
+      tr.innerHTML =
+        '<td>' + b.height + '</td>' +
+        '<td class="hash">' + b.hash.substring(0,32) + '...</td>' +
+        '<td>' + when + '</td>' +
+        '<td>' + b.difficulty + '</td>' +
+        '<td>' + b.nonce + '</td>' +
+        '<td>' + b.txs + '</td>';
+      rows.appendChild(tr);
+    });
+  } catch (e) {
+    document.getElementById('info').textContent = 'Error: ' + e.message;
+  }
+}
+load();
+setInterval(load, 10000);
+</script>
+</body>
+</html>)HTML";
+            res.set_content(html, "text/html; charset=utf-8");
+        });
+
         server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res) {
             res.set_content(
                 R"({"name":"Caesar CZR Wallet","short_name":"Caesar","start_url":"/","display":"standalone","background_color":"#0f1115","theme_color":"#f0c040","orientation":"portrait","icons":[{"src":"/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"}]})",
