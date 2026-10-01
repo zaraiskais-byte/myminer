@@ -97,7 +97,7 @@ pre{background:#000;padding:8px;border-radius:4px;font-size:11px;max-height:180p
 <h2>Send CZR</h2>
 <input id="recipient" placeholder="recipient address (CZ1...)">
 <input id="amount" placeholder="amount" type="number">
-<button onclick="doSend()">📤 Send</button>
+<button onclick="confirmSend()">📤 Send</button>
 </div>
 
 <div class="card">
@@ -278,6 +278,24 @@ async function doChangePin(){
     else{el.style.color='#ff6b6b';el.textContent=d.error||'failed';}
   }catch(e){el.style.color='#ff6b6b';el.textContent='Error: '+e.message;}
 }
+function confirmSend(){
+  var r=document.getElementById('recipient').value.trim();
+  var a=document.getElementById('amount').value.trim();
+  if(!r||!a){log('Fill recipient and amount');return;}
+  var amt=parseInt(a);
+  if(isNaN(amt)||amt<=0){log('Invalid amount');return;}
+  document.getElementById('modalTo').textContent=r;
+  document.getElementById('modalAmt').textContent=amt+' CZR';
+  document.getElementById('sendModal').style.display='flex';
+}
+function closeSendModal(){
+  document.getElementById('sendModal').style.display='none';
+}
+async function doSendConfirmed(){
+  closeSendModal();
+  await doSend();
+}
+
 async function doSign(){
   var msg=document.getElementById('signMsg').value;
   if(!msg){log('Enter a message');return;}
@@ -385,6 +403,20 @@ if (document.readyState === 'loading') {
 }
 </script>
 </div>
+<div id="sendModal" style="position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;z-index:20000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#1a1d23;border:1px solid #444;border-radius:12px;padding:24px;max-width:400px;width:100%;font-family:monospace">
+    <h3 style="color:#f0c040;margin:0 0 20px 0;font-size:16px">Confirm Send</h3>
+    <div style="font-size:11px;color:#888;margin-bottom:4px">To</div>
+    <div id="modalTo" style="font-size:11px;color:#5fdc7a;word-break:break-all;margin-bottom:14px">-</div>
+    <div style="font-size:11px;color:#888;margin-bottom:4px">Amount</div>
+    <div id="modalAmt" style="font-size:16px;color:#fff;margin-bottom:20px;font-weight:bold">-</div>
+    <div style="display:flex;gap:10px">
+      <button onclick="closeSendModal()" style="flex:1;background:#333;color:#fff;border:none;padding:12px;border-radius:6px;font-family:monospace;font-size:14px;cursor:pointer">Cancel</button>
+      <button onclick="doSendConfirmed()" style="flex:1;background:#f0c040;color:#000;border:none;padding:12px;border-radius:6px;font-weight:bold;font-family:monospace;font-size:14px;cursor:pointer">Confirm</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>)HTML";
 
