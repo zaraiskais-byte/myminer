@@ -21,6 +21,7 @@
 #include <caesar/persistent_wallet.hpp>
 #include <caesar/wallet_auth.hpp>
 #include <caesar/bip39.hpp>
+#include <caesar/key_encoding.hpp>
 #include <caesar/transaction_signature.hpp>
 #include <caesar/utxo.hpp>
 #include <caesar/witness.hpp>
@@ -94,6 +95,20 @@ pre{background:#000;padding:8px;border-radius:4px;font-size:11px;max-height:180p
 </div>
 
 <div class="card">
+<h2>Sign / Verify</h2>
+<div style="font-size:11px;color:#888;margin-bottom:6px">Sign a message with your wallet key</div>
+<textarea id="signMsg" placeholder="message" style="background:#000;color:#fff;border:1px solid #333;border-radius:4px;padding:8px;width:100%;height:50px;box-sizing:border-box;font-family:monospace;font-size:12px"></textarea>
+<button onclick="doSign()" style="margin-top:6px">Sign</button>
+<div style="font-size:11px;color:#888;margin-top:10px">Signature</div>
+<div id="sigOutput" style="background:#000;color:#5fdc7a;border:1px solid #333;border-radius:4px;padding:8px;min-height:40px;font-family:monospace;font-size:11px;word-break:break-all;box-sizing:border-box">-</div>
+<div style="font-size:11px;color:#888;margin-top:10px">Verify</div>
+<textarea id="verifyMsg" placeholder="message" style="background:#000;color:#fff;border:1px solid #333;border-radius:4px;padding:8px;width:100%;height:36px;box-sizing:border-box;font-family:monospace;font-size:12px;margin-bottom:4px"></textarea>
+<textarea id="verifySig" placeholder="signature (hex)" style="background:#000;color:#fff;border:1px solid #333;border-radius:4px;padding:8px;width:100%;height:36px;box-sizing:border-box;font-family:monospace;font-size:12px"></textarea>
+<button onclick="doVerify()" style="margin-top:6px">Verify</button>
+<div id="verifyOutput" style="margin-top:8px;font-size:12px;font-family:monospace">-</div>
+</div>
+
+<div class="card">
 <h2>Log</h2>
 <pre id="log">Ready.</pre>
 </div>
@@ -148,6 +163,31 @@ async function doSend(){
   }catch(e){log('Send err: '+e.message);}
 }
 function doRefresh(){refreshStatus();refreshWallet();log('Refreshed');}
+async function doSign(){
+  var msg=document.getElementById('signMsg').value;
+  if(!msg){log('Enter a message');return;}
+  try{
+    var r=await fetch('/api/wallet/sign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
+    var d=await r.json();
+    if(d.error){log('Sign error: '+d.error);return;}
+    document.getElementById('sigOutput').textContent=d.signature||'-';
+    document.getElementById('verifyMsg').value=msg;
+    document.getElementById('verifySig').value=d.signature||'';
+    log('Signed');
+  }catch(e){log('Sign err: '+e.message);}
+}
+async function doVerify(){
+  var msg=document.getElementById('verifyMsg').value;
+  var sig=document.getElementById('verifySig').value.trim();
+  if(!msg||!sig){log('Fill message and signature');return;}
+  try{
+    var r=await fetch('/api/wallet/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,signature:sig})});
+    var d=await r.json();
+    var el=document.getElementById('verifyOutput');
+    if(d.valid===true){el.style.color='#5fdc7a';el.textContent='VALID';}
+    else{el.style.color='#ff6b6b';el.textContent='INVALID';}
+  }catch(e){log('Verify err: '+e.message);}
+}
 refreshStatus();refreshWallet();
 setInterval(refreshStatus,3000);
 
@@ -757,6 +797,70 @@ setInterval(load, 10000);
 </body>
 </html>)HTML";
             res.set_content(html, "text/html; charset=utf-8");
+        });
+
+        server_.Post("/api/wallet/sign", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_csrf_safe(req)) {
+                res.status = 403;
+                res.set_content("{\"error\":\"csrf\"}", "application/json");
+                return;
+            }
+            try {
+                if (!wallet_ || !wallet_->is_loaded()) {
+                    throw std::runtime_error("wallet locked");
+                }
+                auto pos = req.body.find("\"message\"");
+                if (pos == std::string::npos) throw std::runtime_error("missing message");
+                auto start = req.body.find('"', pos + 10);
+                auto end = req.body.find('"', start + 1);
+                std::string message = req.body.substr(start + 1, end - start - 1);
+
+                auto sig = caesar::sign_message(wallet_->private_key(), message);
+
+                static const char* hexc = "0123456789abcdef";
+                std::string sig_hex;
+                sig_hex.reserve(sig.size() * 2);
+                for (auto b : sig) {
+                    sig_hex.push_back(hexc[(b >> 4) & 0xf]);
+                    sig_hex.push_back(hexc[b & 0xf]);
+                }
+
+                res.set_content("{\"status\":\"ok\",\"signature\":\"" + sig_hex + "\"}", "application/json");
+            } catch (const std::exception& e) {
+                res.status = 400;
+                res.set_content(std::string("{\"error\":\"") + e.what() + "\"}", "application/json");
+            }
+        });
+
+        server_.Post("/api/wallet/verify", [this](const httplib::Request& req, httplib::Response& res) {
+            try {
+                if (!wallet_ || !wallet_->is_loaded()) {
+                    throw std::runtime_error("wallet locked");
+                }
+                auto mpos = req.body.find("\"message\"");
+                if (mpos == std::string::npos) throw std::runtime_error("missing message");
+                auto mstart = req.body.find('"', mpos + 10);
+                auto mend = req.body.find('"', mstart + 1);
+                std::string message = req.body.substr(mstart + 1, mend - mstart - 1);
+
+                auto spos = req.body.find("\"signature\"");
+                if (spos == std::string::npos) throw std::runtime_error("missing signature");
+                auto sstart = req.body.find('"', spos + 12);
+                auto send = req.body.find('"', sstart + 1);
+                std::string sig_hex = req.body.substr(sstart + 1, send - sstart - 1);
+
+                auto sig_bytes = caesar::hex_to_bytes(sig_hex);
+
+                EVP_PKEY* pub = wallet_->public_key_handle();
+                if (!pub) throw std::runtime_error("no public key");
+
+                const bool ok = caesar::verify_signature(pub, message, sig_bytes);
+
+                res.set_content(std::string("{\"valid\":") + (ok ? "true" : "false") + "}", "application/json");
+            } catch (const std::exception& e) {
+                res.status = 400;
+                res.set_content(std::string("{\"error\":\"") + e.what() + "\"}", "application/json");
+            }
         });
 
         server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res) {

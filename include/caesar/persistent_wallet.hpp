@@ -48,6 +48,11 @@ class PersistentWallet {
         return wallet_->private_key();
     }
 
+    EVP_PKEY* public_key_handle() const {
+        if (!wallet_) throw std::runtime_error("wallet not loaded");
+        return wallet_->public_key_handle();
+    }
+
     void save() {
         if (!wallet_ || !wallet_->valid()) {
             throw std::runtime_error("cannot save invalid wallet");
