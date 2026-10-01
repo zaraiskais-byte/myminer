@@ -133,6 +133,15 @@ pre{background:#000;padding:8px;border-radius:4px;font-size:11px;max-height:180p
 </div>
 
 <div class="card">
+<h2>Change PIN</h2>
+<div style="font-size:11px;color:#888;margin-bottom:6px">Replace your unlock PIN</div>
+<input id="oldPin" type="tel" placeholder="old PIN" style="width:100%;box-sizing:border-box;background:#000;color:#fff;border:1px solid #333;border-radius:4px;padding:8px;font-family:monospace;font-size:14px;letter-spacing:4px;margin-bottom:6px">
+<input id="newPin" type="tel" placeholder="new PIN" style="width:100%;box-sizing:border-box;background:#000;color:#fff;border:1px solid #333;border-radius:4px;padding:8px;font-family:monospace;font-size:14px;letter-spacing:4px;margin-bottom:6px">
+<button onclick="doChangePin()" style="padding:8px 16px">Change PIN</button>
+<div id="cpResult" style="margin-top:8px;font-family:monospace;font-size:12px">-</div>
+</div>
+
+<div class="card">
 <h2>Log</h2>
 <pre id="log">Ready.</pre>
 </div>
@@ -256,6 +265,19 @@ async function doSend(){
   }catch(e){log('Send err: '+e.message);}
 }
 function doRefresh(){refreshStatus();refreshWallet();log('Refreshed');}
+async function doChangePin(){
+  var op=document.getElementById('oldPin').value.trim();
+  var np=document.getElementById('newPin').value.trim();
+  var el=document.getElementById('cpResult');
+  if(op.length<4||np.length<4){el.style.color='#ff6b6b';el.textContent='Both PINs must be 4+ chars';return;}
+  el.style.color='#888';el.textContent='Changing...';
+  try{
+    var r=await fetch('/api/auth/change-pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_pin:op,new_pin:np})});
+    var d=await r.json();
+    if(d.status==='ok'){el.style.color='#5fdc7a';el.textContent='PIN changed. Reload and login with new PIN.';log('PIN changed');}
+    else{el.style.color='#ff6b6b';el.textContent=d.error||'failed';}
+  }catch(e){el.style.color='#ff6b6b';el.textContent='Error: '+e.message;}
+}
 async function doSign(){
   var msg=document.getElementById('signMsg').value;
   if(!msg){log('Enter a message');return;}
@@ -994,6 +1016,48 @@ setInterval(load, 10000);
             out << "]}";
             res.set_header("Cache-Control", "no-store");
             res.set_content(out.str(), "application/json");
+        });
+
+        server_.Post("/api/auth/change-pin", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_csrf_safe(req)) {
+                res.status = 403;
+                res.set_content("{\"error\":\"csrf\"}", "application/json");
+                return;
+            }
+            try {
+                auto op = req.body.find("\"old_pin\"");
+                if (op == std::string::npos) throw std::runtime_error("missing old_pin");
+                auto os = req.body.find('"', op + 10);
+                auto oe = req.body.find('"', os + 1);
+                std::string old_pin = req.body.substr(os + 1, oe - os - 1);
+
+                auto np = req.body.find("\"new_pin\"");
+                if (np == std::string::npos) throw std::runtime_error("missing new_pin");
+                auto ns = req.body.find('"', np + 10);
+                auto ne = req.body.find('"', ns + 1);
+                std::string new_pin = req.body.substr(ns + 1, ne - ns - 1);
+
+                if (old_pin.size() < 4) throw std::runtime_error("old PIN too short");
+                if (new_pin.size() < 4) throw std::runtime_error("new PIN must be 4+ digits");
+
+                if (!caesar::verify_pin(pin_path_, old_pin)) {
+                    res.status = 401;
+                    res.set_content("{\"error\":\"invalid old PIN\"}", "application/json");
+                    return;
+                }
+
+                if (!wallet_->is_loaded()) {
+                    wallet_->unlock_with_pin(old_pin);
+                }
+
+                wallet_->save_encrypted(new_pin);
+                caesar::save_pin(pin_path_, new_pin);
+
+                res.set_content("{\"status\":\"ok\"}", "application/json");
+            } catch (const std::exception& e) {
+                res.status = 400;
+                res.set_content(std::string("{\"error\":\"") + e.what() + "\"}", "application/json");
+            }
         });
 
         server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res) {
