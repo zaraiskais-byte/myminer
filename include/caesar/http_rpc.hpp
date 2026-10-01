@@ -120,6 +120,19 @@ pre{background:#000;padding:8px;border-radius:4px;font-size:11px;max-height:180p
 </div>
 
 <div class="card">
+<h2>Address Book</h2>
+<div style="font-size:11px;color:#888;margin-bottom:6px">Save frequently used addresses</div>
+<div style="margin-bottom:8px">
+  <input id="abName" placeholder="name" style="width:100%;box-sizing:border-box;background:#000;color:#fff;border:1px solid #333;border-radius:4px;padding:8px;font-family:monospace;font-size:12px;margin-bottom:6px">
+  <div style="display:flex;gap:6px">
+    <input id="abAddr" placeholder="CZ1..." style="flex:1;min-width:0;background:#000;color:#fff;border:1px solid #333;border-radius:4px;padding:8px;font-family:monospace;font-size:11px">
+    <button onclick="addContact()" style="padding:8px 16px;font-size:16px;font-weight:bold;background:#f0c040;color:#000;border:none;border-radius:4px">+</button>
+  </div>
+</div>
+<div id="abList" style="font-size:12px;font-family:monospace"></div>
+</div>
+
+<div class="card">
 <h2>Log</h2>
 <pre id="log">Ready.</pre>
 </div>
@@ -159,6 +172,54 @@ async function refreshHistory(){
     });
     el.innerHTML=html;
   }catch(e){document.getElementById('txList').textContent='Error: '+e.message;}
+}
+
+function loadContacts(){
+  try{return JSON.parse(localStorage.getItem('czr_contacts')||'[]');}catch(e){return [];}
+}
+function saveContacts(list){
+  localStorage.setItem('czr_contacts',JSON.stringify(list));
+}
+function renderContacts(){
+  var el=document.getElementById('abList');
+  if(!el)return;
+  var list=loadContacts();
+  if(list.length===0){el.innerHTML='<div style="color:#666">no contacts saved</div>';return;}
+  var html='';
+  list.forEach(function(c,i){
+    html+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a1a1a">'
+         +'<span style="color:#f0c040">'+c.name+'</span>'
+         +'<span style="color:#888">'+c.addr.substring(0,20)+'...</span>'
+         +'<span><button onclick="useContact('+i+')" style="font-size:10px;padding:2px 6px">use</button>'
+         +' <button onclick="delContact('+i+')" style="font-size:10px;padding:2px 6px">x</button></span>'
+         +'</div>';
+  });
+  el.innerHTML=html;
+}
+function addContact(){
+  var n=document.getElementById('abName').value.trim();
+  var a=document.getElementById('abAddr').value.trim();
+  if(!n||!a){log('name and address required');return;}
+  var list=loadContacts();
+  list.push({name:n,addr:a});
+  saveContacts(list);
+  document.getElementById('abName').value='';
+  document.getElementById('abAddr').value='';
+  renderContacts();
+  log('Contact saved: '+n);
+}
+function delContact(i){
+  var list=loadContacts();
+  list.splice(i,1);
+  saveContacts(list);
+  renderContacts();
+}
+function useContact(i){
+  var list=loadContacts();
+  var c=list[i];
+  if(!c)return;
+  var r=document.getElementById('recipient');
+  if(r){r.value=c.addr;log('Recipient set: '+c.name);}
 }
 
 async function refreshWallet(){
