@@ -1,4 +1,6 @@
 #pragma once
+#include <atomic>
+#include <fstream>
 #include <ctime>
 
 #include <chrono>
@@ -94,6 +96,83 @@ inline std::vector<std::uint8_t> pool_hex_to_bytes(const std::string& h) {
         out.push_back(static_cast<std::uint8_t>((hi << 4) | lo));
     }
     return out;
+}
+
+inline std::atomic<bool> g_pool_state_loaded{false};
+
+inline void pool_save_state_unlocked(const std::filesystem::path& p) {
+    std::ofstream f(p, std::ios::trunc);
+    if (!f) return;
+    f << "total_shares=" << g_pool_total_shares << "\n";
+    f << "total_blocks=" << g_pool_total_blocks << "\n";
+    f << "job_counter=" << g_pool_job_counter << "\n";
+    f << "fee_percent=" << g_pool_fee_percent << "\n";
+    for (const auto& kv : g_pool_workers) {
+        const auto& w = kv.second;
+        f << "worker=" << w.address << "|" << w.worker_name << "|"
+          << w.shares << "|" << w.shares_pending << "|" << w.last_seen << "\n";
+    }
+    for (const auto& r : g_pool_payouts) {
+        f << "payout=" << r.timestamp << "|" << r.block_height << "|"
+          << r.txid << "|" << r.total_amount << "|" << r.fee_amount << "|"
+          << r.recipient_count << "\n";
+    }
+    f.flush();
+}
+
+inline void pool_load_state_unlocked(const std::filesystem::path& p) {
+    std::ifstream f(p);
+    if (!f) return;
+    g_pool_workers.clear();
+    g_pool_payouts.clear();
+    auto split = [](const std::string& s, char d) {
+        std::vector<std::string> parts;
+        std::string cur;
+        for (char ch : s) {
+            if (ch == d) { parts.push_back(cur); cur.clear(); }
+            else cur += ch;
+        }
+        parts.push_back(cur);
+        return parts;
+    };
+    std::string line;
+    while (std::getline(f, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        auto eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        std::string key = line.substr(0, eq);
+        std::string val = line.substr(eq + 1);
+        try {
+            if (key == "total_shares") g_pool_total_shares = std::stoull(val);
+            else if (key == "total_blocks") g_pool_total_blocks = std::stoull(val);
+            else if (key == "job_counter") g_pool_job_counter = std::stoull(val);
+            else if (key == "fee_percent") g_pool_fee_percent = std::stod(val);
+            else if (key == "worker") {
+                auto q = split(val, '|');
+                if (q.size() >= 5) {
+                    PoolWorkerInfo w;
+                    w.address = q[0];
+                    w.worker_name = q[1];
+                    w.shares = std::stoull(q[2]);
+                    w.shares_pending = std::stoull(q[3]);
+                    w.last_seen = std::stoull(q[4]);
+                    g_pool_workers[w.address] = w;
+                }
+            } else if (key == "payout") {
+                auto q = split(val, '|');
+                if (q.size() >= 6) {
+                    PoolPayoutRecord r;
+                    r.timestamp = std::stoull(q[0]);
+                    r.block_height = std::stoull(q[1]);
+                    r.txid = q[2];
+                    r.total_amount = std::stoull(q[3]);
+                    r.fee_amount = std::stoull(q[4]);
+                    r.recipient_count = std::stoull(q[5]);
+                    g_pool_payouts.push_back(r);
+                }
+            }
+        } catch (...) {}
+    }
 }
 
 
@@ -1302,10 +1381,14 @@ setInterval(load, 10000);
                 return;
             }
             std::lock_guard<std::mutex> lock(g_pool_mutex);
+            if (!g_pool_state_loaded.exchange(true)) {
+                pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            }
             auto& w = g_pool_workers[addr];
             w.address = addr;
             if (!name.empty()) w.worker_name = name;
             w.last_seen = static_cast<std::uint64_t>(::time(nullptr));
+            pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
             res.set_content("{\"ok\":true,\"address\":\"" + addr + "\"}",
                             "application/json");
         });
@@ -1417,6 +1500,9 @@ setInterval(load, 10000);
                     }
                 } catch (...) {}
             }
+            if (credited || block_added) {
+                pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            }
             std::ostringstream out;
             out << "{\"ok\":true"
                 << ",\"credited\":" << (credited ? "true" : "false")
@@ -1429,6 +1515,9 @@ setInterval(load, 10000);
         server_.Get("/api/pool/stats", [this](const httplib::Request&,
                                               httplib::Response& res) {
             std::lock_guard<std::mutex> lock(g_pool_mutex);
+            if (!g_pool_state_loaded.exchange(true)) {
+                pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            }
             std::ostringstream out;
             out << "{\"ok\":true"
                 << ",\"fee_percent\":" << g_pool_fee_percent
@@ -1537,6 +1626,7 @@ setInterval(load, 10000);
                 g_pool_payouts.push_back(rec);
 
                 for (auto& kv : g_pool_workers) kv.second.shares_pending = 0;
+                pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
 
                 std::ostringstream out;
                 out << "{\"ok\":true,\"txid\":\"" << rec.txid << "\""
