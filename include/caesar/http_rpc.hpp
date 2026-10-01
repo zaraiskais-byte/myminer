@@ -882,6 +882,34 @@ setInterval(load, 10000);
             res.set_content(o, "image/svg+xml");
         });
 
+        server_.Get("/api/wallet/history", [this](const httplib::Request&, httplib::Response& res) {
+            if (!wallet_ || !wallet_->is_loaded()) { res.status = 401; res.set_content("{\"error\":\"locked\"}", "application/json"); return; }
+            std::string myaddr = wallet_->address();
+            std::vector<Block> chain = node_.chain();
+            std::ostringstream out;
+            out << "{\"address\":\"" << myaddr << "\",\"transactions\":[";
+            bool first = true; int count = 0;
+            for (auto it = chain.rbegin(); it != chain.rend() && count < 100; ++it) {
+                for (const auto& tx : it->transactions) {
+                    for (const auto& o : tx.outputs) {
+                        if (o.recipient == myaddr) {
+                            if (!first) out << ",";
+                            first = false;
+                            out << "{\"block\":" << it->header.height
+                                << ",\"timestamp\":" << it->header.timestamp
+                                << ",\"amount\":" << o.amount
+                                << ",\"direction\":\"received\"}";
+                            ++count;
+                            break;
+                        }
+                    }
+                }
+            }
+            out << "]}";
+            res.set_header("Cache-Control", "no-store");
+            res.set_content(out.str(), "application/json");
+        });
+
         server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res) {
             res.set_content(
                 R"({"name":"Caesar CZR Wallet","short_name":"Caesar","start_url":"/","display":"standalone","background_color":"#0f1115","theme_color":"#f0c040","orientation":"portrait","icons":[{"src":"/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"}]})",
