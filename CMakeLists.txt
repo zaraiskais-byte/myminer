@@ -936,6 +936,7 @@ find_package(Threads REQUIRED)
 
 add_executable(caesar_web
     src/web.cpp
+    third_party/qrcodegen.cpp
 )
 
 target_include_directories(caesar_web PRIVATE

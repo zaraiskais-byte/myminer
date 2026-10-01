@@ -22,6 +22,7 @@
 #include <caesar/wallet_auth.hpp>
 #include <caesar/bip39.hpp>
 #include <caesar/key_encoding.hpp>
+#include <qrcodegen.hpp>
 #include <caesar/transaction_signature.hpp>
 #include <caesar/utxo.hpp>
 #include <caesar/witness.hpp>
@@ -81,6 +82,11 @@ pre{background:#000;padding:8px;border-radius:4px;font-size:11px;max-height:180p
 <div class="card">
 <h2>My Wallet</h2>
 <div class="row"><span>Balance</span><span class="bal" id="balance">-</span></div>
+
+<div id="qrWrap" style="text-align:center;margin:12px 0 6px 0;display:none">
+  <img id="qrImg" src="/api/wallet/qr.svg" width="180" height="180" style="background:#fff;padding:10px;border-radius:8px" alt="QR">
+  <div style="font-size:10px;color:#888;margin-top:6px">Scan to receive CZR</div>
+</div>
 <div style="font-size:11px;color:#888;margin-top:6px">Address</div>
 <div class="val" id="addr" style="font-size:10px">-</div>
 <button onclick="doMine()">⛏️ Mine</button>
@@ -861,6 +867,18 @@ setInterval(load, 10000);
                 res.status = 400;
                 res.set_content(std::string("{\"error\":\"") + e.what() + "\"}", "application/json");
             }
+        });
+
+        server_.Get("/api/wallet/qr.svg", [this](const httplib::Request&, httplib::Response& res) {
+            if (!wallet_ || !wallet_->is_loaded()) { res.status = 400; return; }
+            auto qr = qrcodegen::QrCode::encodeText(wallet_->address().c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+            int n = qr.getSize(), b = 4, s = 6, t = (n + 2*b) * s;
+            std::string o = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 " + std::to_string(t) + " " + std::to_string(t) + "'><rect width='" + std::to_string(t) + "' height='" + std::to_string(t) + "' fill='#fff'/>";
+            for (int y = 0; y < n; ++y) for (int x = 0; x < n; ++x) if (qr.getModule(x, y)) {
+                o += "<rect x='" + std::to_string((x+b)*s) + "' y='" + std::to_string((y+b)*s) + "' width='" + std::to_string(s) + "' height='" + std::to_string(s) + "' fill='#000'/>";
+            }
+            o += "</svg>";
+            res.set_content(o, "image/svg+xml");
         });
 
         server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res) {
