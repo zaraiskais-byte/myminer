@@ -115,6 +115,11 @@ pre{background:#000;padding:8px;border-radius:4px;font-size:11px;max-height:180p
 </div>
 
 <div class="card">
+<h2>Transactions</h2>
+<div id="txList" style="font-size:12px;font-family:monospace;color:#5fdc7a">Loading...</div>
+</div>
+
+<div class="card">
 <h2>Log</h2>
 <pre id="log">Ready.</pre>
 </div>
@@ -137,6 +142,25 @@ async function refreshStatus(){
     document.getElementById('uptime').textContent=d.uptime+'s';
   }catch(e){}
 }
+async function refreshHistory(){
+  try{
+    var d=await api('/api/wallet/history');
+    var el=document.getElementById('txList');
+    if(!d.transactions||d.transactions.length===0){el.textContent='No transactions yet.';return;}
+    var html='';
+    d.transactions.slice(0,20).forEach(function(t){
+      var when=new Date(t.timestamp*1000).toISOString().replace('T',' ').substring(0,19);
+      var amt=(t.amount/100000000).toFixed(2);
+      html+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1a1a1a">'
+           +'<span style="color:#888">#'+t.block+'</span>'
+           +'<span style="color:#ccc">'+when+'</span>'
+           +'<span style="color:#5fdc7a">+'+amt+' CZR</span>'
+           +'</div>';
+    });
+    el.innerHTML=html;
+  }catch(e){document.getElementById('txList').textContent='Error: '+e.message;}
+}
+
 async function refreshWallet(){
   try{
     var w=await api('/api/wallet');
@@ -144,6 +168,7 @@ async function refreshWallet(){
     document.getElementById('qrWrap').style.display='block';
     var b=await api('/api/balance');
     document.getElementById('balance').textContent=b.balance+' CZR';
+    refreshHistory();
   }catch(e){log('Refresh err: '+e.message);}
 }
 async function doMine(){
