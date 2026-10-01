@@ -948,3 +948,15 @@ target_link_libraries(caesar_web PRIVATE
     OpenSSL::Crypto
     Threads::Threads
 )
+
+# Caesar pool worker
+add_executable(caesar_worker
+    src/pool_worker.cpp
+)
+target_include_directories(caesar_worker PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_worker PRIVATE
+    OpenSSL::Crypto
+    Threads::Threads
+)

@@ -1,4 +1,5 @@
 #pragma once
+#include <ctime>
 
 #include <chrono>
 #include <cstdint>
@@ -28,6 +29,74 @@
 #include <caesar/witness.hpp>
 
 namespace caesar {
+
+struct PoolWorkerInfo {
+    std::string address;
+    std::string worker_name;
+    std::uint64_t shares = 0;
+    std::uint64_t shares_pending = 0;
+    std::uint64_t last_seen = 0;
+};
+
+struct PoolPayoutRecord {
+    std::uint64_t timestamp = 0;
+    std::uint64_t block_height = 0;
+    std::string txid;
+    std::uint64_t total_amount = 0;
+    std::uint64_t fee_amount = 0;
+    std::uint64_t recipient_count = 0;
+};
+
+struct PoolJobState {
+    bool active = false;
+    std::uint64_t job_id = 0;
+    std::string header_hex;
+    std::uint32_t share_difficulty = 0;
+    std::uint32_t block_difficulty = 0;
+    std::uint64_t height = 0;
+    Block candidate;
+    std::string miner_address;
+};
+
+inline std::mutex g_pool_mutex;
+inline std::map<std::string, PoolWorkerInfo> g_pool_workers;
+inline PoolJobState g_pool_current_job;
+inline std::uint64_t g_pool_total_shares = 0;
+inline std::uint64_t g_pool_total_blocks = 0;
+inline std::uint64_t g_pool_job_counter = 0;
+inline double g_pool_fee_percent = 2.0;
+inline std::vector<PoolPayoutRecord> g_pool_payouts;
+
+inline std::string pool_bytes_to_hex(const std::vector<std::uint8_t>& data) {
+    static const char* hex = "0123456789abcdef";
+    std::string out;
+    out.reserve(data.size() * 2);
+    for (auto b : data) {
+        out.push_back(hex[(b >> 4) & 0xF]);
+        out.push_back(hex[b & 0xF]);
+    }
+    return out;
+}
+
+inline std::vector<std::uint8_t> pool_hex_to_bytes(const std::string& h) {
+    std::vector<std::uint8_t> out;
+    out.reserve(h.size() / 2);
+    auto val = [](char c) -> int {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+    };
+    for (std::size_t i = 0; i + 1 < h.size(); i += 2) {
+        int hi = val(h[i]);
+        int lo = val(h[i + 1]);
+        if (hi < 0 || lo < 0) break;
+        out.push_back(static_cast<std::uint8_t>((hi << 4) | lo));
+    }
+    return out;
+}
+
+
 
 inline const char* WALLET_HTML = R"HTML(<!DOCTYPE html>
 <html>
@@ -1209,6 +1278,440 @@ setInterval(load, 10000);
                                 "application/json");
             }
         });
+
+        // ============ POOL ENDPOINTS ============
+        server_.Post("/api/pool/register", [this](const httplib::Request& req,
+                                                  httplib::Response& res) {
+            auto gf = [&](const std::string& key) -> std::string {
+                auto pos = req.body.find("\"" + key + "\"");
+                if (pos == std::string::npos) return "";
+                auto colon = req.body.find(':', pos);
+                if (colon == std::string::npos) return "";
+                auto start = req.body.find('"', colon);
+                if (start == std::string::npos) return "";
+                auto end = req.body.find('"', start + 1);
+                if (end == std::string::npos) return "";
+                return req.body.substr(start + 1, end - start - 1);
+            };
+            std::string addr = gf("address");
+            std::string name = gf("worker");
+            if (addr.empty()) {
+                res.status = 400;
+                res.set_content("{\"ok\":false,\"error\":\"address required\"}",
+                                "application/json");
+                return;
+            }
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            auto& w = g_pool_workers[addr];
+            w.address = addr;
+            if (!name.empty()) w.worker_name = name;
+            w.last_seen = static_cast<std::uint64_t>(::time(nullptr));
+            res.set_content("{\"ok\":true,\"address\":\"" + addr + "\"}",
+                            "application/json");
+        });
+
+        server_.Get("/api/pool/job", [this](const httplib::Request& req,
+                                            httplib::Response& res) {
+            std::string addr;
+            auto it = req.params.find("address");
+            if (it != req.params.end()) addr = it->second;
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            const std::size_t current_height = node_.height();
+            bool need_new = !g_pool_current_job.active ||
+                            g_pool_current_job.height != (current_height + 1);
+            if (need_new) {
+                std::string pool_recv = my_address();
+                if (pool_recv.empty()) pool_recv = "CAESAR_POOL_COINBASE";
+                std::string recipient = pool_recv;
+                try {
+                    Block candidate = node_.build_pool_candidate(recipient);
+                    g_pool_job_counter++;
+                    g_pool_current_job.job_id = g_pool_job_counter;
+                    g_pool_current_job.candidate = candidate;
+                    g_pool_current_job.height = candidate.header.height;
+                    g_pool_current_job.block_difficulty = candidate.header.difficulty;
+                    std::uint32_t sd = candidate.header.difficulty > 8
+                                       ? candidate.header.difficulty - 8 : 1;
+                    g_pool_current_job.share_difficulty = sd;
+                    g_pool_current_job.header_hex = pool_bytes_to_hex(candidate.pow_header());
+                    g_pool_current_job.miner_address = recipient;
+                    g_pool_current_job.active = true;
+                } catch (const std::exception& e) {
+                    res.status = 500;
+                    res.set_content(std::string("{\"error\":\"") + e.what() + "\"}",
+                                    "application/json");
+                    return;
+                }
+            }
+            std::ostringstream out;
+            out << "{\"ok\":true"
+                << ",\"job_id\":" << g_pool_current_job.job_id
+                << ",\"header_hex\":\"" << g_pool_current_job.header_hex << "\""
+                << ",\"share_difficulty\":" << g_pool_current_job.share_difficulty
+                << ",\"block_difficulty\":" << g_pool_current_job.block_difficulty
+                << ",\"height\":" << g_pool_current_job.height
+                << "}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Post("/api/pool/submit", [this](const httplib::Request& req,
+                                                httplib::Response& res) {
+            auto gs = [&](const std::string& key) -> std::string {
+                auto pos = req.body.find("\"" + key + "\"");
+                if (pos == std::string::npos) return "";
+                auto colon = req.body.find(':', pos);
+                if (colon == std::string::npos) return "";
+                auto start = req.body.find('"', colon);
+                if (start == std::string::npos) return "";
+                auto end = req.body.find('"', start + 1);
+                if (end == std::string::npos) return "";
+                return req.body.substr(start + 1, end - start - 1);
+            };
+            auto gu = [&](const std::string& key) -> std::uint64_t {
+                auto pos = req.body.find("\"" + key + "\"");
+                if (pos == std::string::npos) return 0;
+                auto colon = req.body.find(':', pos);
+                if (colon == std::string::npos) return 0;
+                auto start = req.body.find_first_of("0123456789", colon);
+                if (start == std::string::npos) return 0;
+                auto end = req.body.find_first_not_of("0123456789", start);
+                if (end == std::string::npos) end = req.body.size();
+                try { return std::stoull(req.body.substr(start, end - start)); }
+                catch (...) { return 0; }
+            };
+            std::string addr = gs("address");
+            std::uint64_t job_id = gu("job_id");
+            std::uint64_t nonce = gu("nonce");
+            if (addr.empty()) {
+                res.status = 400;
+                res.set_content("{\"ok\":false,\"error\":\"address required\"}",
+                                "application/json");
+                return;
+            }
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            if (!g_pool_current_job.active || g_pool_current_job.job_id != job_id) {
+                res.set_content("{\"ok\":false,\"stale\":true}", "application/json");
+                return;
+            }
+            auto header_bytes = pool_hex_to_bytes(g_pool_current_job.header_hex);
+            Hash256 h = calculate_pow_hash(header_bytes, nonce);
+            bool credited = false;
+            if (pow_meets_difficulty(h, g_pool_current_job.share_difficulty)) {
+                g_pool_workers[addr].shares++;
+                g_pool_workers[addr].shares_pending++;
+                g_pool_workers[addr].last_seen =
+                    static_cast<std::uint64_t>(::time(nullptr));
+                g_pool_total_shares++;
+                credited = true;
+            }
+            bool is_block = pow_meets_difficulty(h, g_pool_current_job.block_difficulty);
+            bool block_added = false;
+            if (is_block) {
+                Block solved = g_pool_current_job.candidate;
+                solved.header.nonce = nonce;
+                try {
+                    if (node_.submit_pool_solution(solved)) {
+                        block_added = true;
+                        g_pool_total_blocks++;
+                        g_pool_current_job.active = false;
+                    }
+                } catch (...) {}
+            }
+            std::ostringstream out;
+            out << "{\"ok\":true"
+                << ",\"credited\":" << (credited ? "true" : "false")
+                << ",\"is_block\":" << (is_block ? "true" : "false")
+                << ",\"block_added\":" << (block_added ? "true" : "false")
+                << "}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Get("/api/pool/stats", [this](const httplib::Request&,
+                                              httplib::Response& res) {
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            std::ostringstream out;
+            out << "{\"ok\":true"
+                << ",\"fee_percent\":" << g_pool_fee_percent
+                << ",\"total_shares\":" << g_pool_total_shares
+                << ",\"total_blocks\":" << g_pool_total_blocks
+                << ",\"current_height\":" << node_.height()
+                << ",\"workers\":[";
+            bool first = true;
+            for (const auto& kv : g_pool_workers) {
+                if (!first) out << ",";
+                first = false;
+                out << "{\"address\":\"" << kv.second.address << "\""
+                    << ",\"name\":\"" << kv.second.worker_name << "\""
+                    << ",\"shares\":" << kv.second.shares << "}";
+            }
+            out << "]}";
+            res.set_content(out.str(), "application/json");
+        });
+        server_.Post("/api/pool/payout", [this](const httplib::Request&,
+                                                httplib::Response& res) {
+            try {
+                if (!wallet_) throw std::runtime_error("wallet unavailable");
+                const std::string pool_addr = wallet_->address();
+                if (pool_addr.empty()) throw std::runtime_error("pool address unavailable");
+
+                std::lock_guard<std::mutex> lock(g_pool_mutex);
+
+                std::uint64_t total_pending = 0;
+                for (const auto& kv : g_pool_workers)
+                    if (kv.second.shares_pending > 0) total_pending += kv.second.shares_pending;
+                if (total_pending == 0)
+                    throw std::runtime_error("no pending shares");
+
+                auto utxos = collect_my_utxos();
+                std::uint64_t total_utxo = 0;
+                for (const auto& u : utxos) total_utxo += u.amount;
+                if (total_utxo < 10000)
+                    throw std::runtime_error("pool balance too small");
+
+                const std::uint64_t RESERVE = 1000;
+                const std::uint64_t distributable = total_utxo - RESERVE;
+
+                const double fee_frac = g_pool_fee_percent / 100.0;
+                const std::uint64_t fee_amount =
+                    static_cast<std::uint64_t>(distributable * fee_frac);
+                const std::uint64_t worker_pool = distributable - fee_amount;
+
+                Transaction tx;
+                tx.version = 1;
+
+                std::uint64_t assigned = 0;
+                for (const auto& kv : g_pool_workers) {
+                    if (kv.second.shares_pending == 0) continue;
+                    std::uint64_t amount =
+                        (worker_pool * kv.second.shares_pending) / total_pending;
+                    if (amount == 0) continue;
+                    TransactionOutput o;
+                    o.amount = amount;
+                    o.recipient = kv.second.address;
+                    tx.outputs.push_back(o);
+                    assigned += amount;
+                }
+
+                if (tx.outputs.empty())
+                    throw std::runtime_error("no outputs above dust");
+
+                std::uint64_t gathered = 0;
+                for (const auto& u : utxos) {
+                    TransactionInput in;
+                    in.previous_txid = u.txid;
+                    in.output_index = u.index;
+                    tx.inputs.push_back(in);
+                    gathered += u.amount;
+                    if (gathered >= assigned + 5000) break;
+                }
+                if (gathered < assigned)
+                    throw std::runtime_error("insufficient utxos for payout");
+
+                const std::uint64_t change = gathered - assigned;
+                if (change > 0) {
+                    TransactionOutput ch;
+                    ch.amount = change;
+                    ch.recipient = pool_addr;
+                    tx.outputs.push_back(ch);
+                }
+
+                const std::string pk = wallet_->public_key();
+                for (std::size_t i = 0; i < tx.inputs.size(); ++i) {
+                    auto sig = sign_transaction_input(tx, i, wallet_->private_key());
+                    TransactionWitness w;
+                    w.public_key = pk;
+                    w.signature = sig;
+                    tx.witness.inputs.push_back(w);
+                }
+
+                if (!node_.submit_transaction(tx))
+                    throw std::runtime_error("mempool rejected payout tx");
+
+                PoolPayoutRecord rec;
+                rec.timestamp = static_cast<std::uint64_t>(::time(nullptr));
+                rec.block_height = node_.height();
+                rec.txid = hash_to_hex(tx.txid());
+                rec.total_amount = assigned;
+                rec.fee_amount = fee_amount;
+                rec.recipient_count = tx.outputs.size();
+                g_pool_payouts.push_back(rec);
+
+                for (auto& kv : g_pool_workers) kv.second.shares_pending = 0;
+
+                std::ostringstream out;
+                out << "{\"ok\":true,\"txid\":\"" << rec.txid << "\""
+                    << ",\"distributed\":" << assigned
+                    << ",\"fee\":" << fee_amount
+                    << ",\"recipients\":" << (tx.outputs.size() > 0
+                                              ? tx.outputs.size() - 1 : 0)
+                    << "}";
+                res.set_content(out.str(), "application/json");
+            } catch (const std::exception& e) {
+                res.status = 500;
+                res.set_content(std::string("{\"error\":\"") + e.what() + "\"}",
+                                "application/json");
+            }
+        });
+
+        server_.Get("/api/pool/payouts", [](const httplib::Request&,
+                                            httplib::Response& res) {
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            std::ostringstream out;
+            out << "{\"ok\":true,\"count\":" << g_pool_payouts.size() << ",\"items\":[";
+            bool first = true;
+            for (const auto& r : g_pool_payouts) {
+                if (!first) out << ",";
+                first = false;
+                out << "{\"ts\":" << r.timestamp
+                    << ",\"block\":" << r.block_height
+                    << ",\"txid\":\"" << r.txid << "\""
+                    << ",\"total\":" << r.total_amount
+                    << ",\"fee\":" << r.fee_amount
+                    << ",\"recipients\":" << r.recipient_count << "}";
+            }
+            out << "]}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Get("/pool", [](const httplib::Request&, httplib::Response& res) {
+            const char* html = R"HTML(<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Caesar CZR Pool</title>
+<style>
+body{font-family:monospace;background:#0f1115;color:#e8e8e8;margin:0;padding:16px}
+h1{color:#f0c040;font-size:22px;margin:0 0 12px}
+h2{color:#f0c040;font-size:15px;margin:14px 0 6px}
+.card{background:#1a1d24;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #252a33}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.stat{background:#0a0d12;padding:10px;border-radius:6px;border:1px solid #1f242c}
+.stat .label{color:#888;font-size:11px;text-transform:uppercase}
+.stat .value{color:#5fdc7a;font-weight:bold;font-size:18px;margin-top:4px;word-break:break-all}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{color:#f0c040;text-align:left;padding:6px;border-bottom:1px solid #333}
+td{padding:6px;border-bottom:1px solid #1a1a1a;word-break:break-all}
+tr:hover{background:#1a1a1a}
+.hash{color:#5fdc7a;font-size:11px}
+button,a.btn{background:#f0c040;color:#000;border:none;padding:10px 16px;font-weight:bold;border-radius:6px;cursor:pointer;font-family:monospace;font-size:13px;margin:2px 3px 2px 0;text-decoration:none;display:inline-block}
+button:active{background:#d0a020}
+#log{background:#000;padding:8px;border-radius:4px;font-size:11px;max-height:120px;overflow-y:auto;color:#5fdc7a;margin-top:8px}
+.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Caesar CZR Pool</h1>
+  <div>
+    <button onclick="doPayout()">Payout Now</button>
+    <button onclick="refresh()">Refresh</button>
+    <a class="btn" href="/">Wallet</a>
+    <a class="btn" href="/explorer">Explorer</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Chain</h2>
+  <div class="grid" id="chainGrid">
+    <div class="stat"><div class="label">Height</div><div class="value" id="vHeight">-</div></div>
+    <div class="stat"><div class="label">Mempool</div><div class="value" id="vMempool">-</div></div>
+    <div class="stat"><div class="label">Peers</div><div class="value" id="vPeers">-</div></div>
+    <div class="stat"><div class="label">Uptime</div><div class="value" id="vUptime">-</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Pool</h2>
+  <div class="grid">
+    <div class="stat"><div class="label">Total Shares</div><div class="value" id="vShares">-</div></div>
+    <div class="stat"><div class="label">Total Blocks</div><div class="value" id="vBlocks">-</div></div>
+    <div class="stat"><div class="label">Fee %</div><div class="value" id="vFee">-</div></div>
+    <div class="stat"><div class="label">Workers</div><div class="value" id="vWorkers">-</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Workers</h2>
+  <table id="workersTable">
+    <thead><tr><th>Address</th><th>Name</th><th>Shares</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Payouts</h2>
+  <table id="payoutsTable">
+    <thead><tr><th>Time</th><th>Block</th><th>TXID</th><th>Total</th><th>Fee</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Log</h2>
+  <div id="log">Ready.</div>
+</div>
+
+<script>
+function log(s){var el=document.getElementById('log');el.innerHTML=el.innerHTML+'<br>'+new Date().toLocaleTimeString()+' | '+s;el.scrollTop=el.scrollHeight;}
+
+async function refresh(){
+  try{
+    var s=await fetch('/api/status').then(r=>r.json());
+    document.getElementById('vHeight').textContent=s.height;
+    document.getElementById('vMempool').textContent=s.mempool;
+    document.getElementById('vPeers').textContent=s.peers;
+    document.getElementById('vUptime').textContent=s.uptime+'s';
+
+    var p=await fetch('/api/pool/stats').then(r=>r.json());
+    document.getElementById('vShares').textContent=p.total_shares;
+    document.getElementById('vBlocks').textContent=p.total_blocks;
+    document.getElementById('vFee').textContent=p.fee_percent+'%';
+    document.getElementById('vWorkers').textContent=p.workers.length;
+
+    var wt=document.querySelector('#workersTable tbody');
+    wt.innerHTML='';
+    p.workers.forEach(function(w){
+      var tr=document.createElement('tr');
+      tr.innerHTML='<td>'+w.address.slice(0,20)+'...</td><td>'+w.name+'</td><td>'+w.shares+'</td>';
+      wt.appendChild(tr);
+    });
+
+    var pr=await fetch('/api/pool/payouts').then(r=>r.json());
+    var pt=document.querySelector('#payoutsTable tbody');
+    pt.innerHTML='';
+    pr.items.slice().reverse().forEach(function(x){
+      var tr=document.createElement('tr');
+      tr.innerHTML='<td>'+(new Date(x.ts*1000)).toLocaleTimeString()+'</td>'+
+                   '<td>'+x.block+'</td>'+
+                   '<td class="hash">'+x.txid.slice(0,24)+'...</td>'+
+                   '<td>'+(x.total/100000000).toFixed(2)+'</td>'+
+                   '<td>'+(x.fee/100000000).toFixed(4)+'</td>';
+      pt.appendChild(tr);
+    });
+  }catch(e){log('refresh error: '+e.message);}
+}
+
+async function doPayout(){
+  log('triggering payout...');
+  try{
+    var r=await fetch('/api/pool/payout',{method:'POST'});
+    var d=await r.json();
+    log(JSON.stringify(d));
+    if(d.ok) log('payout txid: '+d.txid);
+    refresh();
+  }catch(e){log('payout error: '+e.message);}
+}
+
+refresh();
+setInterval(refresh,5000);
+</script>
+</body>
+</html>)HTML";
+            res.set_content(html, "text/html");
+        });
+
+        // ============ END POOL ENDPOINTS ============
 
         server_.Post("/api/send", [this](const httplib::Request& req, httplib::Response& res) {
             if (!is_authenticated(req)) {

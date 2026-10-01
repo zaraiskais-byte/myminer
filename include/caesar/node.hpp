@@ -319,6 +319,49 @@ class CaesarNode {
         relay_.announce_block(candidate);
     }
 
+    Block build_pool_candidate(const std::string& miner_recipient) {
+        if (!running_)
+            throw std::runtime_error("cannot build candidate while node is stopped");
+        if (miner_recipient.empty())
+            throw std::runtime_error("miner recipient is empty");
+        std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
+        std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
+        auto current_chain = storage_.load();
+        if (current_chain.empty())
+            throw std::runtime_error("cannot mine on empty blockchain");
+        const Block& previous = current_chain.back();
+        const UTXOSet previous_utxos = rebuild_utxo_set(current_chain);
+        const auto now = std::chrono::duration_cast<std::chrono::seconds>(
+                             std::chrono::system_clock::now().time_since_epoch()).count();
+        const std::uint64_t timestamp = static_cast<std::uint64_t>(now < 0 ? 0 : now);
+        const std::uint64_t block_timestamp =
+            timestamp < previous.header.timestamp ? previous.header.timestamp : timestamp;
+        const std::uint32_t difficulty = expected_next_difficulty(current_chain);
+        return BlockBuilder::build(previous, mempool_, miner_recipient,
+                                   block_timestamp, difficulty, 0, &previous_utxos);
+    }
+
+    bool submit_pool_solution(Block candidate) {
+        if (!running_)
+            throw std::runtime_error("cannot submit solution while node is stopped");
+        std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
+        std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
+        auto current_chain = storage_.load();
+        if (current_chain.empty())
+            throw std::runtime_error("cannot submit on empty blockchain");
+        const Block& previous = current_chain.back();
+        if (candidate.header.previous_hash != previous.hash()) return false;
+        if (candidate.header.height != previous.header.height + 1) return false;
+        if (!candidate.validate_pow()) return false;
+        const UTXOSet previous_utxos = rebuild_utxo_set(current_chain);
+        if (!validate_block_consensus(candidate, current_chain, previous_utxos))
+            return false;
+        storage_.append(candidate);
+        mempool_.clear();
+        relay_.announce_block(candidate);
+        return true;
+    }
+
    private:
     void ensure_chain() {
         std::lock_guard<std::mutex> lock(*chain_mutex_);
