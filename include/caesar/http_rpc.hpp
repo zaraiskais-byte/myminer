@@ -84,7 +84,7 @@ pre{background:#000;padding:8px;border-radius:4px;font-size:11px;max-height:180p
 <div class="row"><span>Balance</span><span class="bal" id="balance">-</span></div>
 
 <div id="qrWrap" style="text-align:center;margin:12px 0 6px 0;display:none">
-  <img id="qrImg" src="/api/wallet/qr.svg" width="180" height="180" style="background:#fff;padding:10px;border-radius:8px" alt="QR">
+  <img id="qrImg" src="/api/wallet/qr.svg" width="300" height="300" style="background:#fff;padding:10px;border-radius:8px" alt="QR">
   <div style="font-size:10px;color:#888;margin-top:6px">Scan to receive CZR</div>
 </div>
 <div style="font-size:11px;color:#888;margin-top:6px">Address</div>
@@ -141,6 +141,7 @@ async function refreshWallet(){
   try{
     var w=await api('/api/wallet');
     document.getElementById('addr').textContent=w.address||'-';
+    document.getElementById('qrWrap').style.display='block';
     var b=await api('/api/balance');
     document.getElementById('balance').textContent=b.balance+' CZR';
   }catch(e){log('Refresh err: '+e.message);}
