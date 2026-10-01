@@ -70,7 +70,7 @@ inline ExtendedKey derive_hardened_child(const ExtendedKey& parent, uint32_t ind
 }
 
 // ============================================================
-// Parse "m/44'/0'/0'/0'/0'" style paths
+// Parse "m/44'/7999'/0'/0'/0'" style paths
 // ============================================================
 inline std::vector<uint32_t> parse_path(const std::string& path) {
     std::vector<uint32_t> indices;
@@ -137,6 +137,6 @@ inline ExtendedKey derive_path(const uint8_t* seed, size_t seed_len,
 // Default path for Caesar CZR (SLIP-0010 hardened only).
 // Note: coin type 0 is a placeholder; a real SLIP-44 number should be
 // registered for CAESAR CZR before mainnet release.
-inline constexpr const char* DEFAULT_PATH = "m/44'/0'/0'/0'/0'";
+inline constexpr const char* DEFAULT_PATH = "m/44'/7999'/0'/0'/0'";
 
 }  // namespace caesar::slip10

@@ -38,6 +38,27 @@ The mnemonic is the sole source of truth for recovery.
 4. Migration: POST /api/auth/encrypt-wallet encrypts an existing
    plaintext wallet without changing its identity.
 
+## Derivation Path and Coin Type
+
+CZR wallets use the derivation path:
+
+    m / 44' / 7999' / 0' / 0' / 0'
+
+- 44' is the purpose level (BIP-44).
+- 7999' is CZR's coin type. This number is NOT registered in the
+  official SLIP-44 registry. It is in the 7000-7999 range which the
+  SLIP-44 maintainers leave unallocated for developer and test use.
+  If CZR ever becomes a production cryptocurrency, a formal
+  registration request should be submitted to the SLIP-44 registry
+  and this constant updated. That would be a hard fork for existing
+  wallets.
+- All levels are hardened because CZR uses Ed25519 (via SLIP-0010),
+  which forbids non-hardened derivation.
+
+Same mnemonic on CZR produces a different keypair than on Bitcoin
+or any other chain, because the coin type differs. This is
+intentional and standard.
+
 ## Threat Model
 
 Protected against:
@@ -66,6 +87,6 @@ Not protected against:
 |--------------------|------------------------|------------------------|
 | Mnemonic encoding  | BIP39 English wordlist | 128-bit entropy        |
 | Seed derivation    | PBKDF2-HMAC-SHA512     | 2048 iterations        |
-| HD derivation      | SLIP-0010 Ed25519      | hardened only          |
+| HD derivation      | SLIP-0010 Ed25519      | m/44'/7999'/0'/0'/0'   |
 | PIN key derivation | PBKDF2-HMAC-SHA256     | 100k iterations        |
 | Storage encryption | AES-256-GCM            | 96-bit IV, 128-bit tag |
