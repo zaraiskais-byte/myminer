@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <atomic>
 #include <fstream>
 #include <ctime>
@@ -69,6 +70,19 @@ inline std::uint64_t g_pool_job_counter = 0;
 inline double g_pool_fee_percent = 2.0;
 inline std::vector<PoolPayoutRecord> g_pool_payouts;
 
+struct PoolPayoutResult {
+    bool ok = false;
+    std::string error;
+    std::string txid;
+    std::uint64_t distributed = 0;
+    std::uint64_t fee = 0;
+    std::size_t recipients = 0;
+};
+
+inline std::atomic<bool>          g_pool_auto_enabled{false};
+inline std::atomic<std::uint32_t> g_pool_auto_blocks{10};
+inline std::atomic<std::uint64_t> g_pool_last_payout_height{0};
+
 inline std::string pool_bytes_to_hex(const std::vector<std::uint8_t>& data) {
     static const char* hex = "0123456789abcdef";
     std::string out;
@@ -107,6 +121,9 @@ inline void pool_save_state_unlocked(const std::filesystem::path& p) {
     f << "total_blocks=" << g_pool_total_blocks << "\n";
     f << "job_counter=" << g_pool_job_counter << "\n";
     f << "fee_percent=" << g_pool_fee_percent << "\n";
+    f << "auto_enabled=" << (g_pool_auto_enabled.load() ? "1" : "0") << "\n";
+    f << "auto_blocks=" << g_pool_auto_blocks.load() << "\n";
+    f << "last_payout_height=" << g_pool_last_payout_height.load() << "\n";
     for (const auto& kv : g_pool_workers) {
         const auto& w = kv.second;
         f << "worker=" << w.address << "|" << w.worker_name << "|"
@@ -611,6 +628,116 @@ class HttpRpcServer {
     }
 
     bool running() const { return server_.is_running(); }
+
+    PoolPayoutResult pool_execute_payout() {
+        PoolPayoutResult r;
+        try {
+            if (!wallet_) { r.error = "wallet unavailable"; return r; }
+            const std::string pool_addr = wallet_->address();
+            if (pool_addr.empty()) { r.error = "pool address unavailable"; return r; }
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            std::uint64_t total_pending = 0;
+            for (const auto& kv : g_pool_workers)
+                if (kv.second.shares_pending > 0) total_pending += kv.second.shares_pending;
+            if (total_pending == 0) { r.error = "no pending shares"; return r; }
+            auto utxos = collect_my_utxos();
+            std::uint64_t total_utxo = 0;
+            for (const auto& u : utxos) total_utxo += u.amount;
+            if (total_utxo < 10000) { r.error = "pool balance too small"; return r; }
+            const std::uint64_t RESERVE = 1000;
+            const std::uint64_t distributable = total_utxo - RESERVE;
+            const double fee_frac = g_pool_fee_percent / 100.0;
+            const std::uint64_t fee_amount =
+                static_cast<std::uint64_t>(distributable * fee_frac);
+            const std::uint64_t worker_pool = distributable - fee_amount;
+            Transaction tx;
+            tx.version = 1;
+            std::uint64_t assigned = 0;
+            for (const auto& kv : g_pool_workers) {
+                if (kv.second.shares_pending == 0) continue;
+                std::uint64_t amount =
+                    (worker_pool * kv.second.shares_pending) / total_pending;
+                if (amount == 0) continue;
+                TransactionOutput o;
+                o.amount = amount;
+                o.recipient = kv.second.address;
+                tx.outputs.push_back(o);
+                assigned += amount;
+            }
+            if (tx.outputs.empty()) { r.error = "no outputs above dust"; return r; }
+            std::uint64_t gathered = 0;
+            for (const auto& u : utxos) {
+                TransactionInput in;
+                in.previous_txid = u.txid;
+                in.output_index = u.index;
+                tx.inputs.push_back(in);
+                gathered += u.amount;
+                if (gathered >= assigned + 5000) break;
+            }
+            if (gathered < assigned) { r.error = "insufficient utxos"; return r; }
+            const std::uint64_t change = gathered - assigned;
+            if (change > 0) {
+                TransactionOutput ch;
+                ch.amount = change;
+                ch.recipient = pool_addr;
+                tx.outputs.push_back(ch);
+            }
+            const std::string pk = wallet_->public_key();
+            for (std::size_t i = 0; i < tx.inputs.size(); ++i) {
+                auto sig = sign_transaction_input(tx, i, wallet_->private_key());
+                TransactionWitness w;
+                w.public_key = pk;
+                w.signature = sig;
+                tx.witness.inputs.push_back(w);
+            }
+            if (!node_.submit_transaction(tx)) { r.error = "mempool rejected"; return r; }
+            PoolPayoutRecord rec;
+            rec.timestamp = static_cast<std::uint64_t>(::time(nullptr));
+            rec.block_height = node_.height();
+            rec.txid = hash_to_hex(tx.txid());
+            rec.total_amount = assigned;
+            rec.fee_amount = fee_amount;
+            rec.recipient_count = tx.outputs.size();
+            g_pool_payouts.push_back(rec);
+            for (auto& kv : g_pool_workers) kv.second.shares_pending = 0;
+            pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            r.ok = true;
+            r.txid = rec.txid;
+            r.distributed = assigned;
+            r.fee = fee_amount;
+            r.recipients = tx.outputs.size();
+            return r;
+        } catch (const std::exception& e) {
+            r.error = e.what();
+            return r;
+        }
+    }
+
+    void pool_maybe_auto_payout() {
+        if (!g_pool_auto_enabled.load()) return;
+        std::size_t h = 0;
+        try { h = node_.height(); } catch (...) { return; }
+        const std::uint64_t last = g_pool_last_payout_height.load();
+        const std::uint32_t blk = g_pool_auto_blocks.load();
+        if (blk == 0) return;
+        if (static_cast<std::uint64_t>(h) < last + blk) return;
+        std::uint64_t pending = 0;
+        {
+            std::lock_guard<std::mutex> lk(g_pool_mutex);
+            for (auto& kv : g_pool_workers) pending += kv.second.shares_pending;
+        }
+        if (pending == 0) return;
+        PoolPayoutResult r = pool_execute_payout();
+        if (r.ok) {
+            g_pool_last_payout_height.store(static_cast<std::uint64_t>(h));
+            pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            std::cout << "[pool-auto] payout at height " << h
+                      << " txid=" << r.txid
+                      << " distributed=" << r.distributed << std::endl;
+        } else {
+            std::cout << "[pool-auto] skip: " << r.error << std::endl;
+        }
+    }
 
    private:
     CaesarNode& node_;
@@ -1514,133 +1641,33 @@ setInterval(load, 10000);
 
         server_.Get("/api/pool/stats", [this](const httplib::Request&,
                                               httplib::Response& res) {
-            std::lock_guard<std::mutex> lock(g_pool_mutex);
-            if (!g_pool_state_loaded.exchange(true)) {
-                pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
-            }
-            std::ostringstream out;
-            out << "{\"ok\":true"
-                << ",\"fee_percent\":" << g_pool_fee_percent
-                << ",\"total_shares\":" << g_pool_total_shares
-                << ",\"total_blocks\":" << g_pool_total_blocks
-                << ",\"current_height\":" << node_.height()
-                << ",\"workers\":[";
-            bool first = true;
-            for (const auto& kv : g_pool_workers) {
-                if (!first) out << ",";
-                first = false;
-                out << "{\"address\":\"" << kv.second.address << "\""
-                    << ",\"name\":\"" << kv.second.worker_name << "\""
-                    << ",\"shares\":" << kv.second.shares << "}";
-            }
-            out << "]}";
-            res.set_content(out.str(), "application/json");
-        });
-        server_.Post("/api/pool/payout", [this](const httplib::Request&,
-                                                httplib::Response& res) {
-            try {
-                if (!wallet_) throw std::runtime_error("wallet unavailable");
-                const std::string pool_addr = wallet_->address();
-                if (pool_addr.empty()) throw std::runtime_error("pool address unavailable");
-
+            {
                 std::lock_guard<std::mutex> lock(g_pool_mutex);
-
-                std::uint64_t total_pending = 0;
-                for (const auto& kv : g_pool_workers)
-                    if (kv.second.shares_pending > 0) total_pending += kv.second.shares_pending;
-                if (total_pending == 0)
-                    throw std::runtime_error("no pending shares");
-
-                auto utxos = collect_my_utxos();
-                std::uint64_t total_utxo = 0;
-                for (const auto& u : utxos) total_utxo += u.amount;
-                if (total_utxo < 10000)
-                    throw std::runtime_error("pool balance too small");
-
-                const std::uint64_t RESERVE = 1000;
-                const std::uint64_t distributable = total_utxo - RESERVE;
-
-                const double fee_frac = g_pool_fee_percent / 100.0;
-                const std::uint64_t fee_amount =
-                    static_cast<std::uint64_t>(distributable * fee_frac);
-                const std::uint64_t worker_pool = distributable - fee_amount;
-
-                Transaction tx;
-                tx.version = 1;
-
-                std::uint64_t assigned = 0;
-                for (const auto& kv : g_pool_workers) {
-                    if (kv.second.shares_pending == 0) continue;
-                    std::uint64_t amount =
-                        (worker_pool * kv.second.shares_pending) / total_pending;
-                    if (amount == 0) continue;
-                    TransactionOutput o;
-                    o.amount = amount;
-                    o.recipient = kv.second.address;
-                    tx.outputs.push_back(o);
-                    assigned += amount;
+                if (!g_pool_state_loaded.exchange(true)) {
+                    pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
                 }
-
-                if (tx.outputs.empty())
-                    throw std::runtime_error("no outputs above dust");
-
-                std::uint64_t gathered = 0;
-                for (const auto& u : utxos) {
-                    TransactionInput in;
-                    in.previous_txid = u.txid;
-                    in.output_index = u.index;
-                    tx.inputs.push_back(in);
-                    gathered += u.amount;
-                    if (gathered >= assigned + 5000) break;
-                }
-                if (gathered < assigned)
-                    throw std::runtime_error("insufficient utxos for payout");
-
-                const std::uint64_t change = gathered - assigned;
-                if (change > 0) {
-                    TransactionOutput ch;
-                    ch.amount = change;
-                    ch.recipient = pool_addr;
-                    tx.outputs.push_back(ch);
-                }
-
-                const std::string pk = wallet_->public_key();
-                for (std::size_t i = 0; i < tx.inputs.size(); ++i) {
-                    auto sig = sign_transaction_input(tx, i, wallet_->private_key());
-                    TransactionWitness w;
-                    w.public_key = pk;
-                    w.signature = sig;
-                    tx.witness.inputs.push_back(w);
-                }
-
-                if (!node_.submit_transaction(tx))
-                    throw std::runtime_error("mempool rejected payout tx");
-
-                PoolPayoutRecord rec;
-                rec.timestamp = static_cast<std::uint64_t>(::time(nullptr));
-                rec.block_height = node_.height();
-                rec.txid = hash_to_hex(tx.txid());
-                rec.total_amount = assigned;
-                rec.fee_amount = fee_amount;
-                rec.recipient_count = tx.outputs.size();
-                g_pool_payouts.push_back(rec);
-
-                for (auto& kv : g_pool_workers) kv.second.shares_pending = 0;
-                pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
-
                 std::ostringstream out;
-                out << "{\"ok\":true,\"txid\":\"" << rec.txid << "\""
-                    << ",\"distributed\":" << assigned
-                    << ",\"fee\":" << fee_amount
-                    << ",\"recipients\":" << (tx.outputs.size() > 0
-                                              ? tx.outputs.size() - 1 : 0)
-                    << "}";
+                out << "{\"ok\":true"
+                    << ",\"fee_percent\":" << g_pool_fee_percent
+                    << ",\"total_shares\":" << g_pool_total_shares
+                    << ",\"total_blocks\":" << g_pool_total_blocks
+                    << ",\"current_height\":" << node_.height()
+                    << ",\"auto_enabled\":" << (g_pool_auto_enabled.load() ? "true" : "false")
+                    << ",\"auto_blocks\":" << g_pool_auto_blocks.load()
+                    << ",\"last_payout_height\":" << g_pool_last_payout_height.load()
+                    << ",\"workers\":[";
+                bool first = true;
+                for (const auto& kv : g_pool_workers) {
+                    if (!first) out << ",";
+                    first = false;
+                    out << "{\"address\":\"" << kv.second.address << "\""
+                        << ",\"name\":\"" << kv.second.worker_name << "\""
+                        << ",\"shares\":" << kv.second.shares << "}";
+                }
+                out << "]}";
                 res.set_content(out.str(), "application/json");
-            } catch (const std::exception& e) {
-                res.status = 500;
-                res.set_content(std::string("{\"error\":\"") + e.what() + "\"}",
-                                "application/json");
             }
+            pool_maybe_auto_payout();
         });
 
         server_.Get("/api/pool/payouts", [](const httplib::Request&,
@@ -1799,6 +1826,54 @@ setInterval(refresh,5000);
 </body>
 </html>)HTML";
             res.set_content(html, "text/html");
+        });
+
+        server_.Get("/api/pool/auto/status", [](const httplib::Request&,
+                                                    httplib::Response& res) {
+            std::ostringstream out;
+            out << "{\"ok\":true"
+                << ",\"enabled\":" << (g_pool_auto_enabled.load() ? "true" : "false")
+                << ",\"blocks\":" << g_pool_auto_blocks.load()
+                << ",\"last_payout_height\":" << g_pool_last_payout_height.load()
+                << "}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Post("/api/pool/auto/config", [this](const httplib::Request& req,
+                                                     httplib::Response& res) {
+            if (!is_authenticated(req)) {
+                res.status = 401;
+                res.set_content("{\"error\":\"unauthorized\"}", "application/json");
+                return;
+            }
+            auto get_u64 = [&](const std::string& key) -> std::uint64_t {
+                auto pos = req.body.find("\"" + key + "\"");
+                if (pos == std::string::npos) return 0;
+                auto colon = req.body.find(':', pos);
+                if (colon == std::string::npos) return 0;
+                auto s = req.body.find_first_of("0123456789", colon);
+                if (s == std::string::npos) return 0;
+                auto e = req.body.find_first_not_of("0123456789", s);
+                if (e == std::string::npos) e = req.body.size();
+                try { return std::stoull(req.body.substr(s, e - s)); } catch (...) { return 0; }
+            };
+            if (req.body.find("\"enabled\"") != std::string::npos) {
+                bool on = (req.body.find("\"enabled\":true") != std::string::npos ||
+                           req.body.find("\"enabled\": true") != std::string::npos);
+                g_pool_auto_enabled.store(on);
+            }
+            std::uint64_t blk = get_u64("blocks");
+            if (blk >= 1 && blk <= 10000)
+                g_pool_auto_blocks.store(static_cast<std::uint32_t>(blk));
+            {
+                std::lock_guard<std::mutex> lock(g_pool_mutex);
+                pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            }
+            std::ostringstream out;
+            out << "{\"ok\":true"
+                << ",\"enabled\":" << (g_pool_auto_enabled.load() ? "true" : "false")
+                << ",\"blocks\":" << g_pool_auto_blocks.load() << "}";
+            res.set_content(out.str(), "application/json");
         });
 
         // ============ END POOL ENDPOINTS ============
