@@ -1,41 +1,37 @@
-# Caesar CZR — Next Steps
+# Caesar CZR - Next Steps
 
-## Current state (2026-10-02)
-- Chain: 32 blocks
+## Current state (2026-10-02, milestone day)
+- Chain: 33 blocks
 - Pool: works, auto-payout works, 2 payouts on-chain
 - Wallet: fast (~30ms per API call)
 - Community stats: live
-- P2P: two nodes handshake (peers=1)
-- P2P block sync: NOT COMPLETE
+- P2P: two nodes sync full chain
+- P2P block sync: WORKS
 
 ## What works
-- Node A and Node B connect
+- Node A and Node B connect via --peer host:port
 - Handshake succeeds
-- `--peer host:port` flag added
-- `send_get_headers` + `request_sync_from_peer` added
+- Full chain sync (Headers -> Blocks -> validate -> append)
+- Cache invalidation ensures /api/status reflects new height
 
-## What's missing
-1. **Per-peer reader thread** — Node A does not read frames from
-   inbound connections B. Need a thread per peer that:
-   - reads P2PFrame from connection
-   - calls relay_.handle_frame(peer_id, frame)
-2. **handle_get_headers** — must respond with Headers frame
-   (send block hashes from requested locator)
-3. **handle_headers on Node B** — must request missing blocks
-   via GetBlocks
-4. **handle_blocks on Node B** — must validate and append
+## Cleanup needed for production
+1. Remove [TRACE] logging from p2p_relay.hpp
+2. Add gossip: rebroadcast blocks but ONLY to other peers
+3. Reduce log verbosity in production builds
 
-## Where to look
-- include/caesar/p2p_relay.hpp: handle_frame, handle_get_headers,
-  handle_headers, handle_blocks
-- include/caesar/p2p_peer_manager.hpp: connection storage + thread spawn
-- include/caesar/p2p_server.hpp: connect_to_peer, accept loop
+## Future improvements
+- Periodic re-sync (every N minutes)
+- Peer discovery (DNS seed, hardcoded list)
+- Persistent peer list on disk
+- Ban list persistence across restarts
 
-## Approach for next session
-1. Add a reader thread to P2PPeerManager when add_peer is called
-2. Reader thread reads frames in a loop and calls a relay callback
-3. Wire relay callback in CaesarNode constructor
-4. Test: B should sync from A within 5 seconds
+## How to test
+    cd ~/caesar-czr-internal-real
+    ./build-web/caesar_web --port 18555 --rpc-port 8443 --data ~/.caesar/data-web &
+    ./build-web/caesar_web --port 18556 --rpc-port 8444 --data ~/.caesar/data-web-b --peer 127.0.0.1:18555 &
+    sleep 15
+    curl http://127.0.0.1:8443/api/status
+    curl http://127.0.0.1:8444/api/status
 
 ## Priority
-HIGH — this is the last step toward a real network
+MEDIUM - sync works. Now build real network reach (VPS/seed node).
