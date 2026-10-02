@@ -2674,6 +2674,35 @@ try{
   });
 }catch(e){}
 </script>
+<script>
+(function(){
+  var isPWA = window.matchMedia('(display-mode: standalone)').matches
+           || window.matchMedia('(display-mode: minimal-ui)').matches
+           || window.navigator.standalone === true
+           || document.referrer.indexOf('android-app://') === 0;
+  if(!isPWA) return;
+  function kill(){
+    var w = document.querySelector('.welcome-modal');
+    if(w){ w.style.display='none'; w.remove(); return true; }
+    return false;
+  }
+  var t0 = Date.now();
+  var iv = setInterval(function(){
+    kill();
+    if(Date.now()-t0 > 8000) clearInterval(iv);
+  }, 30);
+})();
+</script>
+<script>
+(function(){
+  try{
+    if(location.search.indexOf('resetSW') >= 0){
+      var clean = location.pathname + location.hash;
+      history.replaceState(null,'',clean);
+    }
+  }catch(e){}
+})();
+</script>
 </head>
 <body>
 
