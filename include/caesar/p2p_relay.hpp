@@ -117,6 +117,7 @@ class P2PRelay {
                 try {
                     auto ids = server_.peers().list_ids();
                     for (auto pid : ids) {
+                        if (!server_.peers().connection(pid)) continue;
                         std::vector<Hash256> locator;
                         {
                             std::lock_guard<std::mutex> lock(*storage_mutex_);
@@ -1177,69 +1178,65 @@ class P2PRelay {
     }
 
     void handle_blocks(std::uint64_t id, const std::vector<std::uint8_t>& payload) {
-        std::cerr << "[TRACE] handle_blocks ENTER id=" << id << " size=" << payload.size() << std::endl;
         BinaryReader reader(payload);
 
         const std::uint32_t count = reader.read_u32();
-        std::cerr << "[TRACE] handle_blocks: count=" << count << std::endl;
 
         if (count == 0 || count > 1024)
             throw std::runtime_error("invalid relayed block count");
 
-        std::vector<Block> accepted_blocks;
-        accepted_blocks.reserve(count);
-
+        // Parse all blocks first (no lock)
+        std::vector<Block> incoming;
+        incoming.reserve(count);
         for (std::uint32_t i = 0; i < count; ++i) {
             const std::uint32_t size = reader.read_u32();
-
             if (size > CZR_P2P_MAX_PAYLOAD)
                 throw std::runtime_error("relayed block too large");
-
             const auto data = reader.read_bytes(size);
-
-            const Block block = Block::deserialize_full(data);
-
-            std::cerr << "[TRACE] block[" << i << "] h=" << block.header.height << std::endl;
-
-            try {
-                std::lock_guard<std::mutex> lock(*storage_mutex_);
-
-                if (!storage_.exists())
-                    throw std::runtime_error("no local chain");
-
-                const auto chain = storage_.load();
-                std::cerr << "[TRACE] block[" << i << "]: chain size=" << chain.size() << std::endl;
-
-                const auto previous_utxos = rebuild_utxo_set(chain);
-
-                if (!validate_block_consensus(block, chain, previous_utxos)) {
-                    throw std::runtime_error("consensus failed");
-                }
-
-                storage_.append(block);
-                std::cerr << "[TRACE] block[" << i << "]: APPENDED" << std::endl;
-                if (invalidate_cache_callback_) {
-                    try { invalidate_cache_callback_(); } catch (...) {}
-                }
-            } catch (const std::exception& e) {
-                std::cerr << "[TRACE] block[" << i << "]: SKIP: " << e.what() << std::endl;
-                continue;
-            } catch (...) {
-                std::cerr << "[TRACE] block[" << i << "]: SKIP unknown" << std::endl;
-                continue;
-            }
-            try { accepted_blocks.push_back(block); } catch (...) {}
+            incoming.push_back(Block::deserialize_full(data));
         }
-
-        // Gossip: forward accepted blocks to peers except the sender
-        for (const auto& b : accepted_blocks) {
-            try { server_.peers().broadcast_except(id, make_blocks_frame(b)); } catch (...) {}
-        }
-
-        std::cerr << "[TRACE] handle_blocks DONE count=" << count << std::endl;
 
         if (!reader.empty())
             throw std::runtime_error("trailing bytes in relayed blocks payload");
+
+        // Batch validate + append under a single lock
+        std::vector<Block> accepted;
+        accepted.reserve(incoming.size());
+        std::vector<Block> new_chain;
+
+        {
+            std::lock_guard<std::mutex> lock(*storage_mutex_);
+
+            if (!storage_.exists())
+                throw std::runtime_error("no local chain");
+
+            auto chain = storage_.load();
+            bool modified = false;
+
+            for (const auto& block : incoming) {
+                const auto previous_utxos = rebuild_utxo_set(chain);
+                if (!validate_block_consensus(block, chain, previous_utxos)) {
+                    continue;
+                }
+                chain.push_back(block);
+                accepted.push_back(block);
+                modified = true;
+            }
+
+            if (modified) {
+                storage_.replace(chain);
+                new_chain = std::move(chain);
+            }
+        }
+
+        if (invalidate_cache_callback_ && !accepted.empty()) {
+            try { invalidate_cache_callback_(); } catch (...) {}
+        }
+
+        // Gossip accepted blocks to peers except sender
+        for (const auto& b : accepted) {
+            try { server_.peers().broadcast_except(id, make_blocks_frame(b)); } catch (...) {}
+        }
     }
 
     P2PServer& server_;
