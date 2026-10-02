@@ -2597,6 +2597,32 @@ nav.bottom button.active{color:var(--gold);background:rgba(240,192,64,.08)}
   text-align:center;color:var(--dim);font-size:12px;padding:20px;
 }
 </style>
+<script>
+(function(){
+  try{
+    var u = new URL(location.href);
+    if(u.searchParams.has('resetSW')){
+      u.searchParams.delete('resetSW');
+      var clean = u.pathname + (u.searchParams.toString()? '?'+u.searchParams.toString() : '') + u.hash;
+      history.replaceState(null, '', clean);
+    }
+  }catch(e){}
+})();
+</script>
+<script>
+try{
+  ['onboarded','welcome_shown','seen_welcome','intro_done'].forEach(function(k){
+    try{ if(localStorage.getItem(k)!=='1') localStorage.setItem(k,'1'); }catch(e){}
+  });
+}catch(e){}
+</script>
+<script>
+try{
+  ['onboarded','welcome_shown','seen_welcome','intro_done'].forEach(function(k){
+    try{ if(localStorage.getItem(k)!=='1') localStorage.setItem(k,'1'); }catch(e){}
+  });
+}catch(e){}
+</script>
 </head>
 <body>
 
