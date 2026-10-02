@@ -1904,6 +1904,16 @@ server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res
             const char* html = R"CAESARAPP(<!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+try{
+  if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches){
+    localStorage.setItem('onboarded','1');
+    localStorage.setItem('welcome_shown','1');
+    localStorage.setItem('seen_welcome','1');
+    localStorage.setItem('caesar_onboarded','1');
+  }
+}catch(e){}
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0a0d12">
@@ -3649,6 +3659,54 @@ document.addEventListener('visibilitychange',()=>{
 });
 </script>
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js',{scope:'/'}).then(function(r){console.log('[SW] registered',r.scope);}).catch(function(e){console.log('[SW] error',e);});}</script>
+<script>
+(function(){
+  // Detect if running as installed PWA
+  var isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                     || window.navigator.standalone === true
+                     || document.referrer.includes('android-app://');
+
+  if(!isStandalone) return; // in Chrome browser: keep normal flow
+
+  // In installed app: force-skip welcome screen
+  function skipWelcome(){
+    var modal = document.querySelector('.welcome-modal');
+    if(modal){
+      modal.style.display = 'none';
+      modal.classList.remove('show');
+    }
+    // trigger main app entry
+    try{
+      if(typeof window.enterApp === 'function') window.enterApp();
+      else if(typeof window.showApp === 'function') window.showApp();
+      else{
+        // find Enter App button and click it
+        var btns = document.querySelectorAll('button, a');
+        for(var i=0;i<btns.length;i++){
+          var t = (btns[i].textContent||'').toLowerCase();
+          if(t.indexOf('enter app') >= 0){
+            btns[i].click();
+            break;
+          }
+        }
+      }
+    }catch(e){console.log('[skip]',e);}
+  }
+
+  // Try multiple times as DOM loads
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      setTimeout(skipWelcome, 100);
+      setTimeout(skipWelcome, 500);
+      setTimeout(skipWelcome, 1500);
+    });
+  } else {
+    setTimeout(skipWelcome, 100);
+    setTimeout(skipWelcome, 500);
+    setTimeout(skipWelcome, 1500);
+  }
+})();
+</script>
 </body>
 </html>)CAESARAPP";
             res.set_content(html, "text/html");
