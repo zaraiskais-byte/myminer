@@ -1,4 +1,7 @@
 #pragma once
+#include <queue>
+#include <functional>
+#include <tuple>
 #include <set>
 #include <iostream>
 #include <atomic>
@@ -70,6 +73,19 @@ inline std::uint64_t g_pool_total_blocks = 0;
 inline std::uint64_t g_pool_job_counter = 0;
 inline double g_pool_fee_percent = 2.0;
 inline std::vector<PoolPayoutRecord> g_pool_payouts;
+
+struct PoolUserRecord {
+    std::string address;
+    std::string parent;
+    std::vector<std::string> children;
+    std::uint64_t joined_at = 0;
+    std::uint32_t user_number = 0;
+    bool is_founder = false;
+};
+
+inline std::map<std::string, PoolUserRecord> g_pool_users;
+inline std::uint64_t g_pool_next_user_number = 1;
+inline std::uint64_t g_pool_total_registered = 0;
 inline std::set<std::string> g_pool_all_users;
 inline std::uint64_t g_pool_first_seen_unix = 0;
 
@@ -129,6 +145,18 @@ inline void pool_save_state_unlocked(const std::filesystem::path& p) {
     f << "last_payout_height=" << g_pool_last_payout_height.load() << "\n";
     f << "first_seen_unix=" << g_pool_first_seen_unix << "\n";
     for (const auto& u : g_pool_all_users) f << "user=" << u << "\n";
+    f << "user_counter=" << g_pool_next_user_number << "\n";
+    f << "total_registered=" << g_pool_total_registered << "\n";
+    for (const auto& kv : g_pool_users) {
+        const auto& u = kv.second;
+        f << "reguser=" << u.address << "|" << u.parent << "|" << u.user_number
+          << "|" << u.joined_at << "|" << (u.is_founder ? "1" : "0") << "|";
+        for (size_t i = 0; i < u.children.size(); ++i) {
+            if (i > 0) f << ",";
+            f << u.children[i];
+        }
+        f << "\n";
+    }
     for (const auto& kv : g_pool_workers) {
         const auto& w = kv.second;
         f << "worker=" << w.address << "|" << w.worker_name << "|"
@@ -2269,6 +2297,160 @@ nav.bottom button.active{color:var(--gold);background:rgba(240,192,64,.08)}
   background:var(--gold);margin-right:6px;
   box-shadow:0 0 8px var(--gold);
 }
+
+/* ===== Welcome Modal ===== */
+.welcome-modal{
+  position:fixed;inset:0;z-index:10000;
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+  background:radial-gradient(circle at 50% 30%,rgba(255,204,77,.18),transparent 55%),rgba(8,11,18,.96);
+  -webkit-backdrop-filter:blur(20px);
+  backdrop-filter:blur(20px);
+  animation:fadeUp .5s cubic-bezier(.16,1,.3,1);
+}
+.welcome-card{
+  background:linear-gradient(160deg,rgba(255,204,77,.10),rgba(77,224,255,.05)),rgba(20,26,40,.98);
+  border:1px solid rgba(255,204,77,.3);
+  border-radius:28px;
+  padding:32px 24px;
+  max-width:400px;width:100%;
+  box-shadow:0 30px 80px -20px rgba(255,204,77,.5),0 0 0 1px rgba(255,255,255,.05);
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+.welcome-card::before{
+  content:'';position:absolute;top:-100px;left:50%;transform:translateX(-50%);
+  width:300px;height:300px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,204,77,.2),transparent 70%);
+  pointer-events:none;
+}
+.welcome-badge{
+  font-size:56px;color:var(--gold);
+  text-shadow:0 0 30px rgba(255,204,77,.8);
+  margin-bottom:8px;
+  animation:pulse 2s ease-in-out infinite;
+  position:relative;z-index:1;
+}
+.welcome-tag{
+  color:var(--gold);font-size:10px;font-weight:800;
+  letter-spacing:3px;text-transform:uppercase;
+  margin-bottom:14px;position:relative;z-index:1;
+}
+.welcome-number{
+  color:var(--gold);font-size:64px;font-weight:900;
+  letter-spacing:-3px;line-height:1;
+  text-shadow:0 0 40px rgba(255,204,77,.6);
+  margin-bottom:16px;
+  font-variant-numeric:tabular-nums;
+  position:relative;z-index:1;
+}
+.welcome-title{
+  color:var(--text);font-size:18px;font-weight:800;
+  margin-bottom:8px;position:relative;z-index:1;
+}
+.welcome-desc{
+  color:var(--dim);font-size:13px;line-height:1.5;
+  margin-bottom:20px;position:relative;z-index:1;
+}
+.welcome-stat{
+  display:flex;justify-content:space-between;
+  padding:12px 16px;border-radius:12px;
+  background:rgba(0,0,0,.4);border:1px solid var(--border);
+  color:var(--dim);font-size:12px;font-weight:700;
+  margin-bottom:16px;position:relative;z-index:1;
+}
+.welcome-stat b{color:var(--green);font-weight:900;font-size:14px}
+.welcome-invite{
+  text-align:left;position:relative;z-index:1;
+}
+.welcome-invite label,
+.circle-invite label{
+  display:block;color:var(--dim);font-size:10px;
+  text-transform:uppercase;letter-spacing:1.5px;
+  margin-bottom:8px;font-weight:700;
+}
+.invite-row{display:flex;gap:8px;align-items:center}
+.invite-row input{
+  flex:1;background:rgba(0,0,0,.6);color:var(--green);
+  border:1px solid var(--border);border-radius:10px;
+  padding:12px;font-family:'SF Mono',monospace;
+  font-size:11px;
+}
+.invite-row input:focus{outline:none;border-color:var(--gold)}
+
+/* ===== Circle Card ===== */
+.circle-card{
+  background:linear-gradient(135deg,rgba(77,224,255,.06),rgba(255,204,77,.04)),rgba(24,30,44,.85);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  backdrop-filter:blur(24px) saturate(180%);
+  border:1px solid rgba(77,224,255,.25);
+  position:relative;overflow:hidden;
+  box-shadow:0 12px 40px -10px rgba(77,224,255,.2),var(--shadow);
+}
+.circle-rank{
+  display:flex;align-items:center;gap:12px;
+  margin-bottom:16px;
+}
+.circle-badge{
+  width:52px;height:52px;border-radius:14px;
+  background:linear-gradient(145deg,var(--gold),var(--gold-2));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:16px;color:#0a0d12;
+  box-shadow:0 8px 24px -6px rgba(255,204,77,.6);
+  flex-shrink:0;
+}
+.circle-info{flex:1;min-width:0}
+.circle-number{
+  color:var(--text);font-weight:800;font-size:14px;
+}
+.circle-sub{
+  color:var(--dim);font-size:11px;margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+}
+.circle-tag{
+  padding:4px 10px;border-radius:20px;
+  font-size:9px;font-weight:900;letter-spacing:1.5px;
+  background:linear-gradient(145deg,var(--gold),var(--gold-2));
+  color:#0a0d12;
+  box-shadow:0 0 16px rgba(255,204,77,.6);
+  flex-shrink:0;
+}
+.circle-stats{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+  margin-bottom:12px;
+}
+.circle-stat{
+  background:rgba(0,0,0,.35);border:1px solid var(--border);
+  border-radius:10px;padding:8px 6px;text-align:center;
+}
+.circle-stat span{
+  display:block;color:var(--dim);font-size:9px;
+  text-transform:uppercase;letter-spacing:.8px;
+  margin-bottom:4px;font-weight:700;
+}
+.circle-stat b{
+  color:var(--cyan);font-weight:900;font-size:16px;
+  font-family:'SF Mono',monospace;
+}
+.circle-total{
+  display:flex;justify-content:space-between;
+  padding:10px 14px;border-radius:10px;
+  background:rgba(77,224,255,.08);border:1px solid rgba(77,224,255,.2);
+  color:var(--cyan);font-size:12px;font-weight:700;
+  margin-bottom:16px;
+}
+.circle-total b{font-weight:900;font-size:16px}
+.circle-invite{text-align:left}
+
+/* ===== Founder Badge (for leaderboard) ===== */
+.founder-star{
+  display:inline-block;margin-left:6px;
+  color:var(--gold);font-size:11px;
+  text-shadow:0 0 8px rgba(255,204,77,.8);
+  animation:pulse 2.5s ease-in-out infinite;
+}
 </style>
 </head>
 <body>
@@ -2344,6 +2526,40 @@ nav.bottom button.active{color:var(--gold);background:rgba(240,192,64,.08)}
         <div style="margin-top:12px;text-align:center;color:var(--dim);font-size:11px" id="cCaption">
           Building the network, one block at a time.
         </div>
+      </div>
+
+      <div class="card circle-card">
+        <h2>Your Circle</h2>
+        <div class="circle-rank">
+          <div class="circle-badge" id="circleBadge">#1</div>
+          <div class="circle-info">
+            <div class="circle-number">Founder #<span id="circleNumber">1</span></div>
+            <div class="circle-sub" id="circleSub">You are the first — the network begins with you.</div>
+          </div>
+          <div class="circle-tag" id="circleTag">FOUNDER</div>
+        </div>
+
+        <div class="circle-stats">
+          <div class="circle-stat"><span>Level 1</span><b id="treeL1">0</b></div>
+          <div class="circle-stat"><span>Level 2</span><b id="treeL2">0</b></div>
+          <div class="circle-stat"><span>Level 3</span><b id="treeL3">0</b></div>
+          <div class="circle-stat"><span>Level 4</span><b id="treeL4">0</b></div>
+        </div>
+
+        <div class="circle-total">
+          <span>Your circle total</span>
+          <b id="treeTotal">0</b>
+        </div>
+
+        <div class="circle-invite">
+          <label>Your invite link</label>
+          <div class="invite-row">
+            <input id="circleLink" type="text" readonly>
+            <button class="btn primary small" onclick="copyInvite()">Copy</button>
+          </div>
+        </div>
+
+        <button class="btn primary" style="width:100%;margin-top:10px" onclick="shareInvite()">📤 Share invite</button>
       </div>
 
       <div class="card">
@@ -2520,6 +2736,30 @@ nav.bottom button.active{color:var(--gold);background:rgba(240,192,64,.08)}
       More
     </button>
   </nav>
+</div>
+
+<!-- ============ WELCOME MODAL ============ -->
+<div id="welcomeModal" class="welcome-modal" style="display:none">
+  <div class="welcome-card">
+    <div class="welcome-badge">✦</div>
+    <div class="welcome-tag">FOREVER A FOUNDER</div>
+    <div class="welcome-number">#<span id="welcomeNumber">1</span></div>
+    <div class="welcome-title">Welcome to Caesar CZR</div>
+    <div class="welcome-desc">You are among the first 1000<br>who build this network from zero.</div>
+    <div class="welcome-stat">
+      <span>Total builders</span>
+      <b id="welcomeTotal">1</b>
+    </div>
+    <div class="welcome-invite">
+      <label>Your invite link</label>
+      <div class="invite-row">
+        <input id="welcomeLink" type="text" readonly>
+        <button id="welcomeCopy" class="btn primary small" onclick="copyInvite()">Copy</button>
+      </div>
+      <button class="btn" style="width:100%;margin-top:10px" onclick="shareInvite()">📤 Share</button>
+    </div>
+    <button class="btn primary" style="width:100%;margin-top:16px" onclick="closeWelcome()">Enter App</button>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -2778,6 +3018,7 @@ async function refreshWallet(){
     }
     if(h)renderTxs(h);
     updateHeroCard();
+    loadCircle();
   }catch(e){log('wallet refresh error: '+e.message)}
 }
 
@@ -3049,9 +3290,126 @@ function updateStatus(s){
 }
 
 // ============ INIT ============
+
+// ============ WELCOME + CIRCLE + INVITE ============
+
+function getMyInviteLink(){
+  const a = $('myaddr') && $('myaddr').textContent || '';
+  if(!a || a === '—') return '';
+  const base = location.origin + location.pathname;
+  return base + '?ref=' + a;
+}
+
+function getRefFromUrl(){
+  const p = new URLSearchParams(location.search);
+  return p.get('ref') || '';
+}
+
+async function registerUser(){
+  const a = $('myaddr') && $('myaddr').textContent || '';
+  if(!a || a === '—') return null;
+  const parent = getRefFromUrl();
+  try{
+    const r = await api('/api/user/register', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({address: a, parent: parent})
+    });
+    return r;
+  }catch(e){ return null; }
+}
+
+async function loadCircle(){
+  const a = $('myaddr') && $('myaddr').textContent || '';
+  if(!a || a === '—') return;
+  try{
+    const me = await api('/api/user/me?address=' + encodeURIComponent(a));
+    if(me && me.ok){
+      $('circleNumber').textContent = me.user_number || '?';
+      $('circleBadge').textContent = '#' + (me.user_number || '?');
+      if(me.is_founder){
+        $('circleTag').textContent = 'FOUNDER';
+        $('circleTag').style.opacity = '1';
+      } else {
+        $('circleTag').textContent = 'BUILDER';
+      }
+      if(me.direct_children === 0){
+        $('circleSub').textContent = 'Invite a friend — your circle grows from zero.';
+      } else if(me.direct_children === 1){
+        $('circleSub').textContent = 'You started a circle. 1 direct invite.';
+      } else {
+        $('circleSub').textContent = 'Your circle has ' + me.direct_children + ' direct invites.';
+      }
+    }
+    const tree = await api('/api/user/tree?address=' + encodeURIComponent(a));
+    if(tree && tree.ok){
+      $('treeL1').textContent = tree.level1 || 0;
+      $('treeL2').textContent = tree.level2 || 0;
+      $('treeL3').textContent = tree.level3 || 0;
+      $('treeL4').textContent = tree.level4 || 0;
+      $('treeTotal').textContent = tree.total || 0;
+    }
+    const link = getMyInviteLink();
+    if($('circleLink')) $('circleLink').value = link;
+    if($('welcomeLink')) $('welcomeLink').value = link;
+  }catch(e){}
+}
+
+function copyInvite(){
+  const link = getMyInviteLink();
+  if(!link){ toast('Address not ready'); return; }
+  navigator.clipboard.writeText(link).then(() => {
+    toast('Invite link copied');
+    vib(15);
+  }).catch(() => {
+    toast('Copy failed');
+  });
+}
+
+function shareInvite(){
+  const link = getMyInviteLink();
+  if(!link){ toast('Address not ready'); return; }
+  if(navigator.share){
+    navigator.share({
+      title: 'Caesar CZR',
+      text: 'Join me — I am a founder of Caesar CZR. First 1000 build this network.',
+      url: link
+    }).catch(()=>{});
+  } else {
+    copyInvite();
+  }
+}
+
+function closeWelcome(){
+  $('welcomeModal').style.display = 'none';
+  try{ localStorage.setItem('czr_welcome_seen', '1'); }catch(e){}
+}
+
+async function showWelcomeIfNeeded(){
+  try{
+    if(localStorage.getItem('czr_welcome_seen') === '1') return;
+  }catch(e){}
+  const a = $('myaddr') && $('myaddr').textContent || '';
+  if(!a || a === '—') return;
+  await registerUser();
+  const me = await api('/api/user/me?address=' + encodeURIComponent(a));
+  if(me && me.ok){
+    $('welcomeNumber').textContent = me.user_number || 1;
+    $('welcomeTotal').textContent = me.total_registered || 1;
+    $('welcomeModal').style.display = 'flex';
+  }
+}
+
 window.addEventListener('load',async()=>{
   renderAddrBook();
   await checkAuth();
+  setTimeout(async () => {
+    try {
+      await registerUser();
+      await loadCircle();
+      await showWelcomeIfNeeded();
+    } catch(e) {}
+  }, 1500);
 });
 
 document.addEventListener('visibilitychange',()=>{
@@ -4573,6 +4931,162 @@ document.addEventListener('visibilitychange',()=>{
                 << "}";
             res.set_content(out.str(), "application/json");
         });
+
+        // ============ USER / INVITE ENDPOINTS ============
+        server_.Post("/api/user/register", [this](const httplib::Request& req,
+                                                  httplib::Response& res) {
+            auto gs = [&](const std::string& key) -> std::string {
+                auto pos = req.body.find("\"" + key + "\"");
+                if (pos == std::string::npos) return "";
+                auto colon = req.body.find(':', pos);
+                if (colon == std::string::npos) return "";
+                auto start = req.body.find('"', colon);
+                if (start == std::string::npos) return "";
+                auto end = req.body.find('"', start + 1);
+                if (end == std::string::npos) return "";
+                return req.body.substr(start + 1, end - start - 1);
+            };
+            std::string addr = gs("address");
+            std::string parent = gs("parent");
+            if (addr.empty()) {
+                res.status = 400;
+                res.set_content("{\"ok\":false,\"error\":\"address required\"}",
+                                "application/json");
+                return;
+            }
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            if (!g_pool_state_loaded.exchange(true)) {
+                pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            }
+            if (g_pool_users.count(addr)) {
+                auto& u = g_pool_users[addr];
+                std::ostringstream out;
+                out << "{\"ok\":true,\"already\":true"
+                    << ",\"user_number\":" << u.user_number
+                    << ",\"is_founder\":" << (u.is_founder ? "true" : "false")
+                    << ",\"total\":" << g_pool_total_registered << "}";
+                res.set_content(out.str(), "application/json");
+                return;
+            }
+            PoolUserRecord u;
+            u.address = addr;
+            u.parent = parent;
+            u.joined_at = static_cast<std::uint64_t>(::time(nullptr));
+            u.user_number = static_cast<std::uint32_t>(g_pool_next_user_number++);
+            u.is_founder = (u.user_number <= 1000);
+            g_pool_total_registered++;
+            if (!parent.empty() && g_pool_users.count(parent) && parent != addr) {
+                g_pool_users[parent].children.push_back(addr);
+            }
+            g_pool_users[addr] = u;
+            pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            std::ostringstream out;
+            out << "{\"ok\":true,\"already\":false"
+                << ",\"user_number\":" << u.user_number
+                << ",\"is_founder\":" << (u.is_founder ? "true" : "false")
+                << ",\"total\":" << g_pool_total_registered << "}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Get("/api/user/me", [this](const httplib::Request& req,
+                                            httplib::Response& res) {
+            std::string addr;
+            auto it = req.params.find("address");
+            if (it != req.params.end()) addr = it->second;
+            if (addr.empty()) {
+                res.set_content("{\"ok\":false,\"error\":\"address required\"}",
+                                "application/json");
+                return;
+            }
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            if (!g_pool_state_loaded.exchange(true)) {
+                pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            }
+            auto it2 = g_pool_users.find(addr);
+            if (it2 == g_pool_users.end()) {
+                res.set_content("{\"ok\":false,\"error\":\"not_registered\"}",
+                                "application/json");
+                return;
+            }
+            const auto& u = it2->second;
+            std::ostringstream out;
+            out << "{\"ok\":true,\"address\":\"" << u.address << "\""
+                << ",\"user_number\":" << u.user_number
+                << ",\"is_founder\":" << (u.is_founder ? "true" : "false")
+                << ",\"parent\":\"" << u.parent << "\""
+                << ",\"direct_children\":" << u.children.size()
+                << ",\"joined_at\":" << u.joined_at
+                << ",\"total_registered\":" << g_pool_total_registered
+                << "}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Get("/api/user/tree", [this](const httplib::Request& req,
+                                              httplib::Response& res) {
+            std::string root;
+            auto it = req.params.find("address");
+            if (it != req.params.end()) root = it->second;
+            if (root.empty()) {
+                res.set_content("{\"ok\":false,\"error\":\"address required\"}",
+                                "application/json");
+                return;
+            }
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            if (!g_pool_state_loaded.exchange(true)) {
+                pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            }
+            std::vector<std::vector<std::string>> levels(5);
+            std::vector<std::tuple<std::string, int, std::string>> items;
+            std::function<void(const std::string&, int)> visit =
+                [&](const std::string& a, int level) {
+                    if (level > 4) return;
+                    auto it2 = g_pool_users.find(a);
+                    if (it2 == g_pool_users.end()) return;
+                    for (const auto& child : it2->second.children) {
+                        levels[level].push_back(child);
+                        items.push_back(std::make_tuple(child, level, a));
+                        visit(child, level + 1);
+                    }
+                };
+            visit(root, 1);
+            std::ostringstream out;
+            out << "{\"ok\":true,\"root\":\"" << root << "\"";
+            for (int lvl = 1; lvl <= 4; ++lvl) {
+                out << ",\"level" << lvl << "\":" << levels[lvl].size();
+            }
+            out << ",\"total\":" << items.size();
+            out << ",\"members\":[";
+            bool first = true;
+            for (const auto& t : items) {
+                if (!first) out << ",";
+                first = false;
+                const auto& a = std::get<0>(t);
+                int lvl = std::get<1>(t);
+                const auto& par = std::get<2>(t);
+                out << "{\"address\":\"" << a << "\",\"level\":" << lvl
+                    << ",\"parent\":\"" << par << "\"}";
+            }
+            out << "]}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Get("/api/network/stats", [this](const httplib::Request&,
+                                                  httplib::Response& res) {
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            if (!g_pool_state_loaded.exchange(true)) {
+                pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            }
+            std::ostringstream out;
+            out << "{\"ok\":true"
+                << ",\"total_registered\":" << g_pool_total_registered
+                << ",\"next_number\":" << g_pool_next_user_number
+                << ",\"founder_cap\":1000"
+                << ",\"founders_remaining\":"
+                << (g_pool_next_user_number <= 1000 ? (1000 - g_pool_next_user_number + 1) : 0)
+                << "}";
+            res.set_content(out.str(), "application/json");
+        });
+        // ============ END USER / INVITE ============
 
         // ============ END POOL ENDPOINTS ============
 
