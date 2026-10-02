@@ -1896,7 +1896,7 @@ server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res
         server_.Get("/sw.js", [](const httplib::Request&, httplib::Response& res) {
             res.set_header("Cache-Control", "no-cache, no-store, must-revalidate");
             res.set_content(
-                R"(self.addEventListener('install',e=>{self.skipWaiting();}); self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).then(()=>self.clients.claim()));}); self.addEventListener('fetch',e=>{if(e.request.url.includes('/api/'))return; if(e.request.mode==='navigate'){e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));return;} e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});)",
+                R"(self.addEventListener('install',e=>{self.skipWaiting();}); self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).then(()=>self.clients.claim()));}); self.addEventListener('fetch',e=>{var u=e.request.url; if(u.indexOf('/api/')>=0)return; if(e.request.mode==='navigate'||u.endsWith('/')||u.indexOf('index.html')>=0){e.respondWith(fetch(e.request,{cache:'no-store'}).catch(()=>caches.match(e.request)));return;} e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});)",
                 "application/javascript");
         });
 
@@ -2963,7 +2963,7 @@ async function api(path,opts){
   const timer=setTimeout(()=>ac.abort(), 8000);
   o.signal=ac.signal;
   try{
-    const r=await fetch(path,o);
+    const _p=path+((path.indexOf('?')>=0)?'&':'?')+'_t='+Date.now(); const r=await fetch(_p,Object.assign({cache:'no-store'},o||{}));
     const t=await r.text();
     try{return JSON.parse(t)}catch(e){return {_raw:t,_status:r.status}}
   }catch(e){
