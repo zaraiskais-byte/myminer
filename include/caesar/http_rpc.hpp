@@ -3622,6 +3622,7 @@ document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&currentTab)refreshCurrentTab();
 });
 </script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js',{scope:'/'}).then(function(r){console.log('[SW] registered',r.scope);}).catch(function(e){console.log('[SW] error',e);});}</script>
 </body>
 </html>)CAESARAPP";
             res.set_content(html, "text/html");
