@@ -23,6 +23,7 @@ int main(int argc, char** argv) {
         std::uint16_t p2p_port = 18444;
         std::uint16_t rpc_port = 8332;
         std::string data_dir = "data-web";
+        std::string peer_addr;
 
         for (int i = 1; i < argc; ++i) {
             const std::string arg = argv[i];
@@ -33,6 +34,7 @@ int main(int argc, char** argv) {
                           << "  --port PORT       P2P port (default 18444)\n"
                           << "  --rpc-port PORT   HTTP RPC port (default 8332)\n"
                           << "  --data PATH       Data directory (default data-web)\n"
+                          << "  --peer HOST:PORT  Connect to a peer at startup (retries)\n"
                           << "  --help\n";
                 return 0;
             } else if (arg == "--port") {
@@ -44,6 +46,9 @@ int main(int argc, char** argv) {
             } else if (arg == "--data") {
                 if (i + 1 >= argc) throw std::runtime_error("--data requires value");
                 data_dir = argv[++i];
+            } else if (arg == "--peer") {
+                if (i + 1 >= argc) throw std::runtime_error("--peer requires host:port");
+                peer_addr = argv[++i];
             } else {
                 throw std::runtime_error("unknown argument: " + arg);
             }
@@ -59,6 +64,43 @@ int main(int argc, char** argv) {
 
         caesar::CaesarNode node(data_dir, p2p_port, 1);
         node.start();
+
+        // --peer connection thread (deferred until after node.start)
+        if (!peer_addr.empty()) {
+            auto colon = peer_addr.find(':');
+            if (colon == std::string::npos) {
+                std::cerr << "[peer] invalid format, expected host:port\n";
+            } else {
+                std::string ph = peer_addr.substr(0, colon);
+                std::uint16_t pp = 0;
+                try { pp = static_cast<std::uint16_t>(std::stoi(peer_addr.substr(colon+1))); }
+                catch (...) { std::cerr << "[peer] invalid port\n"; }
+                if (pp != 0) {
+                    std::cout << "[peer] will connect to " << ph << ":" << pp << "\n";
+                    std::thread([&node, ph, pp]() {
+                        for (int attempt = 1; attempt <= 200; ++attempt) {
+                            try {
+                                std::uint64_t peer_id = node.connect_to_peer(ph, pp);
+                                std::cout << "[peer] connected to " << ph << ":" << pp
+                                          << " (id=" << peer_id << ")" << std::endl;
+                                std::this_thread::sleep_for(std::chrono::seconds(2));
+                                try {
+                                    node.request_sync_from_peer(peer_id);
+                                    std::cout << "[peer] sync requested from peer " << peer_id << std::endl;
+                                } catch (const std::exception& e) {
+                                    std::cerr << "[peer] sync request failed: " << e.what() << std::endl;
+                                }
+                                return;
+                            } catch (const std::exception& e) {
+                                std::cerr << "[peer] attempt " << attempt
+                                          << " failed: " << e.what() << std::endl;
+                                std::this_thread::sleep_for(std::chrono::seconds(15));
+                            }
+                        }
+                    }).detach();
+                }
+            }
+        }
 
         caesar::HttpRpcServer rpc(node, rpc_port, data_dir);
         rpc.start();

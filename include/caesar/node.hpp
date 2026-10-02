@@ -138,15 +138,22 @@ class CaesarNode {
 
     std::vector<Block> chain() const {
         std::lock_guard<std::mutex> lock(*chain_mutex_);
-        return storage_.load();
+        if (!chain_cache_valid_) {
+            chain_cache_ = storage_.load();
+            chain_cache_valid_ = true;
+        }
+        return chain_cache_;
     }
 
     std::size_t height() const {
-        const auto current = chain();
-        if (current.empty())
+        std::lock_guard<std::mutex> lock(*chain_mutex_);
+        if (!chain_cache_valid_) {
+            chain_cache_ = storage_.load();
+            chain_cache_valid_ = true;
+        }
+        if (chain_cache_.empty())
             return 0;
-
-        return static_cast<std::size_t>(current.back().header.height);
+        return static_cast<std::size_t>(chain_cache_.back().header.height);
     }
 
     bool replace_chain(const std::vector<Block>& candidate) {
@@ -166,6 +173,7 @@ class CaesarNode {
         // report success. The candidate has already been fully
         // validated and its UTXO set rebuilt by prepare_chain_replacement().
         storage_.replace(plan->chain);
+        chain_cache_valid_ = false;
 
         // Revalidate the mempool against the new UTXO set. Any
         // transaction whose inputs no longer exist under the new
@@ -313,6 +321,7 @@ class CaesarNode {
         }
 
         storage_.append(candidate);
+        chain_cache_valid_ = false;
 
         mempool_.clear();
 
@@ -357,9 +366,35 @@ class CaesarNode {
         if (!validate_block_consensus(candidate, current_chain, previous_utxos))
             return false;
         storage_.append(candidate);
+        chain_cache_valid_ = false;
         mempool_.clear();
         relay_.announce_block(candidate);
         return true;
+    }
+
+    void request_sync_from_peer(std::uint64_t peer_id) {
+        std::vector<Hash256> locator;
+        {
+            std::lock_guard<std::mutex> lock(*chain_mutex_);
+            if (!chain_cache_valid_) {
+                chain_cache_ = storage_.load();
+                chain_cache_valid_ = true;
+            }
+            if (!chain_cache_.empty()) {
+                locator.push_back(chain_cache_.back().hash());
+                size_t i = chain_cache_.size();
+                while (i > 1 && locator.size() < 10) {
+                    i = i / 2;
+                    if (i < chain_cache_.size()) {
+                        locator.push_back(chain_cache_[i].hash());
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        if (locator.empty()) locator.push_back(Hash256{});
+        relay_.send_get_headers(peer_id, locator);
     }
 
    private:
@@ -388,6 +423,9 @@ class CaesarNode {
 
     BlockchainStorage storage_;
     Mempool mempool_;
+
+    mutable std::vector<Block> chain_cache_;
+    mutable bool chain_cache_valid_ = false;
 
     P2PServer server_;
     P2PRelay relay_;

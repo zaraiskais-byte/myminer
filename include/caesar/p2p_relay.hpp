@@ -144,6 +144,18 @@ class P2PRelay {
      * is expected to reply with Pong carrying the same nonce; the
      * reply is handled by handle_pong().
      */
+    void send_get_headers(std::uint64_t id, const std::vector<Hash256>& locator) {
+        auto connection = server_.peers().connection(id);
+        if (!connection) return;
+        std::vector<Hash256> use = locator;
+        if (use.empty()) use.push_back(Hash256{});
+        if (use.size() > 32) use.resize(32);
+        try {
+            const P2PFrame frame = make_get_headers_frame(use);
+            connection->send_frame(frame);
+        } catch (...) {}
+    }
+
     void send_ping(std::uint64_t id, std::uint64_t nonce) {
         P2PPing ping;
         ping.nonce = nonce;
