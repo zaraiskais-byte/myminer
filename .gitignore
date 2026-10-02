@@ -101,3 +101,4 @@ persistent_wallet.hpp.pre-*
 node.hpp.b2backup
 web.cpp.b2backup
 http_rpc.hpp.b2backup
+nohup.out
