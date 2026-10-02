@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <iostream>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -68,6 +69,11 @@ class P2PRelay {
     void set_chain_replacement_callback(ChainReplacementCallback callback) {
         std::lock_guard<std::mutex> lock(pending_mutex_);
         chain_replacement_callback_ = std::move(callback);
+    }
+
+    void set_invalidate_cache_callback(std::function<void()> cb) {
+        std::lock_guard<std::mutex> lock(pending_mutex_);
+        invalidate_cache_callback_ = std::move(cb);
     }
 
     void set_transaction_callback(TransactionCallback callback) {
@@ -145,15 +151,22 @@ class P2PRelay {
      * reply is handled by handle_pong().
      */
     void send_get_headers(std::uint64_t id, const std::vector<Hash256>& locator) {
+        std::cerr << "[TRACE] send_get_headers id=" << id << " locators=" << locator.size() << std::endl;
         auto connection = server_.peers().connection(id);
-        if (!connection) return;
+        if (!connection) {
+            std::cerr << "[TRACE] send_get_headers: NO CONNECTION" << std::endl;
+            return;
+        }
         std::vector<Hash256> use = locator;
         if (use.empty()) use.push_back(Hash256{});
         if (use.size() > 32) use.resize(32);
         try {
             const P2PFrame frame = make_get_headers_frame(use);
             connection->send_frame(frame);
-        } catch (...) {}
+            std::cerr << "[TRACE] send_get_headers: sent " << use.size() << " locators" << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "[TRACE] send_get_headers EXC: " << e.what() << std::endl;
+        }
     }
 
     void send_ping(std::uint64_t id, std::uint64_t nonce) {
@@ -332,27 +345,45 @@ class P2PRelay {
     }
 
     void on_peer_added(std::uint64_t id) {
-        /*
-         * The running_ check must happen under threads_mutex_ so that
-         * it is serialized against stop(). If it runs outside the
-         * lock, the following sequence is possible:
-         *
-         *   A: reads running_ == true (outside lock)
-         *   B: stop() sets running_ = false, swaps threads_, joins old
-         *   A: acquires the lock, pushes a new worker
-         *
-         * That new worker is never joined by stop() and may outlive
-         * the P2PRelay object.
-         */
-        std::lock_guard<std::mutex> lock(threads_mutex_);
-
-        if (!running_)
-            return;
-
-        threads_.emplace_back([this, id]() {
-            request_headers(id);
-            peer_loop(id);
-        });
+        std::cerr << "[TRACE] on_peer_added id=" << id << std::endl;
+        {
+            std::lock_guard<std::mutex> lock(readers_mutex_);
+            if (active_readers_.count(id)) return;
+            active_readers_.insert(id);
+        }
+        std::thread([this, id]() {
+            std::cerr << "[TRACE] reader START id=" << id << std::endl;
+            try {
+                auto conn = server_.peers().connection(id);
+                if (!conn) {
+                    std::cerr << "[TRACE] reader NO CONN id=" << id << std::endl;
+                    std::lock_guard<std::mutex> lock(readers_mutex_);
+                    active_readers_.erase(id);
+                    return;
+                }
+                while (running_) {
+                    try {
+                        P2PFrame frame = conn->receive_frame();
+                        std::cerr << "[TRACE] reader RECV id=" << id
+                                  << " type=" << static_cast<int>(frame.type)
+                                  << " payload=" << frame.payload.size() << std::endl;
+                        handle_frame(id, frame);
+                        server_.peers().reward(id, 1);
+                    } catch (const std::exception& ex) {
+                        std::cerr << "[TRACE] reader EXC id=" << id << ": " << ex.what() << std::endl;
+                        break;
+                    } catch (...) {
+                        std::cerr << "[TRACE] reader UNK EXC id=" << id << std::endl;
+                        break;
+                    }
+                }
+            } catch (...) {}
+            {
+                std::lock_guard<std::mutex> lock(readers_mutex_);
+                active_readers_.erase(id);
+            }
+            try { server_.peers().remove_peer(id); } catch (...) {}
+        }).detach();
     }
 
     void peer_loop(std::uint64_t id) {
@@ -382,6 +413,7 @@ class P2PRelay {
     }
 
     void handle_frame(std::uint64_t id, const P2PFrame& frame) {
+        std::cerr << "[TRACE] handle_frame id=" << id << " type=" << static_cast<int>(frame.type) << std::endl;
         switch (frame.type) {
             case P2PMessageType::Blocks:
                 handle_blocks(id, frame.payload);
@@ -476,6 +508,7 @@ class P2PRelay {
     }
 
     void handle_headers(std::uint64_t id, const std::vector<std::uint8_t>& payload) {
+        std::cerr << "[TRACE] handle_headers ENTER id=" << id << " size=" << payload.size() << std::endl;
         BinaryReader reader(payload);
 
         const std::uint32_t count = reader.read_u32();
@@ -784,6 +817,7 @@ class P2PRelay {
     }
 
     void handle_get_headers(std::uint64_t id, const std::vector<std::uint8_t>& payload) {
+        std::cerr << "[TRACE] handle_get_headers ENTER id=" << id << " size=" << payload.size() << std::endl;
         BinaryReader reader(payload);
 
         const std::uint32_t count = reader.read_u32();
@@ -806,12 +840,16 @@ class P2PRelay {
         if (!reader.empty())
             throw std::runtime_error("trailing bytes in getheaders payload");
 
-        if (!storage_.exists())
+        std::cerr << "[TRACE] handle_get_headers: locators=" << locators.size() << std::endl;
+        if (!storage_.exists()) {
+            std::cerr << "[TRACE] handle_get_headers: storage not exists" << std::endl;
             return;
-
+        }
+        std::cerr << "[TRACE] handle_get_headers: acquiring lock" << std::endl;
         std::lock_guard<std::mutex> lock(*storage_mutex_);
-
+        std::cerr << "[TRACE] handle_get_headers: locked, loading" << std::endl;
         const auto chain = storage_.load();
+        std::cerr << "[TRACE] handle_get_headers: chain size=" << chain.size() << std::endl;
 
         if (chain.empty())
             return;
@@ -1105,9 +1143,11 @@ class P2PRelay {
     }
 
     void handle_blocks(std::uint64_t id, const std::vector<std::uint8_t>& payload) {
+        std::cerr << "[TRACE] handle_blocks ENTER id=" << id << " size=" << payload.size() << std::endl;
         BinaryReader reader(payload);
 
         const std::uint32_t count = reader.read_u32();
+        std::cerr << "[TRACE] handle_blocks: count=" << count << std::endl;
 
         if (count == 0 || count > 1024)
             throw std::runtime_error("invalid relayed block count");
@@ -1122,27 +1162,39 @@ class P2PRelay {
 
             const Block block = Block::deserialize_full(data);
 
+            std::cerr << "[TRACE] block[" << i << "] h=" << block.header.height << std::endl;
 
             try {
                 std::lock_guard<std::mutex> lock(*storage_mutex_);
 
                 if (!storage_.exists())
-                    throw std::runtime_error("cannot relay block without local chain");
+                    throw std::runtime_error("no local chain");
 
                 const auto chain = storage_.load();
+                std::cerr << "[TRACE] block[" << i << "]: chain size=" << chain.size() << std::endl;
+
                 const auto previous_utxos = rebuild_utxo_set(chain);
 
                 if (!validate_block_consensus(block, chain, previous_utxos)) {
-                    throw std::runtime_error("relayed block failed consensus validation");
+                    throw std::runtime_error("consensus failed");
                 }
 
                 storage_.append(block);
+                std::cerr << "[TRACE] block[" << i << "]: APPENDED" << std::endl;
+                if (invalidate_cache_callback_) {
+                    try { invalidate_cache_callback_(); } catch (...) {}
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "[TRACE] block[" << i << "]: SKIP: " << e.what() << std::endl;
+                continue;
             } catch (...) {
+                std::cerr << "[TRACE] block[" << i << "]: SKIP unknown" << std::endl;
                 continue;
             }
-
-            server_.peers().broadcast(make_blocks_frame(block));
+            // NOTE: broadcasting removed to prevent infinite loop
         }
+
+        std::cerr << "[TRACE] handle_blocks DONE count=" << count << std::endl;
 
         if (!reader.empty())
             throw std::runtime_error("trailing bytes in relayed blocks payload");
@@ -1152,12 +1204,16 @@ class P2PRelay {
     BlockchainStorage& storage_;
 
     ChainReplacementCallback chain_replacement_callback_;
+    std::function<void()> invalidate_cache_callback_;
     mutable std::mutex transaction_callback_mutex_;
     TransactionCallback transaction_callback_;
 
     mutable std::mutex mempool_callback_mutex_;
     MempoolSnapshotCallback mempool_snapshot_callback_;
     MempoolTxCallback mempool_tx_callback_;
+
+    mutable std::mutex readers_mutex_;
+    std::unordered_set<std::uint64_t> active_readers_;
 
     std::atomic<bool> running_{false};
 

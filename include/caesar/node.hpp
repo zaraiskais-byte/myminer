@@ -37,6 +37,9 @@ class CaesarNode {
         relay_.set_chain_replacement_callback(
             [this](const std::vector<Block>& candidate) { return replace_chain(candidate); });
 
+        relay_.set_invalidate_cache_callback(
+            [this]() { chain_cache_valid_ = false; });
+
         relay_.set_transaction_callback(
             [this](const Transaction& tx) { return accept_transaction(tx).accepted(); });
 
