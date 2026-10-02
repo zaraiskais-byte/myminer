@@ -175,6 +175,10 @@ inline void pool_load_state_unlocked(const std::filesystem::path& p) {
     if (!f) return;
     g_pool_workers.clear();
     g_pool_payouts.clear();
+    g_pool_users.clear();
+    g_pool_all_users.clear();
+    g_pool_next_user_number = 1;
+    g_pool_total_registered = 0;
     auto split = [](const std::string& s, char d) {
         std::vector<std::string> parts;
         std::string cur;
@@ -219,6 +223,29 @@ inline void pool_load_state_unlocked(const std::filesystem::path& p) {
                     r.fee_amount = std::stoull(q[4]);
                     r.recipient_count = std::stoull(q[5]);
                     g_pool_payouts.push_back(r);
+                }
+            }
+            else if (key == "auto_enabled") g_pool_auto_enabled.store(val == "1");
+            else if (key == "auto_blocks") g_pool_auto_blocks.store(static_cast<std::uint32_t>(std::stoul(val)));
+            else if (key == "last_payout_height") g_pool_last_payout_height.store(std::stoull(val));
+            else if (key == "first_seen_unix") g_pool_first_seen_unix = std::stoull(val);
+            else if (key == "user") g_pool_all_users.insert(val);
+            else if (key == "user_counter") g_pool_next_user_number = std::stoull(val);
+            else if (key == "total_registered") g_pool_total_registered = std::stoull(val);
+            else if (key == "reguser") {
+                auto q = split(val, '|');
+                if (q.size() >= 5) {
+                    PoolUserRecord u;
+                    u.address = q[0];
+                    u.parent = q[1];
+                    u.user_number = static_cast<std::uint32_t>(std::stoul(q[2]));
+                    u.joined_at = std::stoull(q[3]);
+                    u.is_founder = (q[4] == "1");
+                    if (q.size() >= 6 && !q[5].empty()) {
+                        auto ch = split(q[5], ',');
+                        for (const auto& x : ch) if (!x.empty()) u.children.push_back(x);
+                    }
+                    g_pool_users[u.address] = u;
                 }
             }
         } catch (...) {}
@@ -746,6 +773,34 @@ nav.bottom button.active::before{
 </div>
 
 <script>
+
+// ============ FORCE SW RESET (one-time, controlled by URL flag) ============
+(function(){
+  try{
+    const url = new URL(location.href);
+    if(url.searchParams.get('resetSW') === '1'){
+      console.log('[SW] Force reset requested');
+      if('serviceWorker' in navigator){
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(r => r.unregister());
+        });
+      }
+      if('caches' in window){
+        caches.keys().then(keys => {
+          keys.forEach(k => caches.delete(k));
+        });
+      }
+      try{ localStorage.clear(); }catch(e){}
+      setTimeout(() => {
+        const u = new URL(location.href);
+        u.searchParams.delete('resetSW');
+        location.href = u.toString();
+      }, 2000);
+      return;
+    }
+  }catch(e){}
+})();
+
 function log(m){
   var t=new Date().toLocaleTimeString();
   document.getElementById('log').textContent=t+' | '+m+'\n'+document.getElementById('log').textContent;
