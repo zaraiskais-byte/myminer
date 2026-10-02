@@ -682,6 +682,47 @@ nav.bottom button.active::before{
   margin-bottom:12px;opacity:.5;
 }
 </style>
+<script>
+(function(){
+  var isPWA = window.matchMedia('(display-mode: standalone)').matches
+           || window.matchMedia('(display-mode: minimal-ui)').matches
+           || window.navigator.standalone === true
+           || document.referrer.indexOf('android-app://') === 0;
+  if(!isPWA) return;
+
+  function kill(){
+    var w = document.querySelector('.welcome-modal');
+    if(w){ w.remove(); return true; }
+    return false;
+  }
+  // Try every 40ms for 6 seconds
+  var t0 = Date.now();
+  var iv = setInterval(function(){
+    kill();
+    if(Date.now()-t0 > 6000) clearInterval(iv);
+  }, 40);
+
+  // Also: when "Enter App" is clicked manually, force app to show
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if(t && t.textContent && t.textContent.toLowerCase().indexOf('enter app') >= 0){
+      setTimeout(kill, 10);
+      setTimeout(kill, 100);
+      setTimeout(kill, 300);
+    }
+  }, true);
+})();
+</script>
+<script>
+(function(){
+  try{
+    if(location.search.indexOf('resetSW') >= 0){
+      var clean = location.pathname + location.hash;
+      history.replaceState(null,'',clean);
+    }
+  }catch(e){}
+})();
+</script>
 </head>
 <body>
 
@@ -790,7 +831,7 @@ nav.bottom button.active::before{
           keys.forEach(k => caches.delete(k));
         });
       }
-      try{ localStorage.clear(); }catch(e){}
+      /* localStorage.clear() DISABLED — was wiping onboarded flag */
       setTimeout(() => {
         const u = new URL(location.href);
         u.searchParams.delete('resetSW');
