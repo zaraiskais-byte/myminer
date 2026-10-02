@@ -3038,14 +3038,13 @@ async function updateHeroCard(){
     const stats = await api('/api/pool/stats');
     const status = await api('/api/status');
     if(!stats || !status) return;
-    const workers = stats.workers || [];
-    const totalShares = stats.total_shares || 0;
-    const totalBlocks = stats.total_blocks || 0;
-    const height = status.height || 0;
-    const peers = status.peers || 0;
+    const workers = (stats.workers && Array.isArray(stats.workers)) ? stats.workers : [];
+    const totalShares = (typeof stats.total_shares==='number') ? stats.total_shares : 0;
+    const totalBlocks = (typeof stats.total_blocks==='number') ? stats.total_blocks : 0;
+    const height = (typeof status.height==='number') ? status.height : 0;
+    const peers = (typeof status.peers==='number') ? status.peers : 0;
 
-    // Estimate blocks "today" - count last 24h approximated by uptime
-    const uptimeSec = status.uptime || 0;
+    const uptimeSec = (typeof status.uptime==='number') ? status.uptime : 0;
     const myBlocks = Math.min(height, Math.floor(uptimeSec / 60));
     const myShares = totalShares;
 
@@ -3059,20 +3058,21 @@ async function updateHeroCard(){
     else if(hashRate > 1000) hashStr = (hashRate/1000).toFixed(2) + 'K';
     else hashStr = String(hashRate);
 
-    $('heroHash').textContent = hashStr;
-    $('heroBlocksToday').textContent = String(myBlocks);
-    $('heroSharesToday').textContent = String(myShares);
+    var hh=$('heroHash'); if(hh) hh.textContent = hashStr;
+    var hb=$('heroBlocksToday'); if(hb) hb.textContent = String(myBlocks);
+    var hs=$('heroSharesToday'); if(hs) hs.textContent = String(myShares);
 
     // Progress: 50 blocks/day target (as example)
     const targetBlocks = 50;
     const pct = Math.min(100, Math.round((myBlocks/targetBlocks)*100));
-    $('heroProgressPct').textContent = pct + '%';
-    $('heroProgressFill').style.width = pct + '%';
+    var hp=$('heroProgressPct'); if(hp) hp.textContent = pct + '%';
+    var hf=$('heroProgressFill'); if(hf) hf.style.width = pct + '%';
 
     // Status: MINING if workers connected
     const isMining = workers.length > 0;
     const badge = $('heroBadge');
     const dot = $('heroDot');
+    if(!badge || !dot) return;
     if(isMining){
       badge.textContent = 'ACTIVE';
       badge.classList.remove('idle');
@@ -3163,11 +3163,12 @@ async function refreshWallet(){
       api('/api/history').catch(()=>null)
     ]);
     const s=R[0], com=R[1], b=R[2], w=R[3], h=R[4];
+    if(!s) return;
     if(s)updateStatus(s);
     if(com && com.ok){
-      $('cUsers').textContent=com.total_users||0;
-      $('cActive').textContent=com.active_24h||0;
-      $('cBlocks').textContent=com.total_blocks_ever||0;
+      var cu=$('cUsers'); if(cu) cu.textContent=(typeof com.total_users==='number')?com.total_users:0;
+      var ca=$('cActive'); if(ca) ca.textContent=(typeof com.active_24h==='number')?com.active_24h:0;
+      var cb=$('cBlocks'); if(cb) cb.textContent=(typeof com.total_blocks_ever==='number')?com.total_blocks_ever:0;
       const sec=com.network_age_sec||0;
       const d=Math.floor(sec/86400);
       const hh=Math.floor((sec%86400)/3600);
@@ -3348,10 +3349,15 @@ async function payoutNow(){
 async function refreshExplore(){
   try{
     const s=await api('/api/status');
-    $('eHeight').textContent=s.height;
-    $('ePeers').textContent=s.peers;
-    $('eMempool').textContent=s.mempool;
-    $('eUptime').textContent=s.uptime+'s';
+    if(!s || typeof s !== 'object') return;
+    var eh=$('eHeight');  if(eh) eh.textContent=(typeof s.height==='number')?s.height:0;
+    var ep=$('ePeers');   if(ep) ep.textContent=(typeof s.peers==='number')?s.peers:0;
+    var em=$('eMempool'); if(em) em.textContent=(typeof s.mempool==='number')?s.mempool:0;
+    var eu=$('eUptime');
+    if(eu){
+      var u=(typeof s.uptime==='number')?s.uptime:0;
+      eu.textContent=u+'s';
+    }
     updateStatus(s);
     await refreshBlocks();
   }catch(e){log('explore refresh error: '+e.message)}
@@ -3468,9 +3474,13 @@ function showLog(){
 
 // ============ STATUS ============
 function updateStatus(s){
-  if(!s)return;
-  $('stxt').textContent='#'+s.height;
-  $('sdot').className='dot'+(s.peers>0?'':' off');
+  if(!s) return;
+  var h = (typeof s.height === 'number') ? s.height : (s.height||0);
+  var p = (typeof s.peers  === 'number') ? s.peers  : (s.peers||0);
+  var st = $('stxt');
+  if(st) st.textContent='#'+h;
+  var sd = $('sdot');
+  if(sd) sd.className='dot'+(p>0?'':' off');
   var pa = $('profileAddr');
   if(pa){
     var addr = $('myaddr') ? $('myaddr').textContent : '';
@@ -3479,7 +3489,10 @@ function updateStatus(s){
   var avatar = $('profileAvatar');
   if(avatar){
     var _addr = $('myaddr') ? $('myaddr').textContent : '';
-    if(_addr && _addr !== '—') avatar.textContent = _addr.charAt(2).toUpperCase() || 'C';
+    if(_addr && _addr !== '—'){
+      var ch = _addr.charAt(2) || 'C';
+      avatar.textContent = ch.toUpperCase();
+    }
   }
 }
 
@@ -3519,13 +3532,12 @@ async function loadCircle(){
   try{
     const me = await api('/api/user/me?address=' + encodeURIComponent(a));
     if(me && me.ok){
-      $('circleNumber').textContent = me.user_number || '?';
-      $('circleBadge').textContent = '#' + (me.user_number || '?');
-      if(me.is_founder){
-        $('circleTag').textContent = 'FOUNDER';
-        $('circleTag').style.opacity = '1';
-      } else {
-        $('circleTag').textContent = 'BUILDER';
+      var cn=$('circleNumber'); if(cn) cn.textContent = me.user_number || '?';
+      var cb=$('circleBadge'); if(cb) cb.textContent = '#' + (me.user_number || '?');
+      var ct=$('circleTag');
+      if(ct){
+        if(me.is_founder){ ct.textContent = 'FOUNDER'; ct.style.opacity = '1'; }
+        else { ct.textContent = 'BUILDER'; }
       }
       if(me.direct_children === 0){
         $('circleSub').textContent = 'Invite a friend — your circle grows from zero.';
