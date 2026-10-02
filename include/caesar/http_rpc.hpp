@@ -1871,13 +1871,13 @@ setInterval(load, 10000);
 
         server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res) {
             res.set_content(
-                R"({"name":"Caesar CZR Wallet","short_name":"Caesar","start_url":"/pool","display":"standalone","background_color":"#0f1115","theme_color":"#f0c040","orientation":"portrait","icons":[{"src":"/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"}]})",
+                R"({"name":"Caesar CZR Wallet","short_name":"Caesar","start_url":"/","display":"standalone","background_color":"#0f1115","theme_color":"#f0c040","orientation":"portrait","icons":[{"src":"/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"}]})",
                 "application/manifest+json");
         });
 
 server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res) {
             res.set_content(
-                R"({"name":"Caesar CZR Wallet","short_name":"Caesar","description":"Mobile-first cryptocurrency wallet and mining pool.","start_url":"/pool","scope":"/","display":"standalone","display_override":["standalone","minimal-ui"],"orientation":"portrait","background_color":"#0f1115","theme_color":"#f0c040","categories":["finance","utilities"],"lang":"en","dir":"ltr","icons":[{"src":"/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"},{"src":"/icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}],"shortcuts":[{"name":"Pool Dashboard","url":"/pool","description":"View mining pool"},{"name":"Explorer","url":"/explorer","description":"Browse blocks"}]})",
+                R"({"name":"Caesar CZR Wallet","short_name":"Caesar","description":"Mobile-first cryptocurrency wallet and mining pool.","start_url":"/","scope":"/","display":"standalone","display_override":["standalone","minimal-ui"],"orientation":"portrait","background_color":"#0f1115","theme_color":"#f0c040","categories":["finance","utilities"],"lang":"en","dir":"ltr","icons":[{"src":"/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"},{"src":"/icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}],"shortcuts":[{"name":"Pool Dashboard","url":"/pool","description":"View mining pool"},{"name":"Explorer","url":"/explorer","description":"Browse blocks"}]})",
                 "application/json");
         });
 
