@@ -778,7 +778,7 @@ nav.bottom button.active::before{
 (function(){
   try{
     const url = new URL(location.href);
-    if(url.searchParams.get('resetSW') === '1'){
+    if(url.searchParams.get('resetSW') === '__DISABLED__'){
       console.log('[SW] Force reset requested');
       if('serviceWorker' in navigator){
         navigator.serviceWorker.getRegistrations().then(regs => {
