@@ -2506,6 +2506,96 @@ nav.bottom button.active{color:var(--gold);background:rgba(240,192,64,.08)}
   text-shadow:0 0 8px rgba(255,204,77,.8);
   animation:pulse 2.5s ease-in-out infinite;
 }
+
+/* ===== More tab - Profile Card ===== */
+.profile-card{
+  display:flex;align-items:center;gap:14px;
+  background:linear-gradient(135deg,rgba(179,112,255,.08),rgba(77,224,255,.04)),rgba(24,30,44,.85);
+  border:1px solid rgba(179,112,255,.25);
+}
+.profile-avatar{
+  width:56px;height:56px;border-radius:16px;
+  background:linear-gradient(145deg,var(--gold),var(--gold-2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;font-weight:900;color:#0a0d12;
+  box-shadow:0 10px 30px -8px rgba(255,204,77,.6);
+  flex-shrink:0;
+}
+.profile-info{flex:1;min-width:0}
+.profile-name{
+  color:var(--text);font-weight:800;font-size:15px;
+}
+.profile-addr{
+  color:var(--green);font-size:11px;font-family:'SF Mono',monospace;
+  margin-top:4px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* ===== More hint ===== */
+.more-hint{
+  color:var(--dim);font-size:11px;line-height:1.5;
+  margin:-6px 0 12px;
+}
+
+/* ===== About card ===== */
+.about-card{}
+.about-row{
+  display:flex;justify-content:space-between;
+  padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04);
+  font-size:13px;
+}
+.about-row:last-child{border-bottom:none}
+.about-row span{color:var(--dim);font-weight:600}
+.about-row b{color:var(--text);font-weight:800}
+.about-link{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 0;border-bottom:1px solid rgba(255,255,255,.04);
+  color:var(--text);font-weight:700;font-size:13px;
+  transition:all .15s;
+}
+.about-link:last-child{border-bottom:none}
+.about-link:active{background:rgba(255,255,255,.03);padding-left:6px}
+.about-arrow{
+  color:var(--gold);font-weight:900;font-size:16px;
+  transition:transform .15s;
+}
+.about-link:active .about-arrow{transform:translateX(4px)}
+
+/* ===== Address Book entries ===== */
+.ab-entry{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 0;border-bottom:1px solid rgba(255,255,255,.04);
+}
+.ab-entry:last-child{border-bottom:none}
+.ab-avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(145deg,var(--purple),#7a3ec7);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:16px;color:#fff;
+  box-shadow:0 4px 12px -2px rgba(179,112,255,.5);
+  flex-shrink:0;
+}
+.ab-info{flex:1;min-width:0}
+.ab-name{
+  color:var(--text);font-weight:700;font-size:13px;
+}
+.ab-addr{
+  color:var(--dim);font-size:10px;font-family:'SF Mono',monospace;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  margin-top:2px;
+}
+.ab-del{
+  width:32px;height:32px;border-radius:10px;
+  background:rgba(255,92,122,.08);
+  border:1px solid rgba(255,92,122,.25);
+  color:var(--red);font-size:16px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.ab-del:active{transform:scale(.92)}
+.ab-empty{
+  text-align:center;color:var(--dim);font-size:12px;padding:20px;
+}
 </style>
 </head>
 <body>
@@ -2724,32 +2814,44 @@ nav.bottom button.active{color:var(--gold);background:rgba(240,192,64,.08)}
 
     <!-- ============ TAB: MORE ============ -->
     <section class="tab" id="tab-more">
+
+      <div class="card profile-card">
+        <div class="profile-avatar" id="profileAvatar">C</div>
+        <div class="profile-info">
+          <div class="profile-name">Caesar CZR Wallet</div>
+          <div class="profile-addr" id="profileAddr">—</div>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Sign / Verify</h2>
-        <div class="input-row"><input id="sMsg" placeholder="message" autocomplete="off"></div>
-        <button class="btn primary" style="width:100%" onclick="signMsg()">Sign</button>
+        <div class="more-hint">Sign a message with your private key. Anyone can verify.</div>
+        <div class="input-row"><input id="sMsg" placeholder="message to sign" autocomplete="off"></div>
+        <button class="btn primary" style="width:100%" onclick="signMsg()">Sign Message</button>
         <div class="input-row" style="margin-top:12px"><input id="sSig" placeholder="signature (hex)" readonly></div>
         <div class="divider"></div>
-        <div class="input-row"><input id="vMsg" placeholder="verify message"></div>
-        <div class="input-row"><input id="vSig" placeholder="verify signature (hex)"></div>
-        <button class="btn" style="width:100%" onclick="verifyMsg()">Verify</button>
-        <div id="vRes" style="text-align:center;margin-top:8px;font-size:13px;font-weight:700"></div>
+        <div class="input-row"><input id="vMsg" placeholder="message to verify"></div>
+        <div class="input-row"><input id="vSig" placeholder="signature (hex)"></div>
+        <button class="btn" style="width:100%" onclick="verifyMsg()">Verify Signature</button>
+        <div id="vRes" style="text-align:center;margin-top:10px;font-size:13px;font-weight:800;letter-spacing:1px"></div>
       </div>
 
       <div class="card">
         <h2>Address Book</h2>
+        <div class="more-hint">Save addresses for one-tap sending.</div>
         <div class="input-row">
-          <input id="abName" placeholder="name">
+          <input id="abName" placeholder="name (e.g. friend)">
         </div>
         <div class="input-row">
           <input id="abAddr" placeholder="CZ1... address">
-          <button class="btn small primary" onclick="addAddr()">+</button>
+          <button class="btn primary small" onclick="addAddr()">+ Add</button>
         </div>
-        <div id="abList"></div>
+        <div id="abList" style="margin-top:10px"></div>
       </div>
 
       <div class="card">
         <h2>Change PIN</h2>
+        <div class="more-hint">Used to unlock the wallet on this device.</div>
         <div class="input-row"><input id="oldPin" type="tel" inputmode="numeric" placeholder="current PIN"></div>
         <div class="input-row"><input id="newPin" type="tel" inputmode="numeric" placeholder="new PIN (5+ digits)"></div>
         <button class="btn primary" style="width:100%;margin-top:4px" onclick="changePin()">Update PIN</button>
@@ -2758,16 +2860,31 @@ nav.bottom button.active{color:var(--gold);background:rgba(240,192,64,.08)}
       <div class="card">
         <h2>Session</h2>
         <div class="btn-row">
-          <button class="btn danger" onclick="lock()">🔒 Lock</button>
-          <button class="btn" onclick="showLog()">📜 Log</button>
+          <button class="btn danger" onclick="lock()">Lock Wallet</button>
+          <button class="btn" onclick="showLog()">View Log</button>
         </div>
         <div id="log" style="margin-top:12px;display:none"></div>
+      </div>
+
+      <div class="card about-card">
+        <h2>About</h2>
+        <div class="about-row"><span>Application</span><b>Caesar CZR Wallet</b></div>
+        <div class="about-row"><span>Version</span><b>0.2.0</b></div>
+        <div class="about-row"><span>Year</span><b>2026</b></div>
+        <div class="about-row"><span>Network</span><b>Mainnet (1)</b></div>
         <div class="divider"></div>
-        <div class="muted" style="text-align:left;padding:0">
-          <div>Caesar CZR Wallet</div>
-          <div>Version 0.2.0 — 2026</div>
-          <div style="margin-top:6px">Repository: <a href="https://github.com/zaraiskais-byte/myminer" target="_blank">github.com/zaraiskais-byte/myminer</a></div>
-        </div>
+        <a href="https://github.com/zaraiskais-byte/myminer" target="_blank" class="about-link">
+          <span>Repository</span>
+          <span class="about-arrow">→</span>
+        </a>
+        <a href="/explorer" target="_blank" class="about-link">
+          <span>Block Explorer</span>
+          <span class="about-arrow">→</span>
+        </a>
+        <a href="/pool" target="_blank" class="about-link">
+          <span>Pool Dashboard</span>
+          <span class="about-arrow">→</span>
+        </a>
       </div>
     </section>
 
@@ -3290,18 +3407,30 @@ function addAddr(){
   localStorage.setItem('addrbook',JSON.stringify(book));
   $('abName').value='';$('abAddr').value='';
   renderAddrBook();
-  toast('Added ✓');
+  toast('Address added');
+  vib(20);
 }
 
 function renderAddrBook(){
   const el=$('abList');
+  if(!el) return;
   const book=JSON.parse(localStorage.getItem('addrbook')||'[]');
-  if(!book.length){el.innerHTML='<div class="muted">No saved addresses</div>';return}
+  if(!book.length){
+    el.innerHTML='<div class="ab-empty">No saved addresses yet</div>';
+    return;
+  }
   el.innerHTML='';
   book.forEach((e,i)=>{
     const d=document.createElement('div');
-    d.className='row';
-    d.innerHTML='<div class="left">'+e.name+'<div class="sub">'+e.address.slice(0,28)+'...</div></div><button class="btn small danger" onclick="delAddr('+i+')">×</button>';
+    d.className='ab-entry';
+    const initial = (e.name||'?').charAt(0).toUpperCase();
+    const shortAddr = (e.address||'').slice(0,32);
+    d.innerHTML='<div class="ab-avatar">'+initial+'</div>'
+      +'<div class="ab-info">'
+      +'<div class="ab-name">'+e.name+'</div>'
+      +'<div class="ab-addr">'+shortAddr+'...</div>'
+      +'</div>'
+      +'<button class="ab-del" onclick="delAddr('+i+')">×</button>';
     el.appendChild(d);
   });
 }
@@ -3342,6 +3471,16 @@ function updateStatus(s){
   if(!s)return;
   $('stxt').textContent='#'+s.height;
   $('sdot').className='dot'+(s.peers>0?'':' off');
+  var pa = $('profileAddr');
+  if(pa){
+    var addr = $('myaddr') ? $('myaddr').textContent : '';
+    if(addr && addr !== '—') pa.textContent = addr.slice(0,32) + '...';
+  }
+  var avatar = $('profileAvatar');
+  if(avatar){
+    var _addr = $('myaddr') ? $('myaddr').textContent : '';
+    if(_addr && _addr !== '—') avatar.textContent = _addr.charAt(2).toUpperCase() || 'C';
+  }
 }
 
 // ============ INIT ============
