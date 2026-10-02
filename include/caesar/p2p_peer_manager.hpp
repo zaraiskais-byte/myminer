@@ -166,6 +166,29 @@ class P2PPeerManager {
         return it->second.connection;
     }
 
+    void broadcast_except(std::uint64_t excluded_id, const P2PFrame& frame) {
+        std::vector<std::shared_ptr<P2PConnection>> connections;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            connections.reserve(peers_.size());
+            for (const auto& kv : peers_) {
+                if (kv.first == excluded_id) continue;
+                connections.push_back(kv.second.connection);
+            }
+        }
+        for (const auto& conn : connections) {
+            try { conn->send_frame(frame); } catch (...) {}
+        }
+    }
+
+    std::vector<std::uint64_t> list_ids() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::vector<std::uint64_t> ids;
+        ids.reserve(peers_.size());
+        for (const auto& kv : peers_) ids.push_back(kv.first);
+        return ids;
+    }
+
     /*
      * Returns the current score of a connected peer, or 0 if the id
      * is unknown.

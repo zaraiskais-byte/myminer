@@ -105,6 +105,31 @@ class P2PRelay {
         running_ = true;
 
         server_.peers().set_peer_added_callback([this](std::uint64_t id) { on_peer_added(id); });
+
+        // Periodic re-sync: every 20 seconds ask peers for new headers
+        sync_thread_ = std::thread([this]() {
+            while (true) {
+                for (int i = 0; i < 20; ++i) {
+                    if (!running_) return;
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                }
+                if (!running_) return;
+                try {
+                    auto ids = server_.peers().list_ids();
+                    for (auto pid : ids) {
+                        std::vector<Hash256> locator;
+                        {
+                            std::lock_guard<std::mutex> lock(*storage_mutex_);
+                            if (!storage_.exists()) continue;
+                            auto chain = storage_.load();
+                            if (!chain.empty()) locator.push_back(chain.back().hash());
+                        }
+                        if (locator.empty()) locator.push_back(Hash256{});
+                        try { send_get_headers(pid, locator); } catch (...) {}
+                    }
+                } catch (...) {}
+            }
+        });
     }
 
     void stop() noexcept {
@@ -370,7 +395,16 @@ class P2PRelay {
                         handle_frame(id, frame);
                         server_.peers().reward(id, 1);
                     } catch (const std::exception& ex) {
-                        std::cerr << "[TRACE] reader EXC id=" << id << ": " << ex.what() << std::endl;
+                        std::string msg = ex.what();
+                        // Timeouts are normal — just retry
+                        if (msg.find("timeout") != std::string::npos ||
+                            msg.find("Timeout") != std::string::npos ||
+                            msg.find("timed out") != std::string::npos ||
+                            msg.find("Resource temporarily unavailable") != std::string::npos ||
+                            msg.find("EAGAIN") != std::string::npos) {
+                            continue;
+                        }
+                        std::cerr << "[TRACE] reader REAL EXC id=" << id << ": " << msg << std::endl;
                         break;
                     } catch (...) {
                         std::cerr << "[TRACE] reader UNK EXC id=" << id << std::endl;
@@ -1152,6 +1186,9 @@ class P2PRelay {
         if (count == 0 || count > 1024)
             throw std::runtime_error("invalid relayed block count");
 
+        std::vector<Block> accepted_blocks;
+        accepted_blocks.reserve(count);
+
         for (std::uint32_t i = 0; i < count; ++i) {
             const std::uint32_t size = reader.read_u32();
 
@@ -1191,7 +1228,12 @@ class P2PRelay {
                 std::cerr << "[TRACE] block[" << i << "]: SKIP unknown" << std::endl;
                 continue;
             }
-            // NOTE: broadcasting removed to prevent infinite loop
+            try { accepted_blocks.push_back(block); } catch (...) {}
+        }
+
+        // Gossip: forward accepted blocks to peers except the sender
+        for (const auto& b : accepted_blocks) {
+            try { server_.peers().broadcast_except(id, make_blocks_frame(b)); } catch (...) {}
         }
 
         std::cerr << "[TRACE] handle_blocks DONE count=" << count << std::endl;
@@ -1215,6 +1257,7 @@ class P2PRelay {
     mutable std::mutex readers_mutex_;
     std::unordered_set<std::uint64_t> active_readers_;
 
+    std::thread sync_thread_;
     std::atomic<bool> running_{false};
 
     std::mutex threads_mutex_;

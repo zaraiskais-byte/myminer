@@ -78,7 +78,12 @@ int main(int argc, char** argv) {
                 if (pp != 0) {
                     std::cout << "[peer] will connect to " << ph << ":" << pp << "\n";
                     std::thread([&node, ph, pp]() {
-                        for (int attempt = 1; attempt <= 200; ++attempt) {
+                        while (true) {
+                            // If we already have peers, sleep and re-check
+                            if (node.peer_count() > 0) {
+                                std::this_thread::sleep_for(std::chrono::seconds(5));
+                                continue;
+                            }
                             try {
                                 std::uint64_t peer_id = node.connect_to_peer(ph, pp);
                                 std::cout << "[peer] connected to " << ph << ":" << pp
@@ -90,11 +95,9 @@ int main(int argc, char** argv) {
                                 } catch (const std::exception& e) {
                                     std::cerr << "[peer] sync request failed: " << e.what() << std::endl;
                                 }
-                                return;
                             } catch (const std::exception& e) {
-                                std::cerr << "[peer] attempt " << attempt
-                                          << " failed: " << e.what() << std::endl;
-                                std::this_thread::sleep_for(std::chrono::seconds(15));
+                                std::cerr << "[peer] reconnect attempt failed: " << e.what() << std::endl;
+                                std::this_thread::sleep_for(std::chrono::seconds(10));
                             }
                         }
                     }).detach();
