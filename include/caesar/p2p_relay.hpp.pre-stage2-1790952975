@@ -177,10 +177,10 @@ class P2PRelay {
      * reply is handled by handle_pong().
      */
     void send_get_headers(std::uint64_t id, const std::vector<Hash256>& locator) {
-        // std::cerr << "[TRACE] send_get_headers id=" << id << " locators=" << locator.size() << std::endl;
+        std::cerr << "[TRACE] send_get_headers id=" << id << " locators=" << locator.size() << std::endl;
         auto connection = server_.peers().connection(id);
         if (!connection) {
-            // std::cerr << "[TRACE] send_get_headers: NO CONNECTION" << std::endl;
+            std::cerr << "[TRACE] send_get_headers: NO CONNECTION" << std::endl;
             return;
         }
         std::vector<Hash256> use = locator;
@@ -189,9 +189,9 @@ class P2PRelay {
         try {
             const P2PFrame frame = make_get_headers_frame(use);
             connection->send_frame(frame);
-            // std::cerr << "[TRACE] send_get_headers: sent " << use.size() << " locators" << std::endl;
+            std::cerr << "[TRACE] send_get_headers: sent " << use.size() << " locators" << std::endl;
         } catch (const std::exception& e) {
-            // std::cerr << "[TRACE] send_get_headers EXC: " << e.what() << std::endl;
+            std::cerr << "[TRACE] send_get_headers EXC: " << e.what() << std::endl;
         }
     }
 
@@ -371,18 +371,18 @@ class P2PRelay {
     }
 
     void on_peer_added(std::uint64_t id) {
-        // std::cerr << "[TRACE] on_peer_added id=" << id << std::endl;
+        std::cerr << "[TRACE] on_peer_added id=" << id << std::endl;
         {
             std::lock_guard<std::mutex> lock(readers_mutex_);
             if (active_readers_.count(id)) return;
             active_readers_.insert(id);
         }
         std::thread([this, id]() {
-            // std::cerr << "[TRACE] reader START id=" << id << std::endl;
+            std::cerr << "[TRACE] reader START id=" << id << std::endl;
             try {
                 auto conn = server_.peers().connection(id);
                 if (!conn) {
-                    // std::cerr << "[TRACE] reader NO CONN id=" << id << std::endl;
+                    std::cerr << "[TRACE] reader NO CONN id=" << id << std::endl;
                     std::lock_guard<std::mutex> lock(readers_mutex_);
                     active_readers_.erase(id);
                     return;
@@ -405,10 +405,10 @@ class P2PRelay {
                             msg.find("EAGAIN") != std::string::npos) {
                             continue;
                         }
-                        // std::cerr << "[TRACE] reader REAL EXC id=" << id << ": " << msg << std::endl;
+                        std::cerr << "[TRACE] reader REAL EXC id=" << id << ": " << msg << std::endl;
                         break;
                     } catch (...) {
-                        // std::cerr << "[TRACE] reader UNK EXC id=" << id << std::endl;
+                        std::cerr << "[TRACE] reader UNK EXC id=" << id << std::endl;
                         break;
                     }
                 }
@@ -448,7 +448,7 @@ class P2PRelay {
     }
 
     void handle_frame(std::uint64_t id, const P2PFrame& frame) {
-        // std::cerr << "[TRACE] handle_frame id=" << id << " type=" << static_cast<int>(frame.type) << std::endl;
+        std::cerr << "[TRACE] handle_frame id=" << id << " type=" << static_cast<int>(frame.type) << std::endl;
         switch (frame.type) {
             case P2PMessageType::Blocks:
                 handle_blocks(id, frame.payload);
@@ -543,7 +543,7 @@ class P2PRelay {
     }
 
     void handle_headers(std::uint64_t id, const std::vector<std::uint8_t>& payload) {
-        // std::cerr << "[TRACE] handle_headers ENTER id=" << id << " size=" << payload.size() << std::endl;
+        std::cerr << "[TRACE] handle_headers ENTER id=" << id << " size=" << payload.size() << std::endl;
         BinaryReader reader(payload);
 
         const std::uint32_t count = reader.read_u32();
@@ -852,7 +852,7 @@ class P2PRelay {
     }
 
     void handle_get_headers(std::uint64_t id, const std::vector<std::uint8_t>& payload) {
-        // std::cerr << "[TRACE] handle_get_headers ENTER id=" << id << " size=" << payload.size() << std::endl;
+        std::cerr << "[TRACE] handle_get_headers ENTER id=" << id << " size=" << payload.size() << std::endl;
         BinaryReader reader(payload);
 
         const std::uint32_t count = reader.read_u32();
@@ -875,16 +875,16 @@ class P2PRelay {
         if (!reader.empty())
             throw std::runtime_error("trailing bytes in getheaders payload");
 
-        // std::cerr << "[TRACE] handle_get_headers: locators=" << locators.size() << std::endl;
+        std::cerr << "[TRACE] handle_get_headers: locators=" << locators.size() << std::endl;
         if (!storage_.exists()) {
-            // std::cerr << "[TRACE] handle_get_headers: storage not exists" << std::endl;
+            std::cerr << "[TRACE] handle_get_headers: storage not exists" << std::endl;
             return;
         }
-        // std::cerr << "[TRACE] handle_get_headers: acquiring lock" << std::endl;
+        std::cerr << "[TRACE] handle_get_headers: acquiring lock" << std::endl;
         std::lock_guard<std::mutex> lock(*storage_mutex_);
-        // std::cerr << "[TRACE] handle_get_headers: locked, loading" << std::endl;
+        std::cerr << "[TRACE] handle_get_headers: locked, loading" << std::endl;
         const auto chain = storage_.load();
-        // std::cerr << "[TRACE] handle_get_headers: chain size=" << chain.size() << std::endl;
+        std::cerr << "[TRACE] handle_get_headers: chain size=" << chain.size() << std::endl;
 
         if (chain.empty())
             return;
