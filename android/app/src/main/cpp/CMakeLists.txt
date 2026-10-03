@@ -7,10 +7,11 @@ set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../..")
 
 add_compile_definitions(CPPHTTPLIB_NO_IFADDRS=1)
 
-add_executable(caesar_web
-    "${REPO_ROOT}/src/web.cpp"
-    "${REPO_ROOT}/third_party/qrcodegen.cpp"
-)
+add_library(qrcodegen STATIC "${REPO_ROOT}/third_party/qrcodegen.cpp")
+
+target_include_directories(qrcodegen PUBLIC "${REPO_ROOT}/third_party")
+
+add_executable(caesar_web "${REPO_ROOT}/src/web.cpp")
 
 target_include_directories(caesar_web PRIVATE
     "${REPO_ROOT}/include"
@@ -25,6 +26,7 @@ if(NOT CRYPTO_LIB)
 endif()
 
 target_link_libraries(caesar_web PRIVATE
+    qrcodegen
     "${CRYPTO_LIB}"
     z
     log
