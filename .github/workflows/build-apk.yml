@@ -29,50 +29,40 @@ jobs:
           sdkmanager "ndk;25.2.9519653" "cmake;3.22.1"
           echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/25.2.9519653" >> $GITHUB_ENV
 
-      - name: Build OpenSSL for Android
+      - name: Get prebuilt OpenSSL for Android
         run: |
           set -e
           cd /tmp
-          wget -q https://www.openssl.org/source/openssl-3.0.13.tar.gz
-          tar xzf openssl-3.0.13.tar.gz
-          cd openssl-3.0.13
+          # Download prebuilt OpenSSL from KDAB repo (stable, tested)
+          git clone --depth 1 https://github.com/KDAB/android_openssl.git
+          cd android_openssl
+          echo "=== Available directories ==="
+          ls -la
+          echo "=== Looking for arm64 libs ==="
+          find . -name "libcrypto*" | head -20
+          # Try all possible paths
+          if [ -d "ssl_3/arm64-v8a" ]; then
+            echo "OPENSSL_BASE=/tmp/android_openssl/ssl_3" >> $GITHUB_ENV
+            echo "FOUND ssl_3/arm64-v8a"
+          elif [ -d "openssl-3/arm64-v8a" ]; then
+            echo "OPENSSL_BASE=/tmp/android_openssl/openssl-3" >> $GITHUB_ENV
+            echo "FOUND openssl-3/arm64-v8a"
+          elif [ -d "ssl_1.1.1/arm64-v8a" ]; then
+            echo "OPENSSL_BASE=/tmp/android_openssl/ssl_1.1.1" >> $GITHUB_ENV
+            echo "FOUND ssl_1.1.1/arm64-v8a"
+          else
+            echo "ERROR: No arm64-v8a found"
+            find . -maxdepth 3 -type d | head -20
+            exit 1
+          fi
 
-          export ANDROID_NDK_HOME=$ANDROID_NDK_ROOT
-          export TOOLCHAIN=$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64
-          export PATH=$TOOLCHAIN/bin:$PATH
-          export CC=aarch64-linux-android26-clang
-          export CXX=aarch64-linux-android26-clang++
-          export AR=$TOOLCHAIN/bin/llvm-ar
-          export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
+      - name: Verify OpenSSL files
+        run: |
+          echo "OPENSSL_BASE=$OPENSSL_BASE"
+          ls -la "$OPENSSL_BASE/arm64-v8a/" || true
+          ls -la "$OPENSSL_BASE/arm64-v8a/lib/" 2>/dev/null || ls -la "$OPENSSL_BASE/arm64-v8a/" | head -20
 
-          # Fix: remove world-writable dirs from PATH
-          CLEAN_PATH=""
-          IFS=':' read -ra DIRS <<< "$PATH"
-          for d in "${DIRS[@]}"; do
-            if [ -d "$d" ]; then
-              perms=$(stat -c '%a' "$d" 2>/dev/null || echo "755")
-              last=${perms: -1}
-              if [[ "$last" == "2" ]] || [[ "$last" == "3" ]] || [[ "$last" == "6" ]] || [[ "$last" == "7" ]]; then
-                echo "Skipping world-writable: $d"
-                continue
-              fi
-            fi
-            if [ -z "$CLEAN_PATH" ]; then CLEAN_PATH="$d"; else CLEAN_PATH="$CLEAN_PATH:$d"; fi
-          done
-          export PATH="$CLEAN_PATH"
-
-          ./Configure android-arm64 \
-            -D__ANDROID_API__=26 \
-            no-shared no-tests no-apps no-docs \
-            --prefix=/tmp/openssl-android
-
-          make -j4
-          make install_sw
-
-          echo "OPENSSL_BASE=/tmp/openssl-android" >> $GITHUB_ENV
-          ls -la /tmp/openssl-android/lib/ | head
-
-      - name: Compile native
+      - name: Compile native caesar_web
         run: |
           set -e
           cd android/app/src/main/cpp
@@ -82,7 +72,7 @@ jobs:
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-26 \
             -DANDROID_STL=c++_static \
-            -DOPENSSL_ROOT=$OPENSSL_BASE \
+            -DOPENSSL_ROOT=$OPENSSL_BASE/arm64-v8a \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target caesar_web -j4
           cp build/caesar_web ../../assets/caesar_web
