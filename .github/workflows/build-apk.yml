@@ -29,73 +29,24 @@ jobs:
           sdkmanager "ndk;25.2.9519653" "cmake;3.22.1"
           echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/25.2.9519653" >> $GITHUB_ENV
 
-      - name: Get prebuilt OpenSSL for Android
+      - name: Prepare OpenSSL structure (compatible with CMakeLists)
         run: |
           set -e
           cd /tmp
           git clone --depth 1 https://github.com/KDAB/android_openssl.git
-          cd android_openssl
-          echo "==========================================="
-          echo " FULL REPOSITORY STRUCTURE"
-          echo "==========================================="
-          find . -type d | head -50
-          echo
-          echo "==========================================="
-          echo " SEARCH FOR libcrypto"
-          echo "==========================================="
-          find . -name "libcrypto*" -o -name "libssl*" | head -30
-          echo
-          echo "==========================================="
-          echo " ARM64-v8a FOLDERS"
-          echo "==========================================="
-          find . -type d -name "arm64-v8a" | head -20
-
-      - name: Auto-detect OpenSSL paths
-        run: |
-          set -e
-          cd /tmp/android_openssl
-          # Find any directory containing openssl/rand.h
-          echo "Looking for include/openssl/rand.h..."
-          H_FILE=$(find . -name "rand.h" -path "*/openssl/*" | head -1)
-          echo "Found rand.h at: $H_FILE"
-          if [ -z "$H_FILE" ]; then
-            echo "ERROR: openssl/rand.h not found"
-            exit 1
-          fi
-          INCLUDE_DIR=$(dirname $(dirname "$H_FILE"))
-          echo "INCLUDE_DIR=$INCLUDE_DIR"
-          echo "OPENSSL_INCLUDE_DIR=$INCLUDE_DIR" >> $GITHUB_ENV
-
-          # Find libcrypto.a for arm64
-          echo "Looking for libcrypto.a..."
-          CRYPTO_A=$(find . -name "libcrypto.a" -path "*arm64-v8a*" | head -1)
-          echo "Found libcrypto.a at: $CRYPTO_A"
-          if [ -n "$CRYPTO_A" ]; then
-            LIB_DIR=$(dirname "$CRYPTO_A")
-            echo "LIB_DIR=$LIB_DIR"
-            echo "OPENSSL_LIB_DIR=$LIB_DIR" >> $GITHUB_ENV
-            echo "OPENSSL_CRYPTO_A=$CRYPTO_A" >> $GITHUB_ENV
-          else
-            echo "No static lib found - checking for shared .so"
-            CRYPTO_SO=$(find . -name "libcrypto.so*" -path "*arm64-v8a*" | head -1)
-            echo "Found libcrypto.so at: $CRYPTO_SO"
-            if [ -n "$CRYPTO_SO" ]; then
-              LIB_DIR=$(dirname "$CRYPTO_SO")
-              echo "OPENSSL_LIB_DIR=$LIB_DIR" >> $GITHUB_ENV
-            fi
-          fi
-
-      - name: Verify everything
-        run: |
-          echo "OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_DIR"
-          echo "OPENSSL_LIB_DIR=$OPENSSL_LIB_DIR"
-          echo "OPENSSL_CRYPTO_A=$OPENSSL_CRYPTO_A"
-          echo
-          echo "=== include/openssl ==="
-          ls -la "$OPENSSL_INCLUDE_DIR/openssl/" | head -10
-          echo
-          echo "=== lib folder ==="
-          ls -la "$OPENSSL_LIB_DIR/" | head -20
+          
+          # Create expected structure: $OPENSSL_ROOT/include + $OPENSSL_ROOT/lib
+          mkdir -p /tmp/openssl-android
+          cp -r /tmp/android_openssl/ssl_3/include /tmp/openssl-android/include
+          mkdir -p /tmp/openssl-android/lib
+          cp /tmp/android_openssl/ssl_3/arm64-v8a/*.a /tmp/openssl-android/lib/
+          
+          echo "=== VERIFY ==="
+          ls -la /tmp/openssl-android/
+          echo "--- include/openssl ---"
+          ls /tmp/openssl-android/include/openssl/rand.h && echo "RAND.H FOUND ✅"
+          echo "--- lib ---"
+          ls -la /tmp/openssl-android/lib/
 
       - name: Compile native caesar_web
         run: |
@@ -107,8 +58,7 @@ jobs:
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-26 \
             -DANDROID_STL=c++_static \
-            -DOPENSSL_ROOT_DIR="$OPENSSL_LIB_DIR/.." \
-            -DOPENSSL_INCLUDE_DIR="$OPENSSL_INCLUDE_DIR" \
+            -DOPENSSL_ROOT=/tmp/openssl-android \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target caesar_web -j4
           cp build/caesar_web ../../assets/caesar_web
