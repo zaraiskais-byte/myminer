@@ -7,7 +7,10 @@ set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../..")
 
 add_compile_definitions(CPPHTTPLIB_NO_IFADDRS=1)
 
-add_executable(caesar_web "${REPO_ROOT}/src/web.cpp")
+add_executable(caesar_web
+    "${REPO_ROOT}/src/web.cpp"
+    "${REPO_ROOT}/third_party/qrcodegen.cpp"
+)
 
 target_include_directories(caesar_web PRIVATE
     "${REPO_ROOT}/include"
