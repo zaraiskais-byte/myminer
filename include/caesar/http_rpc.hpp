@@ -723,13 +723,45 @@ nav.bottom button.active::before{
   }catch(e){}
 })();
 </script>
+<script>
+(function(){
+  function updatePinUI(){
+    fetch('/api/auth/status', {cache:'no-store'})
+      .then(function(r){return r.json();})
+      .then(function(s){
+        if(s && s.has_pin === false){
+          var t = document.getElementById('pinTitleDyn');
+          if(t) t.textContent = 'Create PIN';
+          var sub = document.getElementById('pinSubDyn');
+          if(sub) sub.textContent = 'Set a 5-digit PIN to create your wallet';
+          // Tag the unlock button so we know this is a create-pin flow
+          window.__caesar_create_pin = true;
+          // Find any button that says UNLOCK and change to CREATE
+          var btns = document.querySelectorAll('button, input[type=button], input[type=submit]');
+          for(var i=0;i<btns.length;i++){
+            var txt = (btns[i].textContent||'').trim().toUpperCase();
+            if(txt === 'UNLOCK'){
+              btns[i].textContent = 'CREATE';
+            }
+          }
+        }
+      })
+      .catch(function(){});
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(updatePinUI, 200); setTimeout(updatePinUI, 800); });
+  } else {
+    setTimeout(updatePinUI, 200); setTimeout(updatePinUI, 800);
+  }
+})();
+</script>
 </head>
 <body>
 
 <!-- PIN Lock Screen -->
 <div id="lockScreen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0f1115;z-index:9999;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;box-sizing:border-box">
   <h1 style="color:#f0c040;font-size:26px;margin-bottom:24px;font-family:monospace">&#9889; Caesar CZR</h1>
-  <div id="lockTitle" style="color:#e8e8e8;font-size:15px;margin-bottom:14px;font-family:monospace">Enter your PIN</div>
+  <div id="lockTitle" style="color:#e8e8e8;font-size:15px;margin-bottom:14px;font-family:monospace"><span id="pinTitleDyn">Enter your PIN</span></div>
   <input id="pinInput" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="PIN" autocomplete="off" style="background:#000;color:#fff;border:2px solid #f0c040;border-radius:8px;padding:14px;font-size:24px;text-align:center;width:220px;letter-spacing:8px;margin:8px 0;font-family:monospace" maxlength="12">
   <button id="unlockBtn" type="button" style="background:#f0c040;color:#000;border:none;padding:14px 50px;font-size:16px;font-weight:bold;border-radius:8px;margin-top:14px;cursor:pointer;font-family:monospace">UNLOCK</button>
   <div id="lockMsg" style="color:#ff6b6b;font-size:13px;margin-top:14px;min-height:20px;text-align:center;max-width:280px;font-family:monospace"></div>
@@ -1060,7 +1092,7 @@ function bindUnlockBtn() {
         msg.style.color = '#5fdc7a';
         msg.textContent = 'Checking...';
 
-        fetch('/api/auth/unlock', {
+        fetch(window.__caesar_create_pin ? '/api/auth/setup' : '/api/auth/unlock', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({pin: pin})
@@ -1451,10 +1483,25 @@ class HttpRpcServer {
                 std::string pin = req.body.substr(start + 1, end - start - 1);
                 if (pin.size() < 4) throw std::runtime_error("PIN must be 4+ digits");
 
+                // patched: allow setup on fresh wallet
                 if (!wallet_->is_loaded()) {
-                    throw std::runtime_error(
-                        "wallet is encrypted on disk and pin.hash is missing; "
-                        "manual intervention required");
+                    wallet_->create_new_hd_wallet();
+                    wallet_->save_encrypted(pin);
+                    caesar::save_pin(pin_path_, pin);
+                    {
+                        std::lock_guard<std::mutex> lk(auth_mutex_);
+                        unlocked_ = true;
+                        session_token_ = generate_session_token();
+                    }
+                    std::ofstream sf(session_file_);
+                    sf << session_token_;
+                    std::string a;
+                    try { a = wallet_->address(); } catch (...) {}
+                    std::ostringstream o;
+                    o << "{\"status\":\"ok\",\"unlocked\":true,\"address\":\"" << a << "\"}";
+                    res.set_header("Set-Cookie", "caesar_session=" + session_token_ + "; Path=/; Max-Age=604800; SameSite=Lax; HttpOnly");
+                    res.set_content(o.str(), "application/json");
+                    return;
                 }
 
                 std::string mnemonic;
@@ -2710,7 +2757,7 @@ try{
 <div id="lock">
   <div class="logo">C</div>
   <h1>CAESAR CZR</h1>
-  <p>Enter your PIN to unlock</p>
+  <p id="pinSubDyn">Enter your PIN to unlock</p>
   <input id="pin" type="tel" inputmode="numeric" maxlength="12" placeholder="•••••" autocomplete="off">
   <button onclick="unlock()">UNLOCK</button>
   <div class="msg" id="msg"></div>
@@ -4544,7 +4591,7 @@ nav.bottom button.active{color:var(--gold);background:rgba(240,192,64,.08)}
 <div id="lock">
   <div class="logo">C</div>
   <h1>CAESAR CZR</h1>
-  <p>Enter your PIN to unlock</p>
+  <p id="pinSubDyn">Enter your PIN to unlock</p>
   <input id="pin" type="tel" inputmode="numeric" maxlength="12" placeholder="•••••" autocomplete="off">
   <button onclick="unlock()">UNLOCK</button>
   <div class="msg" id="msg"></div>
