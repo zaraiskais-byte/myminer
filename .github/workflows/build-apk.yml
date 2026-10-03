@@ -1,13 +1,10 @@
 name: Build APK
-
 on:
   workflow_dispatch:
   push:
     branches: [main]
-
 permissions:
   contents: write
-
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -32,18 +29,7 @@ jobs:
           sdkmanager "ndk;25.2.9519653" "cmake;3.22.1"
           echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/25.2.9519653" >> $GITHUB_ENV
 
-      - name: Fix PATH permissions (avoid exit code 25)
-        run: |
-          echo "Original PATH: $PATH"
-          IFS=':' read -ra ADDR <<< "$PATH"
-          for dir in "${ADDR[@]}"; do
-            if [ -d "$dir" ]; then
-              chmod -f o-w "$dir" 2>/dev/null || true
-            fi
-          done
-          echo "Fixed PATH permissions."
-
-      - name: Build OpenSSL for Android arm64-v8a
+      - name: Build OpenSSL for Android
         run: |
           set -e
           cd /tmp
@@ -59,6 +45,22 @@ jobs:
           export AR=$TOOLCHAIN/bin/llvm-ar
           export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
 
+          # Fix: remove world-writable dirs from PATH
+          CLEAN_PATH=""
+          IFS=':' read -ra DIRS <<< "$PATH"
+          for d in "${DIRS[@]}"; do
+            if [ -d "$d" ]; then
+              perms=$(stat -c '%a' "$d" 2>/dev/null || echo "755")
+              last=${perms: -1}
+              if [[ "$last" == "2" ]] || [[ "$last" == "3" ]] || [[ "$last" == "6" ]] || [[ "$last" == "7" ]]; then
+                echo "Skipping world-writable: $d"
+                continue
+              fi
+            fi
+            if [ -z "$CLEAN_PATH" ]; then CLEAN_PATH="$d"; else CLEAN_PATH="$CLEAN_PATH:$d"; fi
+          done
+          export PATH="$CLEAN_PATH"
+
           ./Configure android-arm64 \
             -D__ANDROID_API__=26 \
             no-shared no-tests no-apps no-docs \
@@ -68,11 +70,9 @@ jobs:
           make install_sw
 
           echo "OPENSSL_BASE=/tmp/openssl-android" >> $GITHUB_ENV
+          ls -la /tmp/openssl-android/lib/ | head
 
-          echo "=== Verify OpenSSL files ==="
-          ls -la /tmp/openssl-android/lib/ | head -10
-
-      - name: Compile native caesar_web
+      - name: Compile native
         run: |
           set -e
           cd android/app/src/main/cpp
