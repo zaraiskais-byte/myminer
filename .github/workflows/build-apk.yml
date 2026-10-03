@@ -34,6 +34,14 @@ jobs:
           echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
           ls -la "$ANDROID_SDK_ROOT/ndk/25.2.9519653" | head -5
 
+      - name: Install Gradle
+        run: |
+          set -e
+          cd /tmp
+          wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
+          unzip -q gradle-8.5-bin.zip
+          echo "/tmp/gradle-8.5/bin" >> $GITHUB_PATH
+
       - name: Prepare OpenSSL
         run: |
           set -e
@@ -70,8 +78,8 @@ jobs:
         run: |
           set -e
           cd android
-          chmod +x gradlew
-          ./gradlew clean assembleRelease --no-build-cache --no-daemon
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+          gradle clean assembleRelease --no-daemon --no-build-cache
 
       - name: Verify caesar_web inside APK
         run: |
