@@ -6,10 +6,8 @@ set(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../..")
 
 add_compile_definitions(CPPHTTPLIB_NO_IFADDRS=1)
 
-add_executable(caesar_web
-    "${REPO_ROOT}/src/web.cpp"
-    "${REPO_ROOT}/third_party/qrcodegen.cpp"
-)
+# web.cpp now contains qrcodegen.cpp inline
+add_executable(caesar_web "${REPO_ROOT}/src/web.cpp")
 
 target_include_directories(caesar_web PRIVATE
     "${REPO_ROOT}/include"
@@ -26,5 +24,4 @@ else()
 endif()
 
 target_link_libraries(caesar_web PRIVATE log)
-
 target_link_options(caesar_web PRIVATE -Wl,--gc-sections -Wl,--exclude-libs,ALL)

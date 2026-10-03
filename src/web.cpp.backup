@@ -1,4 +1,3 @@
-#include "qrcodegen.cpp"
 #include <atomic>
 #include <chrono>
 #include <csignal>
