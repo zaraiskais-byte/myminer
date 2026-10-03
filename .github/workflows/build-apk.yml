@@ -33,23 +33,18 @@ jobs:
         run: |
           set -e
           cd /tmp
-          # Download prebuilt OpenSSL from KDAB repo (stable, tested)
           git clone --depth 1 https://github.com/KDAB/android_openssl.git
           cd android_openssl
           echo "=== Available directories ==="
           ls -la
           echo "=== Looking for arm64 libs ==="
           find . -name "libcrypto*" | head -20
-          # Try all possible paths
           if [ -d "ssl_3/arm64-v8a" ]; then
             echo "OPENSSL_BASE=/tmp/android_openssl/ssl_3" >> $GITHUB_ENV
-            echo "FOUND ssl_3/arm64-v8a"
           elif [ -d "openssl-3/arm64-v8a" ]; then
             echo "OPENSSL_BASE=/tmp/android_openssl/openssl-3" >> $GITHUB_ENV
-            echo "FOUND openssl-3/arm64-v8a"
           elif [ -d "ssl_1.1.1/arm64-v8a" ]; then
             echo "OPENSSL_BASE=/tmp/android_openssl/ssl_1.1.1" >> $GITHUB_ENV
-            echo "FOUND ssl_1.1.1/arm64-v8a"
           else
             echo "ERROR: No arm64-v8a found"
             find . -maxdepth 3 -type d | head -20
@@ -72,7 +67,12 @@ jobs:
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-26 \
             -DANDROID_STL=c++_static \
-            -DOPENSSL_ROOT=$OPENSSL_BASE/arm64-v8a \
+            -DOPENSSL_ROOT_DIR=$OPENSSL_BASE/arm64-v8a \
+            -DOPENSSL_INCLUDE_DIR=$OPENSSL_BASE/arm64-v8a/include \
+            -DOPENSSL_CRYPTO_LIBRARY=$OPENSSL_BASE/arm64-v8a/lib/libcrypto.a \
+            -DOPENSSL_SSL_LIBRARY=$OPENSSL_BASE/arm64-v8a/lib/libssl.a \
+            -DOPENSSL_USE_STATIC_LIBS=1 \
+            -DCMAKE_FIND_ROOT_PATH="$OPENSSL_BASE/arm64-v8a" \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target caesar_web -j4
           cp build/caesar_web ../../assets/caesar_web
