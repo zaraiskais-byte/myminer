@@ -6,7 +6,6 @@
 
     <application
         android:allowBackup="false"
-        android:extractNativeLibs="true"
         android:usesCleartextTraffic="true"
         android:label="Caesar CZR"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">

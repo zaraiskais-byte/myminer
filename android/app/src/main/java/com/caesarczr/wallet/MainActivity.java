@@ -43,7 +43,7 @@ public class MainActivity extends Activity {
             pb.redirectErrorStream(true);
             pb.directory(getFilesDir());
             nodeProcess = pb.start();
-            Log.i(TAG, "node process started pid=" + nodeProcess.pid());
+            Log.i(TAG, "node process started");
         } catch (Exception e) {
             Log.e(TAG, "spawn failed", e);
         }
