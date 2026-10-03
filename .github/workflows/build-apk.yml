@@ -32,6 +32,17 @@ jobs:
           sdkmanager "ndk;25.2.9519653" "cmake;3.22.1"
           echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/25.2.9519653" >> $GITHUB_ENV
 
+      - name: Fix PATH permissions (avoid exit code 25)
+        run: |
+          echo "Original PATH: $PATH"
+          IFS=':' read -ra ADDR <<< "$PATH"
+          for dir in "${ADDR[@]}"; do
+            if [ -d "$dir" ]; then
+              chmod -f o-w "$dir" 2>/dev/null || true
+            fi
+          done
+          echo "Fixed PATH permissions."
+
       - name: Build OpenSSL for Android arm64-v8a
         run: |
           set -e
