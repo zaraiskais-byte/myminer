@@ -29,11 +29,13 @@ android {
 
     sourceSets {
         main {
-            assets.srcDirs = ['src/main/assets']
+            jniLibs.srcDirs = ['src/main/jniLibs']
         }
     }
 
-    androidResources {
-        noCompress 'caesar_web'
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 }

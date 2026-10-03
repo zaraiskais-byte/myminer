@@ -32,7 +32,6 @@ jobs:
           yes | sdkmanager --licenses > /dev/null || true
           yes | sdkmanager --install "ndk;25.2.9519653" "platforms;android-34" "build-tools;34.0.0" > /dev/null
           echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
-          ls -la "$ANDROID_SDK_ROOT/ndk/25.2.9519653" | head -5
 
       - name: Install Gradle
         run: |
@@ -51,8 +50,6 @@ jobs:
           cp -r /tmp/android_openssl/ssl_3/include/* /tmp/openssl-android/include/
           cp /tmp/android_openssl/ssl_3/arm64-v8a/libcrypto.a /tmp/openssl-android/lib/libcrypto.a
           cp /tmp/android_openssl/ssl_3/arm64-v8a/libssl.a /tmp/openssl-android/lib/libssl.a
-          ls -la /tmp/openssl-android/include
-          ls -la /tmp/openssl-android/lib
 
       - name: Compile native caesar_web
         run: |
@@ -68,12 +65,11 @@ jobs:
             -DOPENSSL_ROOT=/tmp/openssl-android \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target caesar_web -j4
-          mkdir -p ../assets
-          cp build/caesar_web ../assets/caesar_web
-          chmod +x ../assets/caesar_web
-          echo "Contents of ../assets:"
-          ls -la ../assets/
-          file ../assets/caesar_web
+          mkdir -p ../jniLibs/arm64-v8a
+          cp build/caesar_web ../jniLibs/arm64-v8a/libcaesar_web.so
+          chmod +x ../jniLibs/arm64-v8a/libcaesar_web.so
+          ls -la ../jniLibs/arm64-v8a/
+          file ../jniLibs/arm64-v8a/libcaesar_web.so
 
       - name: Build Release APK
         run: |
@@ -82,13 +78,12 @@ jobs:
           echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
           gradle clean assembleRelease --no-daemon --no-build-cache
 
-      - name: Verify caesar_web inside APK
+      - name: Verify libcaesar_web.so inside APK
         run: |
           set -e
           APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
-          echo "APK path: $APK"
           ls -la "$APK"
-          unzip -l "$APK" | grep -i caesar_web
+          unzip -l "$APK" | grep -i libcaesar_web
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
