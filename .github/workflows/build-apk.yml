@@ -68,11 +68,12 @@ jobs:
             -DOPENSSL_ROOT=/tmp/openssl-android \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target caesar_web -j4
-          mkdir -p ../../assets
-          cp build/caesar_web ../../assets/caesar_web
-          chmod +x ../../assets/caesar_web
-          ls -la ../../assets/
-          file build/caesar_web
+          mkdir -p ../assets
+          cp build/caesar_web ../assets/caesar_web
+          chmod +x ../assets/caesar_web
+          echo "Contents of ../assets:"
+          ls -la ../assets/
+          file ../assets/caesar_web
 
       - name: Build Release APK
         run: |
