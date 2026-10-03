@@ -54,6 +54,7 @@ jobs:
             -DOPENSSL_ROOT=/tmp/openssl-android \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target caesar_web -j4
+          mkdir -p ../../assets
           cp build/caesar_web ../../assets/caesar_web
           ls -la ../../assets/
 
