@@ -29,26 +29,19 @@ jobs:
           sdkmanager "ndk;25.2.9519653" "cmake;3.22.1"
           echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/25.2.9519653" >> $GITHUB_ENV
 
-      - name: Prepare OpenSSL structure (compatible with CMakeLists)
+      - name: Prepare OpenSSL (with include/ and lib/ structure)
         run: |
           set -e
           cd /tmp
           git clone --depth 1 https://github.com/KDAB/android_openssl.git
-          
-          # Create expected structure: $OPENSSL_ROOT/include + $OPENSSL_ROOT/lib
-          mkdir -p /tmp/openssl-android
-          cp -r /tmp/android_openssl/ssl_3/include /tmp/openssl-android/include
-          mkdir -p /tmp/openssl-android/lib
+          mkdir -p /tmp/openssl-android/include /tmp/openssl-android/lib
+          cp -r /tmp/android_openssl/ssl_3/include/* /tmp/openssl-android/include/
           cp /tmp/android_openssl/ssl_3/arm64-v8a/*.a /tmp/openssl-android/lib/
-          
           echo "=== VERIFY ==="
-          ls -la /tmp/openssl-android/
-          echo "--- include/openssl ---"
+          ls /tmp/openssl-android/lib/
           ls /tmp/openssl-android/include/openssl/rand.h && echo "RAND.H FOUND ✅"
-          echo "--- lib ---"
-          ls -la /tmp/openssl-android/lib/
 
-      - name: Compile native caesar_web
+      - name: Compile native caesar_web (with qrcodegen)
         run: |
           set -e
           cd android/app/src/main/cpp
