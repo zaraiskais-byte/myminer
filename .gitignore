@@ -107,3 +107,9 @@ nohup.out
 
 # Temp
 *.tmp
+include/caesar/http_rpc.hpp.before-real-wallet-repair
+data-web/
+.env
+*.key
+*.secret
+jar.txt

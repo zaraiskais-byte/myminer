@@ -1515,8 +1515,20 @@ class HttpRpcServer {
     bool is_csrf_safe(const httplib::Request& req) const {
         auto origin = req.get_header_value("Origin");
         if (origin.empty()) return true;
-        return origin.find("http://127.0.0.1:") != std::string::npos ||
-               origin.find("http://localhost:") != std::string::npos;
+
+        // Local browser access.
+        if (origin.rfind("http://127.0.0.1:", 0) == 0 ||
+            origin.rfind("http://localhost:", 0) == 0) {
+            return true;
+        }
+
+        // Explicitly allow the authenticated Caesar Tailscale endpoint.
+        // Exact-origin match: do not allow arbitrary Tailscale hosts.
+        if (origin == "https://tailscale-termux.tail57075d.ts.net") {
+            return true;
+        }
+
+        return false;
     }
 
     bool check_rate_limit(const std::string& ip) {
