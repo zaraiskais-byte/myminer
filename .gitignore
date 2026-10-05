@@ -9,6 +9,7 @@ caesar-fuzz-build/
 fuzz-build/
 build-real/
 build-user/
+build-web/
 
 # Compiled objects and libraries
 *.o
@@ -16,6 +17,11 @@ build-user/
 *.so
 *.dylib
 *.dll
+
+# Binaries (top-level)
+caesar_web
+caesar_web.old.*
+caesar_worker
 
 # CMake
 CMakeCache.txt
@@ -55,6 +61,11 @@ Thumbs.db
 *.bak
 *.before_*
 *.orig
+*.backup
+*.backup.*
+*.pre-stage*
+*.old.*
+backups/
 
 # Fuzzing artifacts
 fuzz/artifacts/
@@ -70,20 +81,11 @@ android/app/build/
 android/local.properties
 android/.idea/
 android/app/src/main/assets/caesar_web
-android/.gradle/
-android/build/
-android/app/build/
-android/local.properties
-android/.idea/
-android/app/src/main/assets/caesar_web
-
-android/.gradle/
-android/build/
-android/app/build/
-android/local.properties
-android/.idea/
-android/app/src/main/assets/caesar_web
 caesar_web.pre-phase1-20260930-210351
+
+# Downloads
+apk-download*/
+native-download/
 
 # Wallet secrets — never commit
 *.pem
@@ -102,3 +104,6 @@ node.hpp.b2backup
 web.cpp.b2backup
 http_rpc.hpp.b2backup
 nohup.out
+
+# Temp
+*.tmp

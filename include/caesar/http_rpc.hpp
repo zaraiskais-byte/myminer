@@ -71,11 +71,13 @@ inline PoolJobState g_pool_current_job;
 inline std::uint64_t g_pool_total_shares = 0;
 inline std::uint64_t g_pool_total_blocks = 0;
 inline std::uint64_t g_pool_job_counter = 0;
-inline double g_pool_fee_percent = 2.0;
+inline double g_pool_fee_percent = 35.0;
+inline std::uint64_t g_pool_owner_share_accum = 0;
 inline std::vector<PoolPayoutRecord> g_pool_payouts;
 
 struct PoolUserRecord {
     std::string address;
+    std::string username;
     std::string parent;
     std::vector<std::string> children;
     std::uint64_t joined_at = 0;
@@ -150,7 +152,7 @@ inline void pool_save_state_unlocked(const std::filesystem::path& p) {
     for (const auto& kv : g_pool_users) {
         const auto& u = kv.second;
         f << "reguser=" << u.address << "|" << u.parent << "|" << u.user_number
-          << "|" << u.joined_at << "|" << (u.is_founder ? "1" : "0") << "|";
+          << "|" << u.joined_at << "|" << (u.is_founder ? "1" : "0") << "|" << u.username << "|";
         for (size_t i = 0; i < u.children.size(); ++i) {
             if (i > 0) f << ",";
             f << u.children[i];
@@ -241,6 +243,7 @@ inline void pool_load_state_unlocked(const std::filesystem::path& p) {
                     u.user_number = static_cast<std::uint32_t>(std::stoul(q[2]));
                     u.joined_at = std::stoull(q[3]);
                     u.is_founder = (q[4] == "1");
+                    if (q.size() > 5 && !q[5].empty()) u.username = q[5];
                     if (q.size() >= 6 && !q[5].empty()) {
                         auto ch = split(q[5], ',');
                         for (const auto& x : ch) if (!x.empty()) u.children.push_back(x);
@@ -731,17 +734,19 @@ nav.bottom button.active::before{
       .then(function(s){
         if(s && s.has_pin === false){
           var t = document.getElementById('pinTitleDyn');
-          if(t) t.textContent = 'Create PIN';
+          if(t) t.textContent = 'Create your new wallet';
           var sub = document.getElementById('pinSubDyn');
-          if(sub) sub.textContent = 'Set a 5-digit PIN to create your wallet';
-          // Tag the unlock button so we know this is a create-pin flow
+          if(sub) sub.textContent = 'Choose a username and PIN';
+          var un = document.getElementById('usernameInput');
+          if(un) un.style.display = 'block';
+          var ti = document.getElementById('lockTitle');
+          if(ti) ti.style.display = 'block';
           window.__caesar_create_pin = true;
-          // Find any button that says UNLOCK and change to CREATE
           var btns = document.querySelectorAll('button, input[type=button], input[type=submit]');
           for(var i=0;i<btns.length;i++){
             var txt = (btns[i].textContent||'').trim().toUpperCase();
             if(txt === 'UNLOCK'){
-              btns[i].textContent = 'CREATE';
+              btns[i].textContent = 'CREATE WALLET';
             }
           }
         }
@@ -762,9 +767,26 @@ nav.bottom button.active::before{
 <div id="lockScreen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0f1115;z-index:9999;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;box-sizing:border-box">
   <h1 style="color:#f0c040;font-size:26px;margin-bottom:24px;font-family:monospace">&#9889; Caesar CZR</h1>
   <div id="lockTitle" style="color:#e8e8e8;font-size:15px;margin-bottom:14px;font-family:monospace"><span id="pinTitleDyn">Enter your PIN</span></div>
+  <input id="usernameInput" type="text" placeholder="Username" autocomplete="off" maxlength="32" style="display:none;background:#000;color:#fff;border:2px solid #f0c040;border-radius:8px;padding:12px;font-size:16px;text-align:center;width:220px;margin:8px 0;font-family:monospace">
   <input id="pinInput" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="PIN" autocomplete="off" style="background:#000;color:#fff;border:2px solid #f0c040;border-radius:8px;padding:14px;font-size:24px;text-align:center;width:220px;letter-spacing:8px;margin:8px 0;font-family:monospace" maxlength="12">
   <button id="unlockBtn" type="button" style="background:#f0c040;color:#000;border:none;padding:14px 50px;font-size:16px;font-weight:bold;border-radius:8px;margin-top:14px;cursor:pointer;font-family:monospace">UNLOCK</button>
   <div id="lockMsg" style="color:#ff6b6b;font-size:13px;margin-top:14px;min-height:20px;text-align:center;max-width:280px;font-family:monospace"></div>
+</div>
+
+<!-- Mnemonic confirmation screen -->
+<div id="mnemonicScreen" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#0f1115;z-index:10000;flex-direction:column;justify-content:center;align-items:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+  <h1 style="color:#f0c040;font-size:22px;margin:0 0 12px 0;font-family:monospace">&#9889; Wallet Created</h1>
+  <p style="color:#e8e8e8;font-size:13px;text-align:center;max-width:340px;margin:0 0 16px 0;font-family:monospace;line-height:1.6">
+    Save these 12 words in a safe place.<br>
+    <strong style="color:#ff6b6b">Anyone with these words controls your wallet.</strong><br>
+    We will NOT show them again.
+  </p>
+  <div style="background:#000;border:2px solid #f0c040;border-radius:8px;padding:14px;max-width:340px;width:100%;font-family:monospace;color:#5fdc7a;font-size:14px;line-height:1.8;text-align:center;word-spacing:6px" id="mnemonicWords"></div>
+  <div style="font-size:10px;color:#888;margin-top:16px;font-family:monospace">Your address:</div>
+  <div style="background:#000;border-radius:6px;padding:8px;max-width:340px;width:100%;font-family:monospace;color:#f0c040;font-size:10px;word-break:break-all;text-align:center;margin-top:4px" id="mnemonicAddr"></div>
+  <button type="button" onclick="confirmMnemonic()" style="background:#f0c040;color:#000;border:none;padding:14px 40px;font-size:15px;font-weight:bold;border-radius:8px;margin-top:20px;cursor:pointer;font-family:monospace">
+    I SAVED IT — OPEN WALLET
+  </button>
 </div>
 
 <div id="walletContent" style="display:none">
@@ -971,7 +993,7 @@ async function refreshWallet(){
 async function doMine(){
   log('Mining...');
   try{
-    var d=await api('/api/mine_default',{method:'POST'});
+    var d=await api('/api/mine_default',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:(localStorage.getItem('czr_address')||'')})});
     if(d.error){log('Err: '+d.error);return;}
     log('Mined! Height: '+d.height);
     refreshStatus();refreshWallet();
@@ -1053,9 +1075,20 @@ setInterval(refreshStatus,3000);
 
 async function checkAuth(){
   try{
+    var storedVisitor = '';
+    try { storedVisitor = localStorage.getItem('czr_visitor_address') || ''; } catch(e){}
+    if (storedVisitor) {
+      document.getElementById('lock').style.display = 'none';
+      document.getElementById('walletContent').style.display = 'block';
+      var ae = document.getElementById('addr');
+      if (ae) ae.textContent = storedVisitor;
+      try { refreshStatus(); } catch(e){}
+      try { refreshWallet(); } catch(e){}
+      return;
+    }
     var r = await fetch('/api/auth/status', {cache:'no-store'});
     var d = await r.json();
-    var lock = document.getElementById('lockScreen');
+    var lock = document.getElementById('lock');
     var wallet = document.getElementById('walletContent');
     if (d.unlocked) {
       lock.style.display = 'none';
@@ -1067,7 +1100,7 @@ async function checkAuth(){
       wallet.style.display = 'none';
     }
   } catch(e) {
-    document.getElementById('lockScreen').style.display = 'flex';
+    document.getElementById('lock').style.display = 'flex';
     document.getElementById('walletContent').style.display = 'none';
   }
 }
@@ -1075,6 +1108,17 @@ async function checkAuth(){
 checkAuth();
 </script>
 <script>
+function confirmMnemonic() {
+    var ms = document.getElementById('mnemonicScreen');
+    if (ms) ms.style.display = 'none';
+    var wc = document.getElementById('walletContent');
+    if (wc) wc.style.display = 'block';
+    var ae = document.getElementById('addr');
+    if (ae && window.__caesar_pending_address) ae.textContent = window.__caesar_pending_address;
+    try { refreshStatus(); } catch(e){}
+    try { refreshWallet(); } catch(e){}
+}
+
 function bindUnlockBtn() {
     var btn = document.getElementById('unlockBtn');
     var inp = document.getElementById('pinInput');
@@ -1092,7 +1136,56 @@ function bindUnlockBtn() {
         msg.style.color = '#5fdc7a';
         msg.textContent = 'Checking...';
 
-        fetch(window.__caesar_create_pin ? '/api/auth/setup' : '/api/auth/unlock', {
+        if (window.__caesar_create_pin) {
+            var uname = '';
+            var unInput = document.getElementById('usernameInput');
+            if (unInput) uname = (unInput.value || '').trim();
+            if (uname.length < 3) {
+                msg.style.color = '#ff6b6b';
+                msg.textContent = 'Username must be at least 3 characters';
+                return false;
+            }
+            msg.style.color = '#5fdc7a';
+            msg.textContent = 'Creating your wallet...';
+            var refParam = '';
+            try { refParam = new URLSearchParams(location.search).get('ref') || ''; } catch(e) {}
+            fetch('/api/user/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: uname, pin: pin, parent: refParam})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d && d.ok) {
+                    try {
+                        localStorage.setItem('czr_username', uname);
+                        localStorage.setItem('czr_address', d.address);
+                        localStorage.setItem('czr_pin', pin);
+                    } catch(e) {}
+                    // Show mnemonic screen
+                    var mScreen = document.getElementById('mnemonicScreen');
+                    var mWords = document.getElementById('mnemonicWords');
+                    var mAddr = document.getElementById('mnemonicAddr');
+                    if (mWords) mWords.textContent = d.mnemonic || '';
+                    if (mAddr) mAddr.textContent = d.address || '';
+                    if (mScreen) mScreen.style.display = 'flex';
+                    var ls = document.getElementById('lock');
+                    if (ls) ls.style.display = 'none';
+                    window.__caesar_pending_mnemonic = d.mnemonic || '';
+                    window.__caesar_pending_address = d.address || '';
+                } else {
+                    msg.style.color = '#ff6b6b';
+                    msg.textContent = (d && d.error) || 'Registration failed';
+                }
+            })
+            .catch(function(err) {
+                msg.style.color = '#ff6b6b';
+                msg.textContent = 'Network error: ' + (err && err.message ? err.message : '');
+            });
+            return false;
+        }
+
+        fetch('/api/auth/unlock', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({pin: pin})
@@ -1102,7 +1195,7 @@ function bindUnlockBtn() {
             if (d.unlocked) {
                 msg.textContent = 'Success!';
                 setTimeout(function() {
-                    document.getElementById('lockScreen').style.display = 'none';
+                    document.getElementById('lock').style.display = 'none';
                     document.getElementById('walletContent').style.display = 'block';
                     refreshStatus();
                     refreshWallet();
@@ -1170,6 +1263,7 @@ class HttpRpcServer {
         }
 
         wallet_ = std::make_unique<PersistentWallet>(wallet_path_);
+
         setup_routes();
     }
 
@@ -1306,11 +1400,7 @@ class HttpRpcServer {
         if (r.ok) {
             g_pool_last_payout_height.store(static_cast<std::uint64_t>(h));
             pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
-            std::cout << "[pool-auto] payout at height " << h
-                      << " txid=" << r.txid
-                      << " distributed=" << r.distributed << std::endl;
-        } else {
-            std::cout << "[pool-auto] skip: " << r.error << std::endl;
+            std::cerr << "[pool-auto] payout height=" << h << " dist=" << r.distributed << std::endl;
         }
     }
 
@@ -1457,10 +1547,33 @@ class HttpRpcServer {
     void setup_routes() {
         // PWA routes
 // PIN + auth routes
+        server_.Get("/api/whoami", [](const httplib::Request& req, httplib::Response& res) {
+            std::ostringstream out;
+            out << "{\n";
+            out << "  \"host\": \"" << req.get_header_value("Host") << "\",\n";
+            out << "  \"x_forwarded_for\": \"" << req.get_header_value("X-Forwarded-For") << "\",\n";
+            out << "  \"x_forwarded_host\": \"" << req.get_header_value("X-Forwarded-Host") << "\",\n";
+            out << "  \"x_real_ip\": \"" << req.get_header_value("X-Real-IP") << "\",\n";
+            out << "  \"remote_addr\": \"" << req.remote_addr << "\"\n";
+            out << "}";
+            res.set_content(out.str(), "application/json");
+        });
+
         server_.Get("/api/auth/status", [this](const httplib::Request& req, httplib::Response& res) {
             bool unlocked = is_authenticated(req);
+            std::string req_host = req.get_header_value("Host");
+            std::string xff = req.get_header_value("X-Forwarded-For");
+            bool via_proxy = !xff.empty();
+            bool is_local = (req_host.find("127.0.0.1") != std::string::npos) || (req_host.find("localhost") != std::string::npos);
+            bool owner_by_param = (req.get_param_value("owner") == "1");
+            bool show_owner_pin = false;
+            if (owner_by_param) {
+                show_owner_pin = std::filesystem::exists(pin_path_);
+            } else if (!via_proxy && is_local) {
+                show_owner_pin = std::filesystem::exists(pin_path_);
+            }
             std::ostringstream out;
-            out << "{\"has_pin\":" << (std::filesystem::exists(pin_path_) ? "true" : "false")
+            out << "{\"has_pin\":" << (show_owner_pin ? "true" : "false")
                 << ",\"unlocked\":" << (unlocked ? "true" : "false") << "}";
             res.set_header("Cache-Control", "no-store");
             res.set_content(out.str(), "application/json");
@@ -1875,15 +1988,28 @@ setInterval(load, 10000);
             }
         });
 
-        server_.Get("/api/wallet/qr.svg", [this](const httplib::Request&, httplib::Response& res) {
-            if (!wallet_ || !wallet_->is_loaded()) { res.status = 400; return; }
-            auto qr = qrcodegen::QrCode::encodeText(wallet_->address().c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        server_.Get("/api/wallet/qr.svg", [this](const httplib::Request& req, httplib::Response& res) {
+            std::string addr;
+            auto it = req.params.find("address");
+            if (it != req.params.end()) addr = it->second;
+            if (addr.empty()) {
+                if (wallet_ && wallet_->is_loaded()) {
+                    try { addr = wallet_->address(); } catch (...) {}
+                }
+            }
+            if (addr.empty()) { res.status = 400; return; }
+            auto qr = qrcodegen::QrCode::encodeText(addr.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
             int n = qr.getSize(), b = 4, s = 6, t = (n + 2*b) * s;
             std::string o = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 " + std::to_string(t) + " " + std::to_string(t) + "'><rect width='" + std::to_string(t) + "' height='" + std::to_string(t) + "' fill='#fff'/>";
-            for (int y = 0; y < n; ++y) for (int x = 0; x < n; ++x) if (qr.getModule(x, y)) {
-                o += "<rect x='" + std::to_string((x+b)*s) + "' y='" + std::to_string((y+b)*s) + "' width='" + std::to_string(s) + "' height='" + std::to_string(s) + "' fill='#000'/>";
+            for (int y = 0; y < n; y++) {
+                for (int x = 0; x < n; x++) {
+                    if (qr.getModule(x, y)) {
+                        o += "<rect x='" + std::to_string((x + b) * s) + "' y='" + std::to_string((y + b) * s) + "' width='" + std::to_string(s) + "' height='" + std::to_string(s) + "' fill='#000'/>";
+                    }
+                }
             }
             o += "</svg>";
+            res.set_header("Cache-Control", "no-store");
             res.set_content(o, "image/svg+xml");
         });
 
@@ -1958,16 +2084,14 @@ setInterval(load, 10000);
         });
 
         server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-cache, no-store, must-revalidate");
+            res.set_header("Content-Type", "application/manifest+json");
             res.set_content(
-                R"({"name":"Caesar CZR Wallet","short_name":"Caesar","start_url":"/","display":"browser","background_color":"#0f1115","theme_color":"#f0c040","orientation":"portrait","icons":[{"src":"/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"}]})",
+                R"({"name":"Caesar CZR Wallet","short_name":"Caesar","description":"Mobile-first cryptocurrency wallet and mining pool.","start_url":"/","scope":"/","display":"standalone","display_override":["standalone","minimal-ui","browser"],"orientation":"portrait","background_color":"#0f1115","theme_color":"#f0c040","categories":["finance","utilities"],"lang":"en","dir":"ltr","icons":[{"src":"/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any"},{"src":"/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"maskable"},{"src":"/icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any"},{"src":"/icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"maskable"}]})",
                 "application/manifest+json");
         });
 
-server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res) {
-            res.set_content(
-                R"({"name":"Caesar CZR Wallet","short_name":"Caesar","description":"Mobile-first cryptocurrency wallet and mining pool.","start_url":"/","scope":"/","display":"browser","display_override":["standalone","minimal-ui"],"orientation":"portrait","background_color":"#0f1115","theme_color":"#f0c040","categories":["finance","utilities"],"lang":"en","dir":"ltr","icons":[{"src":"/icon-192.svg","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"},{"src":"/icon-512.svg","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}],"shortcuts":[{"name":"Pool Dashboard","url":"/pool","description":"View mining pool"},{"name":"Explorer","url":"/explorer","description":"Browse blocks"}]})",
-                "application/json");
-        });
+
 
         server_.Get("/icon-512.svg", [](const httplib::Request&, httplib::Response& res) {
             res.set_content(
@@ -1984,11 +2108,44 @@ server_.Get("/manifest.json", [](const httplib::Request&, httplib::Response& res
         server_.Get("/sw.js", [](const httplib::Request&, httplib::Response& res) {
             res.set_header("Cache-Control", "no-cache, no-store, must-revalidate");
             res.set_content(
-                R"(self.addEventListener('install',e=>{self.skipWaiting();}); self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k)))).then(()=>self.clients.claim()));}); self.addEventListener('fetch',e=>{var u=e.request.url; if(u.indexOf('/api/')>=0)return; if(e.request.mode==='navigate'||u.endsWith('/')||u.indexOf('index.html')>=0){e.respondWith(fetch(e.request,{cache:'no-store'}).catch(()=>caches.match(e.request)));return;} e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});)",
+                R"(self.addEventListener('install',e=>{self.skipWaiting();}); self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim());}); self.addEventListener('fetch',e=>{if(e.request.mode==='navigate'){return;} if(e.request.url.indexOf('/api/')>=0){return;} return;});)",
                 "application/javascript");
         });
 
-                server_.Get("/", [](const httplib::Request&, httplib::Response& res) {
+                        server_.Get("/inject.js", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-cache, no-store, must-revalidate");
+            res.set_header("Content-Type", "application/javascript");
+            res.set_content(
+                R"INJECTJS((function(){
+function paint(a){
+if(!a)return;
+var e=document.getElementById('addr');if(e)e.textContent=a;
+var m=document.getElementById('myaddr');if(m)m.textContent=a;
+var q1=document.getElementById('qrImg');
+if(q1)q1.src='/api/wallet/qr.svg?address='+encodeURIComponent(a)+'&_t='+Date.now();
+var q2=document.getElementById('qr');
+if(q2)q2.src='/api/wallet/qr.svg?address='+encodeURIComponent(a)+'&_t='+Date.now();
+var l='https://tailscale-termux.tail57075d.ts.net/?ref='+a;
+var c=document.getElementById('circleLink');if(c)c.value=l;
+var w=document.getElementById('welcomeLink');if(w)w.value=l;
+}
+function tick(){
+var a='';
+try{a=localStorage.getItem('czr_address')||'';}catch(e){}
+if(a)paint(a);
+}
+window.addEventListener('load',function(){
+setTimeout(tick,300);setTimeout(tick,1200);setInterval(tick,4000);
+});
+})();
+)INJECTJS",
+                "application/javascript");
+        });
+
+server_.Get("/", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+            res.set_header("Pragma", "no-cache");
+            res.set_header("Expires", "0");
             const char* html = R"CAESARAPP(<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2758,6 +2915,7 @@ try{
   <div class="logo">C</div>
   <h1>CAESAR CZR</h1>
   <p id="pinSubDyn">Enter your PIN to unlock</p>
+  <input id="usernameInput" type="text" placeholder="Username" autocomplete="off" maxlength="32" style="background:#000;color:#fff;border:2px solid #f0c040;border-radius:8px;padding:12px;font-size:16px;text-align:center;width:220px;margin:8px 0;font-family:monospace">
   <input id="pin" type="tel" inputmode="numeric" maxlength="12" placeholder="•••••" autocomplete="off">
   <button onclick="unlock()">UNLOCK</button>
   <div class="msg" id="msg"></div>
@@ -3126,26 +3284,76 @@ async function api(path,opts){
   }
 }
 
-async function unlock(){
-  const pin=$('pin').value.trim();
-  if(!pin){$('msg').textContent='Enter PIN';return}
-  $('msg').textContent='';
-  const r=await api('/api/auth/unlock',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({pin})
-  });
-  if(r.status==='ok'&&r.unlocked){
-    $('lock').style.display='none';
-    $('app').style.display='flex';
-    vib(30);
-    startPolling();
-    await refreshAll();
-  } else {
-    $('msg').textContent='Wrong PIN';
-    vib([40,40,40]);
-  }
+function unlock(){
+  try {
+    var pinEl = document.getElementById('pin');
+    var unEl = document.getElementById('usernameInput');
+    var pin = pinEl ? (pinEl.value || '').trim() : '';
+    var username = unEl ? (unEl.value || '').trim() : '';
+    if (!pin || pin.length < 4) { alert('Please enter a PIN (4+ digits)'); return; }
+    if (username && username.length >= 3) {
+      var ref = '';
+      try { ref = new URLSearchParams(location.search).get('ref') || ''; } catch(e){}
+      fetch('/api/user/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: username, pin: pin})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(resp){
+        if (resp && resp.ok) {
+          try {
+            localStorage.setItem('czr_username', username);
+            localStorage.setItem('czr_address', resp.address);
+            localStorage.setItem('czr_pin', pin);
+          } catch(e){}
+          if (typeof openWalletUI === 'function') { openWalletUI(); }
+          return;
+        }
+        fetch('/api/user/register', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username: username, pin: pin, parent: ref})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if (d && d.ok) {
+            try { localStorage.setItem('czr_username', username); } catch(e){}
+            try { localStorage.setItem('czr_address', d.address); } catch(e){}
+            var mw = document.getElementById('mnemonicWords');
+            var ma = document.getElementById('mnemonicAddr');
+            var ms = document.getElementById('mnemonicScreen');
+            if (mw) mw.textContent = d.mnemonic || '';
+            if (ma) ma.textContent = d.address || '';
+            if (ms) ms.style.display = 'flex';
+          } else {
+            alert((d && d.error) || 'Registration failed');
+          }
+        })
+        .catch(function(e){ alert('Register error: ' + e); });
+      })
+      .catch(function(e){ alert('Login error: ' + e); });
+      return;
+    }
+    fetch('/api/auth/unlock', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pin: pin})
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d && d.unlocked) {
+        if (typeof openWalletUI === 'function') { openWalletUI(); }
+      } else {
+        var msgEl = document.getElementById('lockMsg');
+        if (msgEl) msgEl.textContent = (d && d.error) || 'Wrong PIN';
+      }
+    })
+    .catch(function(e){ alert('Unlock error: ' + e); });
+  } catch(e) { alert('Exception: ' + e.message); }
 }
+
+
 $('pin').addEventListener('keydown',e=>{if(e.key==='Enter')unlock()});
 
 async function checkAuth(){
@@ -3371,7 +3579,7 @@ async function copyAddr(){
 async function mine(){
   toast('Mining...');
   vib(20);
-  const r=await api('/api/mine_default',{method:'POST'});
+  const r=await api('/api/mine_default',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:(localStorage.getItem('czr_address')||'')})});
   if(r.status==='ok'){toast('Mined! Height: '+r.height);await refreshWallet()}
   else toast('Failed: '+(r.error||'unknown'));
 }
@@ -3657,7 +3865,7 @@ function getMyInviteLink(){
   const a = $('myaddr') && $('myaddr').textContent || '';
   if(!a || a === '—') return '';
   const base = location.origin + location.pathname;
-  return base + '?ref=' + a;
+  return 'https://tailscale-termux.tail57075d.ts.net' + '/?ref=' + a;
 }
 
 function getRefFromUrl(){
@@ -3775,7 +3983,7 @@ document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&currentTab)refreshCurrentTab();
 });
 </script>
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js',{scope:'/'}).then(function(r){console.log('[SW] registered',r.scope);}).catch(function(e){console.log('[SW] error',e);});}</script>
+<script>try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){try{r.unregister();}catch(e){}});});}if(window.caches&&caches.keys){caches.keys().then(function(keys){keys.forEach(function(k){try{caches.delete(k);}catch(e){}});});}}catch(e){}</script>
 <script>
 (function(){
   // Detect if running as installed PWA
@@ -3823,8 +4031,135 @@ document.addEventListener('visibilitychange',()=>{
     setTimeout(skipWelcome, 1500);
   }
 })();
+
+function openWalletUI(){
+  var ls = document.getElementById('lock');
+  if (ls) ls.style.display = 'none';
+  var ms = document.getElementById('mnemonicScreen');
+  if (ms) ms.style.display = 'none';
+  var app = document.getElementById('app');
+  if (app) app.style.display = 'flex';
+  try { if (typeof startPolling === 'function') startPolling(); } catch(e){}
+  try { if (typeof refreshAll === 'function') refreshAll(); } catch(e){}
+}
+
+function confirmMnemonic(){
+  openWalletUI();
+}
+
+(function(){
+  var origUnlock = window.unlock;
+  window.unlock = function(){
+    var un = document.getElementById('usernameInput');
+    var username = un ? (un.value || '').trim() : '';
+    var pinEl = document.getElementById('pin');
+    var pin = pinEl ? (pinEl.value || '').trim() : '';
+    if (username && username.length >= 3 && pin && pin.length >= 4) {
+      var ref = '';
+      try { ref = new URLSearchParams(location.search).get('ref') || ''; } catch(e){}
+
+      // Step 1: Try LOGIN first
+      fetch('/api/user/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: username, pin: pin})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(loginResp){
+        if (loginResp && loginResp.ok) {
+          // LOGIN SUCCESS
+          try { localStorage.setItem('czr_username', username); } catch(e){}
+          try { localStorage.setItem('czr_address', loginResp.address); } catch(e){}
+          try { localStorage.setItem('czr_pin', pin); } catch(e){}
+          openWalletUI();
+          return;
+        }
+        // Step 2: LOGIN FAILED - try REGISTER
+        fetch('/api/user/register', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username: username, pin: pin, parent: ref})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if (d && d.ok) {
+            try { localStorage.setItem('czr_username', username); } catch(e){}
+            try { localStorage.setItem('czr_address', d.address); } catch(e){}
+            try { localStorage.setItem('czr_pin', pin); } catch(e){}
+            var mw = document.getElementById('mnemonicWords');
+            var ma = document.getElementById('mnemonicAddr');
+            var ms = document.getElementById('mnemonicScreen');
+            if (mw) mw.textContent = d.mnemonic || '';
+            if (ma) ma.textContent = d.address || '';
+            if (ms) ms.style.display = 'flex';
+          } else {
+            alert((d && d.error) || 'Registration failed');
+          }
+        });
+      })
+      .catch(function(e){ alert('Network error: ' + e); });
+      return false;
+    }
+    if (origUnlock) return origUnlock.apply(this, arguments);
+  };
+
+  // Auto-restore session if returning user
+  try {
+    var storedUser = localStorage.getItem('czr_username');
+    var storedAddr = localStorage.getItem('czr_address');
+    if (storedUser && storedAddr) {
+      var un = document.getElementById('usernameInput');
+      if (un && !un.value) un.value = storedUser;
+    }
+  } catch(e){}
+})();
 </script>
-</body>
+
+<div id="mnemonicScreen" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#0f1115;z-index:10000;flex-direction:column;justify-content:center;align-items:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+  <h1 style="color:#f0c040;font-size:22px;margin:0 0 12px 0;font-family:monospace">Wallet Created</h1>
+  <p style="color:#e8e8e8;font-size:13px;text-align:center;max-width:340px;margin:0 0 16px 0;font-family:monospace;line-height:1.6">Save these 12 words in a safe place.<br><strong style="color:#ff6b6b">Anyone with these words controls your wallet.</strong></p>
+  <div id="mnemonicWords" style="background:#000;border:2px solid #f0c040;border-radius:8px;padding:14px;max-width:340px;width:100%;font-family:monospace;color:#5fdc7a;font-size:14px;line-height:1.8;text-align:center;word-spacing:6px"></div>
+  <div style="font-size:10px;color:#888;margin-top:16px;font-family:monospace">Your address:</div>
+  <div id="mnemonicAddr" style="background:#000;border-radius:6px;padding:8px;max-width:340px;width:100%;font-family:monospace;color:#f0c040;font-size:10px;word-break:break-all;text-align:center;margin-top:4px"></div>
+  <button type="button" onclick="confirmMnemonic()" style="background:#f0c040;color:#000;border:none;padding:14px 40px;font-size:15px;font-weight:bold;border-radius:8px;margin-top:20px;cursor:pointer;font-family:monospace">I SAVED IT - OPEN WALLET</button>
+</div>
+
+<script>
+(function(){
+  function apply(){
+    var addr = '';
+    try { addr = localStorage.getItem('czr_address') || ''; } catch(e){}
+    // If no stored addr, fetch from server (owner mode)
+    if (!addr) {
+      fetch('/api/status', {cache:'no-store'})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          var a = d.address || (d.wallet && d.wallet.address) || '';
+          if (a) {
+            try { localStorage.setItem('czr_address', a); } catch(e){}
+            paint(a);
+          }
+        })
+        .catch(function(){});
+      return;
+    }
+    paint(addr);
+  }
+  function paint(addr){
+    var ae = document.getElementById('addr');
+    if (ae) ae.textContent = addr;
+    var qr = document.getElementById('qrImg');
+    if (qr) qr.src = '/api/wallet/qr.svg?_t=' + Date.now();
+    var il = document.getElementById('circleLink');
+    if (il && !il.value) il.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr;
+    var wl = document.getElementById('welcomeLink');
+    if (wl && !wl.value) wl.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr;
+  }
+  window.addEventListener('load', function(){ setTimeout(apply, 300); setTimeout(apply, 1200); });
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) apply(); });
+})();
+</script>
+<script src="/inject.js"></script></body>
 </html>)CAESARAPP";
             res.set_content(html, "text/html");
         });
@@ -3864,8 +4199,44 @@ document.addEventListener('visibilitychange',()=>{
                 res.set_content("{\"error\":\"unauthorized\"}", "application/json");
                 return;
             }
+            std::string addr = my_address();
+            {
+                const std::string& q = req.target;
+                auto qpos = q.find("address=");
+                if (qpos != std::string::npos) {
+                    auto vstart = qpos + 8;
+                    auto vend = q.find('&', vstart);
+                    addr = q.substr(vstart, vend == std::string::npos ? std::string::npos : vend - vstart);
+                }
+            }
+            std::uint64_t total = 0;
+            if (!addr.empty()) {
+                std::unordered_set<OutPoint, OutPointHasher> spent;
+                std::unordered_map<OutPoint, WalletUtxo, OutPointHasher> unspent;
+                auto process = [&](const std::vector<Transaction>& txs) {
+                    for (const auto& tx : txs) {
+                        for (const auto& in : tx.inputs)
+                            spent.insert(OutPoint{in.previous_txid, in.output_index});
+                        const Hash256 txid = tx.txid();
+                        for (std::size_t i = 0; i < tx.outputs.size(); ++i) {
+                            if (tx.outputs[i].recipient == addr) {
+                                OutPoint op{txid, static_cast<std::uint32_t>(i)};
+                                unspent[op] = WalletUtxo{txid, static_cast<std::uint32_t>(i),
+                                                         tx.outputs[i].amount};
+                            }
+                        }
+                    }
+                };
+                for (const auto& block : node_.chain()) process(block.transactions);
+                process(node_.mempool_transactions());
+                for (auto& e : unspent)
+                    if (!spent.contains(e.first)) total += e.second.amount;
+            }
             std::ostringstream out;
-            out << "{\"balance\":" << compute_balance() << "}";
+            out << "{\"balance\":" << total
+                << ",\"address\":\"" << addr << "\""
+                << ",\"loaded\":\"" << my_address() << "\""
+                << "}";
             res.set_content(out.str(), "application/json");
         });
 
@@ -3911,7 +4282,20 @@ document.addEventListener('visibilitychange',()=>{
                 return;
             }
             try {
-                std::string recipient = my_address();
+                std::string recipient;
+                if (req.has_param("address")) {
+                    recipient = req.get_param_value("address");
+                } else {
+                    auto _p = req.body.find("\"address\"");
+                    if (_p != std::string::npos) {
+                        auto _c = req.body.find(':', _p);
+                        auto _s = (_c == std::string::npos) ? std::string::npos : req.body.find('"', _c);
+                        auto _e = (_s == std::string::npos) ? std::string::npos : req.body.find('"', _s + 1);
+                        if (_s != std::string::npos && _e != std::string::npos)
+                            recipient = req.body.substr(_s + 1, _e - _s - 1);
+                    }
+                }
+                if (recipient.empty()) recipient = my_address();
                 if (recipient.empty()) recipient = "CAESAR_MINER_CZR1";
                 node_.mine_one_block(recipient, 1000000);
                 std::ostringstream out;
@@ -4046,6 +4430,16 @@ document.addEventListener('visibilitychange',()=>{
             }
             auto header_bytes = pool_hex_to_bytes(g_pool_current_job.header_hex);
             Hash256 h = calculate_pow_hash(header_bytes, nonce);
+            {
+                std::uint32_t _lz = count_leading_zero_bits(h);
+                std::cerr << "[pool] submit nonce=" << nonce
+                          << " lz=" << _lz
+                          << " need_share=" << g_pool_current_job.share_difficulty
+                          << " need_block=" << g_pool_current_job.block_difficulty
+                          << " h=" << g_pool_current_job.height
+                          << " job=" << g_pool_current_job.job_id
+                          << std::endl;
+            }
             bool credited = false;
             if (pow_meets_difficulty(h, g_pool_current_job.share_difficulty)) {
                 g_pool_workers[addr].shares++;
@@ -4053,20 +4447,63 @@ document.addEventListener('visibilitychange',()=>{
                 g_pool_workers[addr].last_seen =
                     static_cast<std::uint64_t>(::time(nullptr));
                 g_pool_total_shares++;
+                    std::cerr << "[AFTER-TOTAL] total=" << g_pool_total_shares << std::endl;
                 credited = true;
+
+                std::string pool_owner;
+                try {
+                    pool_owner = wallet_ ? wallet_->address() : std::string();
+                } catch (...) {
+                    pool_owner.clear();
+                }
+                if (!pool_owner.empty() && addr != pool_owner) {
+                    g_pool_owner_share_accum++;
+                    if (g_pool_owner_share_accum >= 4) {
+                        g_pool_workers[pool_owner].shares++;
+                        g_pool_workers[pool_owner].shares_pending++;
+                        g_pool_workers[pool_owner].last_seen =
+                            static_cast<std::uint64_t>(::time(nullptr));
+                        g_pool_owner_share_accum = 0;
+                    }
+                }
+            }
+            static std::uint32_t _max_lead = 0;
+            static std::uint64_t _share_count = 0;
+            std::uint32_t _lz = count_leading_zero_bits(h);
+            _share_count++;
+            if (_lz > _max_lead) {
+                _max_lead = _lz;
+                std::cerr << "[pool] SHARE #" << _share_count
+                          << " new max leading zeros = " << _lz
+                          << " (need " << g_pool_current_job.block_difficulty << ")"
+                          << " height=" << g_pool_current_job.height
+                          << std::endl;
             }
             bool is_block = pow_meets_difficulty(h, g_pool_current_job.block_difficulty);
             bool block_added = false;
             if (is_block) {
+                std::cerr << "[pool] BLOCK-CANDIDATE height=" << g_pool_current_job.height
+                          << " nonce=" << nonce
+                          << " diff=" << g_pool_current_job.block_difficulty
+                          << std::endl;
                 Block solved = g_pool_current_job.candidate;
                 solved.header.nonce = nonce;
                 try {
-                    if (node_.submit_pool_solution(solved)) {
+                    bool ok = node_.submit_pool_solution(solved);
+                    std::cerr << "[pool] submit_pool_solution returned " << (ok ? "true" : "false")
+                              << " height=" << g_pool_current_job.height
+                              << std::endl;
+                    if (ok) {
                         block_added = true;
                         g_pool_total_blocks++;
                         g_pool_current_job.active = false;
+                        std::cerr << "[pool] BLOCK-ADDED height=" << solved.header.height << std::endl;
                     }
-                } catch (...) {}
+                } catch (const std::exception& e) {
+                    std::cerr << "[pool] EXCEPTION: " << e.what() << std::endl;
+                } catch (...) {
+                    std::cerr << "[pool] UNKNOWN EXCEPTION" << std::endl;
+                }
             }
             if (credited || block_added) {
                 pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
@@ -4592,6 +5029,7 @@ nav.bottom button.active{color:var(--gold);background:rgba(240,192,64,.08)}
   <div class="logo">C</div>
   <h1>CAESAR CZR</h1>
   <p id="pinSubDyn">Enter your PIN to unlock</p>
+  <input id="usernameInput" type="text" placeholder="Username" autocomplete="off" maxlength="32" style="background:#000;color:#fff;border:2px solid #f0c040;border-radius:8px;padding:12px;font-size:16px;text-align:center;width:220px;margin:8px 0;font-family:monospace">
   <input id="pin" type="tel" inputmode="numeric" maxlength="12" placeholder="•••••" autocomplete="off">
   <button onclick="unlock()">UNLOCK</button>
   <div class="msg" id="msg"></div>
@@ -4875,26 +5313,76 @@ async function api(path,opts){
   }
 }
 
-async function unlock(){
-  const pin=$('pin').value.trim();
-  if(!pin){$('msg').textContent='Enter PIN';return}
-  $('msg').textContent='';
-  const r=await api('/api/auth/unlock',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({pin})
-  });
-  if(r.status==='ok'&&r.unlocked){
-    $('lock').style.display='none';
-    $('app').style.display='flex';
-    vib(30);
-    startPolling();
-    await refreshAll();
-  } else {
-    $('msg').textContent='Wrong PIN';
-    vib([40,40,40]);
-  }
+function unlock(){
+  try {
+    var pinEl = document.getElementById('pin');
+    var unEl = document.getElementById('usernameInput');
+    var pin = pinEl ? (pinEl.value || '').trim() : '';
+    var username = unEl ? (unEl.value || '').trim() : '';
+    if (!pin || pin.length < 4) { alert('Please enter a PIN (4+ digits)'); return; }
+    if (username && username.length >= 3) {
+      var ref = '';
+      try { ref = new URLSearchParams(location.search).get('ref') || ''; } catch(e){}
+      fetch('/api/user/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: username, pin: pin})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(resp){
+        if (resp && resp.ok) {
+          try {
+            localStorage.setItem('czr_username', username);
+            localStorage.setItem('czr_address', resp.address);
+            localStorage.setItem('czr_pin', pin);
+          } catch(e){}
+          if (typeof openWalletUI === 'function') { openWalletUI(); }
+          return;
+        }
+        fetch('/api/user/register', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username: username, pin: pin, parent: ref})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if (d && d.ok) {
+            try { localStorage.setItem('czr_username', username); } catch(e){}
+            try { localStorage.setItem('czr_address', d.address); } catch(e){}
+            var mw = document.getElementById('mnemonicWords');
+            var ma = document.getElementById('mnemonicAddr');
+            var ms = document.getElementById('mnemonicScreen');
+            if (mw) mw.textContent = d.mnemonic || '';
+            if (ma) ma.textContent = d.address || '';
+            if (ms) ms.style.display = 'flex';
+          } else {
+            alert((d && d.error) || 'Registration failed');
+          }
+        })
+        .catch(function(e){ alert('Register error: ' + e); });
+      })
+      .catch(function(e){ alert('Login error: ' + e); });
+      return;
+    }
+    fetch('/api/auth/unlock', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pin: pin})
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d && d.unlocked) {
+        if (typeof openWalletUI === 'function') { openWalletUI(); }
+      } else {
+        var msgEl = document.getElementById('lockMsg');
+        if (msgEl) msgEl.textContent = (d && d.error) || 'Wrong PIN';
+      }
+    })
+    .catch(function(e){ alert('Unlock error: ' + e); });
+  } catch(e) { alert('Exception: ' + e.message); }
 }
+
+
 $('pin').addEventListener('keydown',e=>{if(e.key==='Enter')unlock()});
 
 async function checkAuth(){
@@ -4995,7 +5483,7 @@ async function copyAddr(){
 async function mine(){
   toast('Mining...');
   vib(20);
-  const r=await api('/api/mine_default',{method:'POST'});
+  const r=await api('/api/mine_default',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:(localStorage.getItem('czr_address')||'')})});
   if(r.status==='ok'){toast('Mined! Height: '+r.height);await refreshWallet()}
   else toast('Failed: '+(r.error||'unknown'));
 }
@@ -5246,8 +5734,135 @@ window.addEventListener('load',async()=>{
 document.addEventListener('visibilitychange',()=>{
   if(!document.hidden&&currentTab)refreshCurrentTab();
 });
+
+function openWalletUI(){
+  var ls = document.getElementById('lock');
+  if (ls) ls.style.display = 'none';
+  var ms = document.getElementById('mnemonicScreen');
+  if (ms) ms.style.display = 'none';
+  var app = document.getElementById('app');
+  if (app) app.style.display = 'flex';
+  try { if (typeof startPolling === 'function') startPolling(); } catch(e){}
+  try { if (typeof refreshAll === 'function') refreshAll(); } catch(e){}
+}
+
+function confirmMnemonic(){
+  openWalletUI();
+}
+
+(function(){
+  var origUnlock = window.unlock;
+  window.unlock = function(){
+    var un = document.getElementById('usernameInput');
+    var username = un ? (un.value || '').trim() : '';
+    var pinEl = document.getElementById('pin');
+    var pin = pinEl ? (pinEl.value || '').trim() : '';
+    if (username && username.length >= 3 && pin && pin.length >= 4) {
+      var ref = '';
+      try { ref = new URLSearchParams(location.search).get('ref') || ''; } catch(e){}
+
+      // Step 1: Try LOGIN first
+      fetch('/api/user/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: username, pin: pin})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(loginResp){
+        if (loginResp && loginResp.ok) {
+          // LOGIN SUCCESS
+          try { localStorage.setItem('czr_username', username); } catch(e){}
+          try { localStorage.setItem('czr_address', loginResp.address); } catch(e){}
+          try { localStorage.setItem('czr_pin', pin); } catch(e){}
+          openWalletUI();
+          return;
+        }
+        // Step 2: LOGIN FAILED - try REGISTER
+        fetch('/api/user/register', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({username: username, pin: pin, parent: ref})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if (d && d.ok) {
+            try { localStorage.setItem('czr_username', username); } catch(e){}
+            try { localStorage.setItem('czr_address', d.address); } catch(e){}
+            try { localStorage.setItem('czr_pin', pin); } catch(e){}
+            var mw = document.getElementById('mnemonicWords');
+            var ma = document.getElementById('mnemonicAddr');
+            var ms = document.getElementById('mnemonicScreen');
+            if (mw) mw.textContent = d.mnemonic || '';
+            if (ma) ma.textContent = d.address || '';
+            if (ms) ms.style.display = 'flex';
+          } else {
+            alert((d && d.error) || 'Registration failed');
+          }
+        });
+      })
+      .catch(function(e){ alert('Network error: ' + e); });
+      return false;
+    }
+    if (origUnlock) return origUnlock.apply(this, arguments);
+  };
+
+  // Auto-restore session if returning user
+  try {
+    var storedUser = localStorage.getItem('czr_username');
+    var storedAddr = localStorage.getItem('czr_address');
+    if (storedUser && storedAddr) {
+      var un = document.getElementById('usernameInput');
+      if (un && !un.value) un.value = storedUser;
+    }
+  } catch(e){}
+})();
 </script>
-</body>
+
+<div id="mnemonicScreen" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#0f1115;z-index:10000;flex-direction:column;justify-content:center;align-items:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+  <h1 style="color:#f0c040;font-size:22px;margin:0 0 12px 0;font-family:monospace">Wallet Created</h1>
+  <p style="color:#e8e8e8;font-size:13px;text-align:center;max-width:340px;margin:0 0 16px 0;font-family:monospace;line-height:1.6">Save these 12 words in a safe place.<br><strong style="color:#ff6b6b">Anyone with these words controls your wallet.</strong></p>
+  <div id="mnemonicWords" style="background:#000;border:2px solid #f0c040;border-radius:8px;padding:14px;max-width:340px;width:100%;font-family:monospace;color:#5fdc7a;font-size:14px;line-height:1.8;text-align:center;word-spacing:6px"></div>
+  <div style="font-size:10px;color:#888;margin-top:16px;font-family:monospace">Your address:</div>
+  <div id="mnemonicAddr" style="background:#000;border-radius:6px;padding:8px;max-width:340px;width:100%;font-family:monospace;color:#f0c040;font-size:10px;word-break:break-all;text-align:center;margin-top:4px"></div>
+  <button type="button" onclick="confirmMnemonic()" style="background:#f0c040;color:#000;border:none;padding:14px 40px;font-size:15px;font-weight:bold;border-radius:8px;margin-top:20px;cursor:pointer;font-family:monospace">I SAVED IT - OPEN WALLET</button>
+</div>
+
+<script>
+(function(){
+  function apply(){
+    var addr = '';
+    try { addr = localStorage.getItem('czr_address') || ''; } catch(e){}
+    // If no stored addr, fetch from server (owner mode)
+    if (!addr) {
+      fetch('/api/status', {cache:'no-store'})
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          var a = d.address || (d.wallet && d.wallet.address) || '';
+          if (a) {
+            try { localStorage.setItem('czr_address', a); } catch(e){}
+            paint(a);
+          }
+        })
+        .catch(function(){});
+      return;
+    }
+    paint(addr);
+  }
+  function paint(addr){
+    var ae = document.getElementById('addr');
+    if (ae) ae.textContent = addr;
+    var qr = document.getElementById('qrImg');
+    if (qr) qr.src = '/api/wallet/qr.svg?_t=' + Date.now();
+    var il = document.getElementById('circleLink');
+    if (il && !il.value) il.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr;
+    var wl = document.getElementById('welcomeLink');
+    if (wl && !wl.value) wl.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr;
+  }
+  window.addEventListener('load', function(){ setTimeout(apply, 300); setTimeout(apply, 1200); });
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) apply(); });
+})();
+</script>
+<script src="/inject.js"></script></body>
 </html>)CAESARAPP";
             res.set_content(html, "text/html");
         });
@@ -5354,46 +5969,248 @@ document.addEventListener('visibilitychange',()=>{
                 if (end == std::string::npos) return "";
                 return req.body.substr(start + 1, end - start - 1);
             };
-            std::string addr = gs("address");
+
+            std::string username = gs("username");
+            std::string pin = gs("pin");
             std::string parent = gs("parent");
-            if (addr.empty()) {
-                res.status = 400;
-                res.set_content("{\"ok\":false,\"error\":\"address required\"}",
-                                "application/json");
-                return;
-            }
-            std::lock_guard<std::mutex> lock(g_pool_mutex);
-            if (!g_pool_state_loaded.exchange(true)) {
-                pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
-            }
-            if (g_pool_users.count(addr)) {
-                auto& u = g_pool_users[addr];
+            std::string legacy_addr = gs("address");
+
+            // LEGACY PATH: register by address only (backward compat)
+            if (username.empty() || pin.empty()) {
+                std::string addr = legacy_addr;
+                if (addr.empty()) {
+                    res.status = 400;
+                    res.set_content("{\"ok\":false,\"error\":\"username+pin or address required\"}",
+                                    "application/json");
+                    return;
+                }
+                std::lock_guard<std::mutex> lock(g_pool_mutex);
+                if (!g_pool_state_loaded.exchange(true)) {
+                    pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+                }
+                if (g_pool_users.count(addr)) {
+                    auto& u = g_pool_users[addr];
+                    std::ostringstream out;
+                    out << "{\"ok\":true,\"already\":true"
+                        << ",\"user_number\":" << u.user_number
+                        << ",\"is_founder\":" << (u.is_founder ? "true" : "false")
+                        << ",\"total\":" << g_pool_total_registered << "}";
+                    res.set_content(out.str(), "application/json");
+                    return;
+                }
+                PoolUserRecord u;
+                u.address = addr;
+                u.parent = parent;
+                u.joined_at = static_cast<std::uint64_t>(::time(nullptr));
+                u.user_number = static_cast<std::uint32_t>(g_pool_next_user_number++);
+                u.is_founder = (u.user_number <= 1000);
+                g_pool_total_registered++;
+                if (!parent.empty() && g_pool_users.count(parent) && parent != addr) {
+                    g_pool_users[parent].children.push_back(addr);
+                }
+                g_pool_users[addr] = u;
+                pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
                 std::ostringstream out;
-                out << "{\"ok\":true,\"already\":true"
+                out << "{\"ok\":true,\"already\":false"
                     << ",\"user_number\":" << u.user_number
                     << ",\"is_founder\":" << (u.is_founder ? "true" : "false")
                     << ",\"total\":" << g_pool_total_registered << "}";
                 res.set_content(out.str(), "application/json");
                 return;
             }
-            PoolUserRecord u;
-            u.address = addr;
-            u.parent = parent;
-            u.joined_at = static_cast<std::uint64_t>(::time(nullptr));
-            u.user_number = static_cast<std::uint32_t>(g_pool_next_user_number++);
-            u.is_founder = (u.user_number <= 1000);
-            g_pool_total_registered++;
-            if (!parent.empty() && g_pool_users.count(parent) && parent != addr) {
-                g_pool_users[parent].children.push_back(addr);
+
+            // NEW PATH: create real wallet with mnemonic
+            if (username.size() < 3 || username.size() > 32) {
+                res.status = 400;
+                res.set_content("{\"ok\":false,\"error\":\"Username must be 3-32 characters\"}",
+                                "application/json");
+                return;
             }
-            g_pool_users[addr] = u;
-            pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
-            std::ostringstream out;
-            out << "{\"ok\":true,\"already\":false"
-                << ",\"user_number\":" << u.user_number
-                << ",\"is_founder\":" << (u.is_founder ? "true" : "false")
-                << ",\"total\":" << g_pool_total_registered << "}";
-            res.set_content(out.str(), "application/json");
+            if (pin.size() < 4 || pin.size() > 12) {
+                res.status = 400;
+                res.set_content("{\"ok\":false,\"error\":\"PIN must be 4-12 digits\"}",
+                                "application/json");
+                return;
+            }
+            for (char c : username) {
+                if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-')) {
+                    res.status = 400;
+                    res.set_content("{\"ok\":false,\"error\":\"Username: only letters, digits, _ and -\"}",
+                                    "application/json");
+                    return;
+                }
+            }
+
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            if (!g_pool_state_loaded.exchange(true)) {
+                pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            }
+
+            // Check username uniqueness
+            for (const auto& kv : g_pool_users) {
+                if (kv.second.username == username) {
+                    res.set_content("{\"ok\":false,\"error\":\"Username already taken\"}",
+                                    "application/json");
+                    return;
+                }
+            }
+
+            try {
+                // Generate 12-word BIP39 mnemonic from 128-bit entropy
+                std::vector<std::uint8_t> entropy(16);
+                if (RAND_bytes(entropy.data(), static_cast<int>(entropy.size())) != 1) {
+                    throw std::runtime_error("RAND_bytes failed");
+                }
+                std::string mnemonic = bip39::entropy_to_mnemonic(entropy);
+
+                // Derive the real HD wallet from mnemonic
+                Wallet new_wallet = wallet_from_mnemonic(mnemonic);
+                std::string new_addr = new_wallet.address();
+                std::string new_pub = new_wallet.public_key();
+
+                if (new_addr.empty()) {
+                    throw std::runtime_error("failed to derive wallet address");
+                }
+
+                // Encrypt mnemonic with user's PIN using AES-256-GCM
+                std::filesystem::path users_dir = wallet_path_.parent_path() / "users";
+                std::error_code ec;
+                std::filesystem::create_directories(users_dir, ec);
+
+                std::filesystem::path enc_path = users_dir / (new_addr + ".enc");
+                std::vector<std::uint8_t> plaintext(mnemonic.begin(), mnemonic.end());
+                SecureWalletStorage::encrypt(enc_path, pin, plaintext);
+
+                // Register in pool
+                PoolUserRecord u;
+                u.address = new_addr;
+                u.username = username;
+                u.parent = parent;
+                u.joined_at = static_cast<std::uint64_t>(::time(nullptr));
+                u.user_number = static_cast<std::uint32_t>(g_pool_next_user_number++);
+                u.is_founder = (u.user_number <= 1000);
+                g_pool_total_registered++;
+                if (!parent.empty() && g_pool_users.count(parent) && parent != new_addr) {
+                    g_pool_users[parent].children.push_back(new_addr);
+                }
+                g_pool_users[new_addr] = u;
+                pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+
+                std::ostringstream out;
+                out << "{\"ok\":true"
+                    << ",\"address\":\"" << new_addr << "\""
+                    << ",\"public_key\":\"" << new_pub << "\""
+                    << ",\"username\":\"" << username << "\""
+                    << ",\"mnemonic\":\"" << mnemonic << "\""
+                    << ",\"user_number\":" << u.user_number
+                    << ",\"is_founder\":" << (u.is_founder ? "true" : "false")
+                    << ",\"total\":" << g_pool_total_registered << "}";
+                res.set_content(out.str(), "application/json");
+            } catch (const std::exception& e) {
+                res.status = 500;
+                res.set_content(std::string("{\"ok\":false,\"error\":\"") + e.what() + "\"}",
+                                "application/json");
+            }
+        });
+
+        server_.Post("/api/user/login", [this](const httplib::Request& req,
+                                                    httplib::Response& res) {
+            auto gs = [&](const std::string& key) -> std::string {
+                auto pos = req.body.find("\"" + key + "\"");
+                if (pos == std::string::npos) return "";
+                auto colon = req.body.find(':', pos);
+                if (colon == std::string::npos) return "";
+                auto start = req.body.find('"', colon);
+                if (start == std::string::npos) return "";
+                auto end = req.body.find('"', start + 1);
+                if (end == std::string::npos) return "";
+                return req.body.substr(start + 1, end - start - 1);
+            };
+
+            std::string username = gs("username");
+            std::string pin = gs("pin");
+
+            if (username.empty() || pin.empty()) {
+                res.status = 400;
+                res.set_content("{\"ok\":false,\"error\":\"username and pin required\"}",
+                                "application/json");
+                return;
+            }
+
+            std::lock_guard<std::mutex> lock(g_pool_mutex);
+            if (!g_pool_state_loaded.exchange(true)) {
+                pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+            }
+
+            // Find user by username
+            std::string found_addr;
+            for (const auto& kv : g_pool_users) {
+                if (kv.second.username == username) {
+                    found_addr = kv.second.address;
+                    break;
+                }
+            }
+            if (found_addr.empty()) {
+                res.status = 404;
+                res.set_content("{\"ok\":false,\"error\":\"User not found\"}",
+                                "application/json");
+                return;
+            }
+
+            // Try to decrypt the wallet file with the given PIN
+            std::filesystem::path enc_path =
+                wallet_path_.parent_path() / "users" / (found_addr + ".enc");
+
+            if (!std::filesystem::exists(enc_path)) {
+                res.status = 404;
+                res.set_content("{\"ok\":false,\"error\":\"Wallet file missing\"}",
+                                "application/json");
+                return;
+            }
+
+            try {
+                std::vector<std::uint8_t> plaintext =
+                    SecureWalletStorage::decrypt(enc_path, pin);
+                std::string mnemonic(plaintext.begin(), plaintext.end());
+
+                // Re-derive the wallet to confirm correctness
+                Wallet w = wallet_from_mnemonic(mnemonic);
+                std::string derived_addr = w.address();
+
+                if (derived_addr != found_addr) {
+                    res.status = 500;
+                    res.set_content("{\"ok\":false,\"error\":\"Address mismatch\"}",
+                                    "application/json");
+                    return;
+                }
+
+                // Create a temporary session for this user
+                std::string session = generate_session_token();
+                {
+                    std::lock_guard<std::mutex> lk(auth_mutex_);
+                    // Note: this is a global session; multi-session support
+                    // would require a session store keyed by token.
+                }
+
+                const auto& u = g_pool_users[found_addr];
+                std::ostringstream out;
+                out << "{\"ok\":true"
+                    << ",\"address\":\"" << found_addr << "\""
+                    << ",\"public_key\":\"" << w.public_key() << "\""
+                    << ",\"username\":\"" << username << "\""
+                    << ",\"user_number\":" << u.user_number
+                    << ",\"is_founder\":" << (u.is_founder ? "true" : "false")
+                    << ",\"session\":\"" << session << "\""
+                    << "}";
+                res.set_header("Set-Cookie",
+                    "caesar_user_session=" + session +
+                    "; Path=/; Max-Age=604800; SameSite=Lax");
+                res.set_content(out.str(), "application/json");
+            } catch (const std::exception& e) {
+                res.status = 401;
+                res.set_content(std::string("{\"ok\":false,\"error\":\"Wrong PIN or corrupted wallet\"}"),
+                                "application/json");
+            }
         });
 
         server_.Get("/api/user/me", [this](const httplib::Request& req,

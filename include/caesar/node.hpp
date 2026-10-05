@@ -354,6 +354,11 @@ class CaesarNode {
     }
 
     bool submit_pool_solution(Block candidate) {
+        std::cerr << "[submit] enter, height=" << candidate.header.height
+                  << " nonce=" << candidate.header.nonce
+                  << " diff=" << candidate.header.difficulty
+                  << std::endl;
+
         if (!running_)
             throw std::runtime_error("cannot submit solution while node is stopped");
         std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
@@ -362,17 +367,18 @@ class CaesarNode {
         if (current_chain.empty())
             throw std::runtime_error("cannot submit on empty blockchain");
         const Block& previous = current_chain.back();
-        if (candidate.header.previous_hash != previous.hash()) return false;
-        if (candidate.header.height != previous.header.height + 1) return false;
-        if (!candidate.validate_pow()) return false;
+        if (candidate.header.previous_hash != previous.hash()) { std::cerr << "[FAIL-PREVHASH]" << std::endl; return false; }
+        if (candidate.header.height != previous.header.height + 1) { std::cerr << "[FAIL-HEIGHT] cand=" << candidate.header.height << " want=" << (previous.header.height + 1) << std::endl; return false; }
+        if (!candidate.validate_pow()) { std::cerr << "FAILPOW h=" << candidate.header.height << std::endl; return false; }
         const UTXOSet previous_utxos = rebuild_utxo_set(current_chain);
-        if (!validate_block_consensus(candidate, current_chain, previous_utxos))
-            return false;
+        if (!validate_block_consensus(candidate, current_chain, previous_utxos)) {
+                return false;
+        }
         storage_.append(candidate);
         chain_cache_valid_ = false;
         mempool_.clear();
         relay_.announce_block(candidate);
-        return true;
+        std::cerr << "[submit] returning true" << std::endl; return true;
     }
 
     void request_sync_from_peer(std::uint64_t peer_id) {

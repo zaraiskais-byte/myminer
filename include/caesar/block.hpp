@@ -414,6 +414,13 @@ inline bool validate_block_chain(const std::vector<Block>& chain) {
 // pass validation once the difficulty window activates.
 inline std::uint32_t expected_difficulty_at_position(const std::vector<Block>& chain,
                                                      std::size_t position) {
+    // BOOTSTRAP: fixed difficulty for new blocks to let the network grow.
+    // Existing blocks (height 0..39) keep their original difficulty.
+    // All new blocks (height 40+) use fixed difficulty 14.
+    if (position >= 40) {
+        return 8;
+    }
+
     if (position == 0 || position > chain.size())
         return CZR_INITIAL_MINING_DIFFICULTY;
 

@@ -153,6 +153,7 @@ class P2PRelay {
              * false, then return without pushing anything.
              */
             running_ = false;
+            if (sync_thread_.joinable()) sync_thread_.join();
             threads.swap(threads_);
         }
 
