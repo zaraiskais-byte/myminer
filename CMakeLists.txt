@@ -179,6 +179,29 @@ add_test(
     COMMAND caesar_persistent_wallet_test
 )
 
+add_executable(caesar_http_wallet_setup_test
+    tests/http_wallet_setup_test.cpp
+    third_party/qrcodegen.cpp
+)
+
+target_include_directories(caesar_http_wallet_setup_test
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/third_party
+)
+
+target_link_libraries(caesar_http_wallet_setup_test
+    PRIVATE
+        OpenSSL::Crypto
+        Threads::Threads
+)
+
+add_test(
+    NAME CaesarHttpWalletSetupTest
+    COMMAND caesar_http_wallet_setup_test
+)
+
+
 add_executable(caesar_bip39_test
     tests/bip39_test.cpp
 )

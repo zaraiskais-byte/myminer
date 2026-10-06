@@ -1608,8 +1608,15 @@ class HttpRpcServer {
                 std::string pin = req.body.substr(start + 1, end - start - 1);
                 if (pin.size() < 4) throw std::runtime_error("PIN must be 4+ digits");
 
-                // patched: allow setup on fresh wallet
+                // A pre-existing wallet that is not currently loaded
+                // must never be replaced by setup. It may be encrypted
+                // and awaiting unlock, or it may be corrupted.
                 if (!wallet_->is_loaded()) {
+                    if (wallet_preexisting_) {
+                        throw std::runtime_error(
+                            "existing wallet is unavailable; refusing replacement");
+                    }
+
                     wallet_->create_new_hd_wallet();
                     wallet_->save_encrypted(pin);
                     caesar::save_pin(pin_path_, pin);
