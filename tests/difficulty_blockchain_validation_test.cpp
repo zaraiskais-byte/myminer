@@ -21,7 +21,7 @@ int main() {
         block.header.version = 1;
         block.header.height = i;
         block.header.timestamp = i * 120;
-        block.header.difficulty = 1;
+        block.header.difficulty = 9;
 
         chain.push_back(block);
     }
@@ -29,7 +29,7 @@ int main() {
     Mempool mempool;
 
     Block candidate = BlockBuilder::build(chain.back(), mempool, "CZ1_TEST_MINER",
-                                          chain.back().header.timestamp + 120, 1);
+                                          chain.back().header.timestamp + 120, 9);
 
     const bool mined = BlockBuilder::mine(candidate, 0, 1000);
 
@@ -43,7 +43,8 @@ int main() {
     ok &= check("Chain-derived wrong difficulty rejected",
                 !candidate.validate_against_chain_history(chain));
 
-    candidate.header.difficulty = 0;
+    candidate.header.difficulty = 8;
+    const bool slow_candidate_mined = BlockBuilder::mine(candidate, 0, 1000);
 
     std::uint64_t timestamp = 0;
     for (std::size_t i = 0; i < chain.size(); ++i) {
@@ -51,8 +52,12 @@ int main() {
         chain[i].header.timestamp = timestamp;
     }
 
+    ok &= check("Majority slow candidate PoW mined",
+                slow_candidate_mined);
+
     ok &= check("Majority slow history requires lower difficulty",
-                candidate.validate_against_chain_history(chain));
+                slow_candidate_mined &&
+                    candidate.validate_against_chain_history(chain));
 
     // Regression: validating a historical block inside a chain
     // must use that block's own difficulty window, not the final tip.
