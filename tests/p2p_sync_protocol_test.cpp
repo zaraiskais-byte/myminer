@@ -49,6 +49,21 @@ int main() {
         assert(decoded.blocks[1] == std::vector<std::uint8_t>({5, 6, 7, 8, 9}));
     }
 
+    /*
+     * An empty SyncBlocks message is the explicit abort signal for
+     * a matching PendingChainSync session.
+     */
+    {
+        SyncBlocksMessage message;
+        message.session_id = session;
+
+        const auto encoded = message.serialize_binary();
+        const auto decoded = SyncBlocksMessage::deserialize_binary(encoded);
+
+        assert(decoded.session_id == session);
+        assert(decoded.blocks.empty());
+    }
+
     {
         GetSyncBlocksMessage message;
         message.session_id = session;

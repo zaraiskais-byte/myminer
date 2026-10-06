@@ -876,6 +876,21 @@ target_link_libraries(caesar_p2p_sync_protocol_test PRIVATE
     crypto
     pthread
 )
+add_executable(caesar_p2p_pending_sync_abort_test
+    tests/p2p_pending_sync_abort_test.cpp
+)
+target_include_directories(caesar_p2p_pending_sync_abort_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_p2p_pending_sync_abort_test PRIVATE
+    crypto
+    pthread
+)
+add_test(
+    NAME CaesarP2PPendingSyncAbortTest
+    COMMAND caesar_p2p_pending_sync_abort_test
+)
+
 add_test(
     NAME CaesarP2PSyncProtocolTest
     COMMAND caesar_p2p_sync_protocol_test

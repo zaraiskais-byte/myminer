@@ -17,6 +17,26 @@
 namespace caesar {
 
 /*
+ * Dedicated timeout exception.
+ *
+ * receive_all() raises this for BOTH clean idle timeouts
+ * (zero bytes consumed) and partial-frame timeouts. A reader
+ * that sees P2PTimeout must retry, not tear down the peer:
+ * TCP is reliable, so an idle socket simply means the other
+ * side has nothing to say right now.
+ *
+ * Any other exception (deserialize, protocol, closed peer)
+ * is a real error and must terminate the reader.
+ */
+class P2PTimeout : public std::runtime_error {
+public:
+    explicit P2PTimeout(const char* what) : std::runtime_error(what) {}
+    explicit P2PTimeout(const std::string& what) : std::runtime_error(what) {}
+};
+
+
+
+/*
  * TCP socket wrapper.
  *
  * The underlying file descriptor is stored in std::atomic<int> so
@@ -87,13 +107,19 @@ class P2PTcpSocket {
         }
 
         if (::bind(new_fd, reinterpret_cast<sockaddr*>(&server), sizeof(server)) < 0) {
+            const int saved_errno = errno;
             close();
-            throw std::runtime_error(std::string("TCP bind failed: ") + std::strerror(errno));
+            throw std::runtime_error(std::string("TCP bind failed: ") +
+                                     std::strerror(saved_errno) +
+                                     " (errno=" + std::to_string(saved_errno) + ")");
         }
 
         if (::listen(new_fd, 8) < 0) {
+            const int saved_errno = errno;
             close();
-            throw std::runtime_error("TCP listen failed");
+            throw std::runtime_error(std::string("TCP listen failed: ") +
+                                     std::strerror(saved_errno) +
+                                     " (errno=" + std::to_string(saved_errno) + ")");
         }
     }
 
@@ -153,20 +179,57 @@ class P2PTcpSocket {
     }
 
     void receive_all(std::uint8_t* data, std::size_t size) const {
-        const int current = fd_.load();
-
-        if (current < 0)
-            throw std::runtime_error("TCP socket is closed");
-
         std::size_t received = 0;
 
         while (received < size) {
-            const ssize_t result = ::recv(current, data + received, size - received, 0);
+            const int current = fd_.load();
+            if (current < 0)
+                throw std::runtime_error("TCP receive failed: socket closed");
 
-            if (result <= 0)
-                throw std::runtime_error("TCP receive failed");
+            const ssize_t result =
+                ::recv(current,
+                       data + received,
+                       size - received,
+                       0);
 
-            received += static_cast<std::size_t>(result);
+            if (result > 0) {
+                received += static_cast<std::size_t>(result);
+                continue;
+            }
+
+            if (result == 0)
+                throw std::runtime_error("TCP receive failed: peer closed connection");
+
+            const int saved_errno = errno;
+
+            if (saved_errno == EINTR)
+                continue;
+
+            if (saved_errno == EAGAIN || saved_errno == EWOULDBLOCK) {
+                /*
+                 * A timeout is retryable only before any bytes of the
+                 * current read have been consumed.
+                 *
+                 * Once part of a frame has arrived, retrying the same
+                 * logical frame after a timeout is safe only if the
+                 * caller knows exactly how many bytes remain.  The
+                 * caller does know that here, so preserve 'received'
+                 * and continue waiting for the remainder.
+                 *
+                 * The important invariant is that receive_all() never
+                 * returns a partial frame to the frame parser.
+                 */
+                if (received == 0)
+                    throw std::runtime_error("TCP receive timeout");
+
+                throw std::runtime_error(
+                    "TCP receive timeout during partial frame");
+            }
+
+            throw std::runtime_error(
+                std::string("TCP receive failed: ") +
+                std::strerror(saved_errno) +
+                " (errno=" + std::to_string(saved_errno) + ")");
         }
     }
 

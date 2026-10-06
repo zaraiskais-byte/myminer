@@ -100,9 +100,11 @@ struct SyncBlocksMessage {
     std::vector<std::vector<std::uint8_t>> blocks;
 
     std::vector<std::uint8_t> serialize_binary() const {
-        if (blocks.empty())
-            throw std::runtime_error("empty sync block response");
-
+        /*
+         * An empty SyncBlocks response is a protocol-level abort
+         * for the matching sync session. Individual serialized
+         * blocks must still be non-empty.
+         */
         if (blocks.size() > MAX_BLOCKS)
             throw std::runtime_error("too many sync blocks");
 
@@ -135,9 +137,12 @@ struct SyncBlocksMessage {
 
         const std::uint32_t count = reader.read_u32();
 
-        if (count == 0 || count > MAX_BLOCKS)
+        if (count > MAX_BLOCKS)
             throw std::runtime_error("invalid sync block response count");
 
+        /*
+         * count == 0 is a valid explicit session-abort response.
+         */
         message.blocks.reserve(count);
 
         for (std::uint32_t i = 0; i < count; ++i) {

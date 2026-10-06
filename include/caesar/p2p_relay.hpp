@@ -118,15 +118,10 @@ class P2PRelay {
                     auto ids = server_.peers().list_ids();
                     for (auto pid : ids) {
                         if (!server_.peers().connection(pid)) continue;
-                        std::vector<Hash256> locator;
-                        {
-                            std::lock_guard<std::mutex> lock(*storage_mutex_);
-                            if (!storage_.exists()) continue;
-                            auto chain = storage_.load();
-                            if (!chain.empty()) locator.push_back(chain.back().hash());
+                        try {
+                            request_headers(pid);
+                        } catch (...) {
                         }
-                        if (locator.empty()) locator.push_back(Hash256{});
-                        try { send_get_headers(pid, locator); } catch (...) {}
                     }
                 } catch (...) {}
             }
@@ -314,7 +309,8 @@ class P2PRelay {
         auto connection = server_.peers().connection(id);
 
         if (!connection)
-            return;
+            throw std::runtime_error(
+                "peer disconnected before sync block request");
 
         constexpr std::size_t max_batch = 1024;
 
@@ -372,54 +368,116 @@ class P2PRelay {
     }
 
     void on_peer_added(std::uint64_t id) {
-        // std::cerr << "[TRACE] on_peer_added id=" << id << std::endl;
+        /*
+         * Worker lifetime invariant:
+         *
+         * Every reader thread owns a std::thread object in threads_.
+         * No reader is detached. stop() changes running_ and swaps
+         * threads_ while holding threads_mutex_, then joins every
+         * worker outside the lock.
+         *
+         * The running_ check and worker registration are performed
+         * under the same mutex as stop(), so a worker can never be
+         * created after stop() has already drained threads_.
+         */
         {
-            std::lock_guard<std::mutex> lock(readers_mutex_);
-            if (active_readers_.count(id)) return;
-            active_readers_.insert(id);
-        }
-        std::thread([this, id]() {
-            // std::cerr << "[TRACE] reader START id=" << id << std::endl;
-            try {
-                auto conn = server_.peers().connection(id);
-                if (!conn) {
-                    // std::cerr << "[TRACE] reader NO CONN id=" << id << std::endl;
+            std::lock_guard<std::mutex> lock(threads_mutex_);
+
+            if (!running_)
+                return;
+
+            {
+                std::lock_guard<std::mutex> reader_lock(readers_mutex_);
+
+                if (active_readers_.count(id))
+                    return;
+
+                active_readers_.insert(id);
+            }
+
+            threads_.emplace_back([this, id]() {
+                try {
+                    auto conn = server_.peers().connection(id);
+
+                    if (!conn)
+                        return;
+
+                    while (running_) {
+                        try {
+                            P2PFrame frame = conn->receive_frame();
+
+                            handle_frame(id, frame);
+                            server_.peers().reward(id, 1);
+                        } catch (const caesar::P2PTimeout&) {
+                            /*
+                             * Idle or partial timeout.
+                             * TCP is reliable, so a silent socket is
+                             * normal. Retry without tearing down the peer.
+                             */
+                            continue;
+                        } catch (const std::exception& e) {
+                            const std::string error = e.what();
+
+                            /*
+                             * httplib/TCP receive timeout may surface as a
+                             * generic std::exception instead of P2PTimeout.
+                             * A timeout is not a protocol violation and must
+                             * not cause the peer to be removed.
+                             */
+                            if (error == "TCP receive timeout" ||
+                                error.find("TCP receive timeout") != std::string::npos) {
+                                continue;
+                            }
+
+                            std::cerr
+                                << "[P2P WORKER EXCEPTION] peer=" << id
+                                << " error=" << error
+                                << std::endl;
+                            break;
+                        } catch (...) {
+                            std::cerr
+                                << "[P2P WORKER EXCEPTION] peer=" << id
+                                << " unknown exception"
+                                << std::endl;
+                            break;
+                        }
+                    }
+                } catch (...) {
+                    /*
+                     * The worker must never allow an exception to escape
+                     * the thread entry point.
+                     */
+                }
+
+                {
                     std::lock_guard<std::mutex> lock(readers_mutex_);
                     active_readers_.erase(id);
+                }
+
+                if (!running_)
                     return;
+
+                try {
+                    server_.peers().remove_peer(id);
+                } catch (...) {
                 }
-                while (running_) {
-                    try {
-                        P2PFrame frame = conn->receive_frame();
-                        std::cerr << "[TRACE] reader RECV id=" << id
-                                  << " type=" << static_cast<int>(frame.type)
-                                  << " payload=" << frame.payload.size() << std::endl;
-                        handle_frame(id, frame);
-                        server_.peers().reward(id, 1);
-                    } catch (const std::exception& ex) {
-                        std::string msg = ex.what();
-                        // Timeouts are normal — just retry
-                        if (msg.find("timeout") != std::string::npos ||
-                            msg.find("Timeout") != std::string::npos ||
-                            msg.find("timed out") != std::string::npos ||
-                            msg.find("Resource temporarily unavailable") != std::string::npos ||
-                            msg.find("EAGAIN") != std::string::npos) {
-                            continue;
-                        }
-                        // std::cerr << "[TRACE] reader REAL EXC id=" << id << ": " << msg << std::endl;
-                        break;
-                    } catch (...) {
-                        // std::cerr << "[TRACE] reader UNK EXC id=" << id << std::endl;
-                        break;
-                    }
-                }
-            } catch (...) {}
-            {
-                std::lock_guard<std::mutex> lock(readers_mutex_);
-                active_readers_.erase(id);
+            });
+        }
+
+        /*
+         * Start initial chain synchronization only after the reader
+         * has been registered and threads_mutex_ has been released.
+         *
+         * request_headers() constructs the complete locator sequence,
+         * so a peer on a competing fork can identify the common
+         * ancestor instead of receiving only our current tip.
+         */
+        if (running_) {
+            try {
+                request_headers(id);
+            } catch (...) {
             }
-            try { server_.peers().remove_peer(id); } catch (...) {}
-        }).detach();
+        }
     }
 
     void peer_loop(std::uint64_t id) {
@@ -672,22 +730,38 @@ class P2PRelay {
             {
                 std::lock_guard<std::mutex> lock(pending_mutex_);
 
+                /*
+                 * Only one fork-sync session may be active per peer.
+                 * A periodic Headers request must never replace a
+                 * session whose GetSyncBlocks responses are in flight.
+                 */
+                if (pending_chain_syncs_.find(id) !=
+                    pending_chain_syncs_.end()) {
+                    return;
+                }
+
                 PendingChainSync pending;
                 pending.session_id = session_id;
                 pending.headers = headers;
                 pending.blocks.resize(headers.size());
                 pending.received.assign(headers.size(), false);
 
-                pending_chain_syncs_[id] = std::move(pending);
+                pending_chain_syncs_.emplace(id, std::move(pending));
             }
 
-            /*
-             * Fork synchronization uses a session-aware wire path.
-             * A later Headers response replaces the pending session;
-             * responses carrying the old session id can therefore
-             * never be attached to the new session.
-             */
-            request_sync_blocks(id, session_id, block_hashes);
+            try {
+                request_sync_blocks(id, session_id, block_hashes);
+            } catch (...) {
+                std::lock_guard<std::mutex> lock(pending_mutex_);
+
+                auto pending_it = pending_chain_syncs_.find(id);
+                if (pending_it != pending_chain_syncs_.end() &&
+                    pending_it->second.session_id == session_id) {
+                    pending_chain_syncs_.erase(pending_it);
+                }
+
+                throw;
+            }
 
             return;
         }
@@ -890,27 +964,65 @@ class P2PRelay {
         if (chain.empty())
             return;
 
+        /*
+         * Find the first known locator, searching from the local tip
+         * backwards through the locator list order.
+         *
+         * IMPORTANT:
+         * start == 0 is also a valid position for "after genesis"
+         * only if the matching locator is the genesis block, in which
+         * case start becomes 1. Therefore a separate boolean is required
+         * to distinguish "known genesis" from "no locator matched".
+         */
         std::size_t start = 0;
+        bool common_ancestor_found = false;
 
         for (const auto& locator : locators) {
             for (std::size_t i = chain.size(); i-- > 0;) {
                 if (chain[i].hash() == locator) {
+                    common_ancestor_found = true;
                     start = i + 1;
                     break;
                 }
             }
 
-            if (start != 0)
+            if (common_ancestor_found)
                 break;
+        }
+
+        BinaryWriter writer;
+
+        if (!common_ancestor_found) {
+            /*
+             * We cannot safely choose a fork point that the requester
+             * actually knows.  Return zero headers.  The peer can then
+             * perform its normal bootstrap/recovery path rather than
+             * treating an unrelated chain as a continuation.
+             */
+            writer.write_u32(0);
+
+            P2PFrame response;
+            response.type = P2PMessageType::Headers;
+            response.payload = writer.data();
+
+            auto connection = server_.peers().connection(id);
+            if (connection)
+                connection->send_frame(response);
+
+            return;
         }
 
         constexpr std::size_t MAX_HEADERS = 2000;
 
-        const std::size_t end = std::min(chain.size(), start + MAX_HEADERS);
+        const std::size_t available = chain.size() - start;
+        const std::size_t header_count = std::min(
+            available,
+            MAX_HEADERS
+        );
 
-        BinaryWriter writer;
+        const std::size_t end = start + header_count;
 
-        writer.write_u32(static_cast<std::uint32_t>(end - start));
+        writer.write_u32(static_cast<std::uint32_t>(header_count));
 
         for (std::size_t i = start; i < end; ++i) {
             const auto header = chain[i].header.serialize_binary();
@@ -1011,31 +1123,67 @@ class P2PRelay {
     void handle_get_sync_blocks(std::uint64_t id, const std::vector<std::uint8_t>& payload) {
         const GetSyncBlocksMessage request = GetSyncBlocksMessage::deserialize_binary(payload);
 
-        std::vector<Block> chain;
-        {
-            std::lock_guard<std::mutex> lock(*storage_mutex_);
-            if (!storage_.exists())
-                throw std::runtime_error("cannot serve sync blocks without local chain");
-            chain = storage_.load();
-        }
-
-        std::vector<Block> requested;
-        requested.reserve(request.block_hashes.size());
-
-        for (const auto& hash : request.block_hashes) {
-            const auto it = std::find_if(chain.begin(), chain.end(),
-                                         [&](const Block& block) { return block.hash() == hash; });
-
-            if (it == chain.end())
-                throw std::runtime_error("requested sync block is not on canonical chain");
-
-            requested.push_back(*it);
-        }
-
+        /*
+         * Resolve the complete request against one canonical-chain snapshot.
+         *
+         * A missing hash must not throw out of the peer reader: that would
+         * terminate the reader and remove the peer while the requester is
+         * still waiting for SyncBlocks. The request is answered atomically
+         * from the snapshot; either every requested block is available or
+         * no response is emitted.
+         */
         auto connection = server_.peers().connection(id);
 
         if (!connection)
             return;
+
+        std::vector<Block> requested;
+        requested.reserve(request.block_hashes.size());
+
+        {
+            std::lock_guard<std::mutex> lock(*storage_mutex_);
+
+            if (!storage_.exists()) {
+                SyncBlocksMessage abort;
+                abort.session_id = request.session_id;
+
+                P2PFrame frame;
+                frame.type = P2PMessageType::SyncBlocks;
+                frame.payload = abort.serialize_binary();
+                connection->send_frame(frame);
+                return;
+            }
+
+            const auto chain = storage_.load();
+
+            for (const auto& hash : request.block_hashes) {
+                const auto it = std::find_if(
+                    chain.begin(), chain.end(),
+                    [&](const Block& block) { return block.hash() == hash; });
+
+                if (it == chain.end()) {
+                    /*
+                     * The requested block is stale: the serving peer has
+                     * reorged since the GetSyncBlocks request was created.
+                     *
+                     * Do not throw and do not drop the peer. Send an empty
+                     * SyncBlocks response carrying the same session id so
+                     * the requester can explicitly discard that stale
+                     * PendingChainSync and start a fresh Headers exchange.
+                     */
+                    SyncBlocksMessage abort;
+                    abort.session_id = request.session_id;
+
+                    P2PFrame frame;
+                    frame.type = P2PMessageType::SyncBlocks;
+                    frame.payload = abort.serialize_binary();
+                    connection->send_frame(frame);
+                    return;
+                }
+
+                requested.push_back(*it);
+            }
+        }
 
         SyncBlocksMessage response;
         response.session_id = request.session_id;
@@ -1043,34 +1191,27 @@ class P2PRelay {
         for (const auto& block : requested) {
             const auto encoded = block.serialize_full_binary();
 
-            if (encoded.empty() || encoded.size() > static_cast<std::size_t>(CZR_P2P_MAX_PAYLOAD)) {
+            if (encoded.empty() ||
+                encoded.size() > static_cast<std::size_t>(CZR_P2P_MAX_PAYLOAD)) {
                 throw std::runtime_error("sync block exceeds payload limit");
             }
 
             /*
-             * Keep every SyncBlocks frame below the P2P frame
-             * payload limit. A session may therefore receive
-             * multiple responses with the same session id.
+             * Keep every SyncBlocks frame below the P2P frame payload
+             * limit. A session may therefore receive multiple responses
+             * carrying the exact same session id.
              */
-            if (!response.blocks.empty()) {
-                const std::size_t projected = 16 + 4 + response.blocks.size() * 4;
+            const std::size_t next_size =
+                16 + 4 + (response.blocks.size() + 1) * 4 +
+                encoded.size();
 
-                std::size_t total = projected;
-
-                for (const auto& existing : response.blocks)
-                    total += existing.size();
-
-                total += 4 + encoded.size();
-
-                if (total > static_cast<std::size_t>(CZR_P2P_MAX_PAYLOAD)) {
-                    P2PFrame frame;
-                    frame.type = P2PMessageType::SyncBlocks;
-                    frame.payload = response.serialize_binary();
-
-                    connection->send_frame(frame);
-
-                    response.blocks.clear();
-                }
+            if (!response.blocks.empty() &&
+                next_size > static_cast<std::size_t>(CZR_P2P_MAX_PAYLOAD)) {
+                P2PFrame frame;
+                frame.type = P2PMessageType::SyncBlocks;
+                frame.payload = response.serialize_binary();
+                connection->send_frame(frame);
+                response.blocks.clear();
             }
 
             response.blocks.push_back(encoded);
@@ -1080,7 +1221,6 @@ class P2PRelay {
             P2PFrame frame;
             frame.type = P2PMessageType::SyncBlocks;
             frame.payload = response.serialize_binary();
-
             connection->send_frame(frame);
         }
     }
@@ -1109,6 +1249,17 @@ class P2PRelay {
             auto& pending = pending_it->second;
 
             if (pending.session_id != message.session_id) {
+                return;
+            }
+
+            /*
+             * An empty SyncBlocks response is an explicit cancellation
+             * of this session. It is used when the serving peer has
+             * reorged and can no longer provide one of the requested
+             * blocks. Clear only the matching session.
+             */
+            if (message.blocks.empty()) {
+                pending_chain_syncs_.erase(pending_it);
                 return;
             }
 
@@ -1143,39 +1294,65 @@ class P2PRelay {
             if (complete) {
                 headers = pending.headers;
                 blocks = pending.blocks;
-                pending_chain_syncs_.erase(pending_it);
             }
         }
 
         if (!complete)
             return;
 
-        std::vector<Block> current;
-
-        {
-            std::lock_guard<std::mutex> lock(*storage_mutex_);
-
-            if (!storage_.exists())
-                throw std::runtime_error("cannot assemble sync candidate without local chain");
-
-            current = storage_.load();
-        }
-
-        const auto candidate = assemble_candidate_chain(current, headers, blocks);
-
-        if (!candidate)
-            throw std::runtime_error("failed to assemble sync candidate");
-
-        ChainReplacementCallback callback;
-
-        {
+        auto clear_pending_session = [this, id, &message]() {
             std::lock_guard<std::mutex> lock(pending_mutex_);
 
-            callback = chain_replacement_callback_;
-        }
+            auto pending_it = pending_chain_syncs_.find(id);
+            if (pending_it != pending_chain_syncs_.end() &&
+                pending_it->second.session_id == message.session_id) {
+                pending_chain_syncs_.erase(pending_it);
+            }
+        };
 
-        if (callback && !callback(*candidate))
-            throw std::runtime_error("sync candidate was rejected");
+        try {
+            std::vector<Block> current;
+
+            {
+                std::lock_guard<std::mutex> lock(*storage_mutex_);
+
+                if (!storage_.exists())
+                    throw std::runtime_error(
+                        "cannot assemble sync candidate without local chain");
+
+                current = storage_.load();
+            }
+
+            const auto candidate =
+                assemble_candidate_chain(current, headers, blocks);
+
+            if (!candidate)
+                throw std::runtime_error("failed to assemble sync candidate");
+
+            ChainReplacementCallback callback;
+
+            {
+                std::lock_guard<std::mutex> lock(pending_mutex_);
+
+                callback = chain_replacement_callback_;
+            }
+
+            if (callback && !callback(*candidate))
+                throw std::runtime_error("sync candidate was rejected");
+
+            /*
+             * The complete session is removed only after candidate
+             * assembly and chain replacement have both succeeded.
+             */
+            clear_pending_session();
+        } catch (...) {
+            /*
+             * Assembly/replacement failed. This session is no longer
+             * usable, so remove only the exact session that completed.
+             */
+            clear_pending_session();
+            throw;
+        }
     }
 
     void handle_blocks(std::uint64_t id, const std::vector<std::uint8_t>& payload) {
