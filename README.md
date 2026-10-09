@@ -159,3 +159,15 @@ All files live in the `--data` directory:
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+## CZR-XOF-APEX Status
+
+[![Build APK](https://github.com/zaraiskais-byte/myminer/actions/workflows/build-apk.yml/badge.svg)](https://github.com/zaraiskais-byte/myminer/actions/workflows/build-apk.yml)
+[![CI](https://github.com/zaraiskais-byte/myminer/actions/workflows/caesar-ci.yml/badge.svg)](https://github.com/zaraiskais-byte/myminer/actions/workflows/caesar-ci.yml)
+[![CZR-XOF-APEX](https://img.shields.io/badge/CZR--XOF--APEX-0ERR-00ff88?style=flat-square)](https://github.com/zaraiskais-byte/myminer)
+
+**PIN:** 18555
+**Pool:** http://127.0.0.1:8443/pool
+**QR:** /api/wallet/qr.svg
