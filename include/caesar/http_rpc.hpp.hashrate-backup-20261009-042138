@@ -87,9 +87,6 @@ struct PoolWorkerInfo {
     std::uint64_t shares_pending = 0;
 
     std::uint64_t last_seen = 0;
-    std::uint64_t hashes_reported = 0;
-    std::uint64_t hashrate_tick_ms = 0;
-    double hashrate = 0.0;
 
 };
 
@@ -6580,9 +6577,9 @@ async function updateHeroCard(){
 
     const stats = await api('/api/pool/stats');
 
-    // Avoid blocking the hero card on the slow /api/status route.
-    const status = {};
-    if(!stats) return;
+    const status = await api('/api/status');
+
+    if(!stats || !status) return;
 
     const workers = (stats.workers && Array.isArray(stats.workers)) ? stats.workers : [];
     const activeWorkers = workers.filter(w => w && w.active === true).length;
@@ -6591,15 +6588,13 @@ async function updateHeroCard(){
 
     const totalBlocks = (typeof stats.total_blocks==='number') ? stats.total_blocks : 0;
 
-    const height = (typeof stats.current_height==='number')
-      ? stats.current_height
-      : 0;
+    const height = (typeof status.height==='number') ? status.height : 0;
 
-    const peers = 0;
+    const peers = (typeof status.peers==='number') ? status.peers : 0;
 
 
 
-    const uptimeSec = 0;
+    const uptimeSec = (typeof status.uptime==='number') ? status.uptime : 0;
 
     const myBlocks = Math.min(height, Math.floor(uptimeSec / 60));
 
@@ -6608,8 +6603,7 @@ async function updateHeroCard(){
 
 
     // No measured hashrate telemetry is available.
-    const totalHashrate = workers.reduce(function(sum, w) { return sum + (Number(w && w.hashrate) || 0); }, 0);
-    const hashStr = Math.round(totalHashrate).toLocaleString();
+    const hashStr = '—';
     var hh=$('heroHash'); if(hh) hh.textContent = hashStr;
 
     var hb=$('heroBlocksToday'); if(hb) hb.textContent = String(myBlocks);
@@ -8713,14 +8707,9 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                     return;
                 }
 
-                auto& worker_info = g_pool_workers[addr];
-                if (worker_info.address.empty())
-                    worker_info.address = addr;
-                if (worker_info.worker_name.empty())
-                    worker_info.worker_name = "worker";
-                worker_info.shares++;
-                worker_info.shares_pending++;
-                worker_info.last_seen =
+                g_pool_workers[addr].shares++;
+                g_pool_workers[addr].shares_pending++;
+                g_pool_workers[addr].last_seen =
                     static_cast<std::uint64_t>(::time(nullptr));
 
                 g_pool_total_shares++;
@@ -8824,77 +8813,6 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
 
 
 
-        server_.Post("/api/pool/telemetry", [this](const httplib::Request& req,
-                                                       httplib::Response& res) {
-            auto get_string = [&](const std::string& key) -> std::string {
-                const auto p = req.body.find("\"" + key + "\"");
-                if (p == std::string::npos) return "";
-                const auto colon = req.body.find(':', p);
-                if (colon == std::string::npos) return "";
-                const auto start = req.body.find('"', colon);
-                if (start == std::string::npos) return "";
-                const auto end = req.body.find('"', start + 1);
-                if (end == std::string::npos) return "";
-                return req.body.substr(start + 1, end - start - 1);
-            };
-
-            const std::string address = get_string("address");
-            const auto hp = req.body.find("\"hashes\"");
-            if (address.empty() || hp == std::string::npos) {
-                res.status = 400;
-                res.set_content("{\"ok\":false,\"error\":\"address and hashes required\"}",
-                                "application/json");
-                return;
-            }
-            const auto colon = req.body.find(':', hp);
-            const auto begin = colon == std::string::npos
-                ? std::string::npos : req.body.find_first_of("0123456789", colon);
-            if (begin == std::string::npos) {
-                res.status = 400;
-                res.set_content("{\"ok\":false,\"error\":\"invalid hashes\"}",
-                                "application/json");
-                return;
-            }
-            const auto end = req.body.find_first_not_of("0123456789", begin);
-            std::uint64_t hashes = 0;
-            try {
-                hashes = std::stoull(req.body.substr(
-                    begin, end == std::string::npos ? std::string::npos : end - begin));
-            } catch (...) {
-                res.status = 400;
-                res.set_content("{\"ok\":false,\"error\":\"invalid hashes\"}",
-                                "application/json");
-                return;
-            }
-
-            const auto now_ms = static_cast<std::uint64_t>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now().time_since_epoch()).count());
-            std::lock_guard<std::mutex> lock(g_pool_mutex);
-            auto it = g_pool_workers.find(address);
-            if (it == g_pool_workers.end()) {
-                res.status = 404;
-                res.set_content("{\"ok\":false,\"error\":\"worker not registered\"}",
-                                "application/json");
-                return;
-            }
-
-            auto& worker = it->second;
-            if (worker.hashrate_tick_ms != 0 &&
-                now_ms > worker.hashrate_tick_ms &&
-                hashes >= worker.hashes_reported) {
-                worker.hashrate =
-                    static_cast<double>(hashes - worker.hashes_reported) * 1000.0 /
-                    static_cast<double>(now_ms - worker.hashrate_tick_ms);
-            } else {
-                worker.hashrate = 0.0;
-            }
-            worker.hashes_reported = hashes;
-            worker.hashrate_tick_ms = now_ms;
-            worker.last_seen = static_cast<std::uint64_t>(::time(nullptr));
-            res.set_content("{\"ok\":true}", "application/json");
-        });
-
         server_.Get("/api/pool/stats", [this](const httplib::Request&,
 
                                               httplib::Response& res) {
@@ -8946,7 +8864,6 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                         << ",\"name\":\"" << kv.second.worker_name << "\""
 
                         << ",\"shares\":" << kv.second.shares
-                        << ",\"hashrate\":" << kv.second.hashrate
                         << ",\"active\":"
                         << ((kv.second.last_seen != 0 && stats_now >= kv.second.last_seen &&
                              stats_now - kv.second.last_seen <= 180) ? "true" : "false")
@@ -10061,7 +9978,7 @@ CZR JS CHECKING
         return w && w.active === true;
       }).length;
       setBadge(
-        'CZR LIVE | MINERS ACTIVE: ' + active + '/' + p.workers.length,
+        'CZR LIVE | ACTIVE: ' + active + '/' + p.workers.length,
         '#087f23'
       );
     })

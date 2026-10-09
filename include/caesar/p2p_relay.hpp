@@ -22,6 +22,7 @@
 #include <caesar/p2p_connection.hpp>
 #include <caesar/p2p_frame.hpp>
 #include <caesar/p2p_peer_manager.hpp>
+#include <caesar/p2p_peer_discovery.hpp>
 #include <caesar/p2p_ping.hpp>
 #include <caesar/p2p_protocol.hpp>
 #include <caesar/p2p_server.hpp>
@@ -98,7 +99,14 @@ class P2PRelay {
     P2PRelay(const P2PRelay&) = delete;
     P2PRelay& operator=(const P2PRelay&) = delete;
 
+    bool running() const noexcept {
+        return running_.load();
+    }
+
     void start() {
+        std::lock_guard<std::mutex> lifecycle_lock(
+            lifecycle_mutex_);
+
         if (running_)
             return;
 
@@ -107,28 +115,37 @@ class P2PRelay {
         server_.peers().set_peer_added_callback([this](std::uint64_t id) { on_peer_added(id); });
 
         // Periodic re-sync: every 20 seconds ask peers for new headers
-        sync_thread_ = std::thread([this]() {
-            while (true) {
-                for (int i = 0; i < 20; ++i) {
-                    if (!running_) return;
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                }
-                if (!running_) return;
-                try {
-                    auto ids = server_.peers().list_ids();
-                    for (auto pid : ids) {
-                        if (!server_.peers().connection(pid)) continue;
-                        try {
-                            request_headers(pid);
-                        } catch (...) {
-                        }
+        try {
+            sync_thread_ = std::thread([this]() {
+                while (true) {
+                    for (int i = 0; i < 20; ++i) {
+                        if (!running_) return;
+                        std::this_thread::sleep_for(std::chrono::seconds(1));
                     }
-                } catch (...) {}
-            }
-        });
+                    if (!running_) return;
+                    try {
+                        auto ids = server_.peers().list_ids();
+                        for (auto pid : ids) {
+                            if (!server_.peers().connection(pid)) continue;
+                            try {
+                                request_headers(pid);
+                            } catch (...) {
+                            }
+                        }
+                    } catch (...) {}
+                }
+            });
+        } catch (...) {
+            server_.peers().set_peer_added_callback({});
+            running_ = false;
+            throw;
+        }
     }
 
     void stop() noexcept {
+        std::lock_guard<std::mutex> lifecycle_lock(
+            lifecycle_mutex_);
+
         if (!running_)
             return;
 
@@ -557,6 +574,14 @@ class P2PRelay {
                 handle_get_transaction(id, frame.payload);
                 break;
 
+            case P2PMessageType::GetPeers:
+                handle_get_peers(id, frame.payload);
+                break;
+
+            case P2PMessageType::Peers:
+                handle_peers(id, frame.payload);
+                break;
+
             default:
                 break;
         }
@@ -599,6 +624,58 @@ class P2PRelay {
 
             connection->send_frame(make_get_blocks_frame(batch));
         }
+    }
+
+    void handle_get_peers(
+        std::uint64_t id,
+        const std::vector<std::uint8_t>& payload) {
+
+        /*
+         * Discovery request must carry no payload.
+         * Invalid requests are rejected by the parser instead
+         * of being treated as an implicit empty request.
+         */
+        parse_get_peers_payload(payload);
+
+        auto connection = server_.peers().connection(id);
+        if (!connection)
+            return;
+
+        auto peers = server_.peers().peer_endpoints_snapshot();
+
+        /*
+         * Never advertise the requesting peer back to itself.
+         * The peer manager snapshot is intentionally bounded by
+         * the current connected-peer set.
+         */
+        const auto requester = server_.peers().info(id);
+
+        peers.erase(
+            std::remove_if(
+                peers.begin(),
+                peers.end(),
+                [&](const P2PPeerEndpoint& peer) {
+                    return peer.address == requester.address &&
+                           peer.port == requester.port;
+                }),
+            peers.end());
+
+        if (peers.size() > CZR_P2P_MAX_DISCOVERY_PEERS)
+            peers.resize(CZR_P2P_MAX_DISCOVERY_PEERS);
+
+        connection->send_frame(make_peers_frame(peers));
+    }
+
+    void handle_peers(
+        std::uint64_t /*id*/,
+        const std::vector<std::uint8_t>& payload) {
+        /*
+         * Validate and retain a bounded set of discovery
+         * candidates. No outbound connection is attempted
+         * from this network receive path.
+         */
+        const auto peers = parse_peers_payload(payload);
+        server_.peers().remember_peer_endpoints(peers);
     }
 
     void handle_headers(std::uint64_t id, const std::vector<std::uint8_t>& payload) {
@@ -1435,6 +1512,7 @@ class P2PRelay {
     std::thread sync_thread_;
     std::atomic<bool> running_{false};
 
+    std::mutex lifecycle_mutex_;
     std::mutex threads_mutex_;
     std::vector<std::thread> threads_;
 

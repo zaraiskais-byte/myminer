@@ -47,6 +47,64 @@ int main() {
     constexpr int iterations = 200;
     int races_detected = 0;
 
+    /*
+     * Regression test for concurrent public start()/stop().
+     *
+     * Both operations must serialize through lifecycle_mutex_.
+     * The final state must be stopped, with no joinable sync
+     * thread and no registered peer callback.
+     */
+    for (int it = 0; it < iterations; ++it) {
+        P2PRelay relay(server, storage, storage_mutex);
+
+        std::atomic<bool> go{false};
+
+        std::thread starter([&]() {
+            while (!go.load(std::memory_order_acquire)) {
+            }
+            relay.start();
+        });
+
+        std::thread stopper([&]() {
+            while (!go.load(std::memory_order_acquire)) {
+            }
+            relay.stop();
+        });
+
+        go.store(true, std::memory_order_release);
+
+        starter.join();
+        stopper.join();
+
+        /*
+         * A stop racing with start may execute before start and
+         * return, after which start completes. Normalize the
+         * final state explicitly and verify that a second stop
+         * remains safe.
+         */
+        relay.stop();
+
+        if (relay.running()) {
+            ++races_detected;
+            std::cerr
+                << "[iter " << it
+                << "] RACE: relay remained running after stop()\n";
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(relay.lifecycle_mutex_);
+
+            if (relay.sync_thread_.joinable()) {
+                ++races_detected;
+                std::cerr
+                    << "[iter " << it
+                    << "] RACE: sync thread remained joinable\n";
+
+                relay.sync_thread_.join();
+            }
+        }
+    }
+
     for (int it = 0; it < iterations; ++it) {
         P2PRelay relay(server, storage, storage_mutex);
         relay.start();

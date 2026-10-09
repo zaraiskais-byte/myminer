@@ -53,7 +53,8 @@ int main() {
         P2PMessageType::Blocks,         P2PMessageType::GetMempool, P2PMessageType::Transaction,
         P2PMessageType::GetTransaction, P2PMessageType::Reject,     P2PMessageType::GetSyncBlocks,
         P2PMessageType::SyncBlocks,
-    };
+        P2PMessageType::GetPeers, P2PMessageType::Peers,
+};
 
     std::uint8_t observed_max = 0;
 

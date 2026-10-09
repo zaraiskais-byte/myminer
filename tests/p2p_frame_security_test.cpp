@@ -47,7 +47,7 @@ int main() {
     // 4. Invalid message type: above the known protocol range.
     {
         auto data = u32le(0);
-        data.push_back(14);
+        data.push_back(static_cast<std::uint8_t>(P2P_MESSAGE_TYPE_MAX + 1));
         expect_reject(data);
     }
 

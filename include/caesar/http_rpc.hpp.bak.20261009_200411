@@ -8713,14 +8713,9 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                     return;
                 }
 
-                auto& worker_info = g_pool_workers[addr];
-                if (worker_info.address.empty())
-                    worker_info.address = addr;
-                if (worker_info.worker_name.empty())
-                    worker_info.worker_name = "worker";
-                worker_info.shares++;
-                worker_info.shares_pending++;
-                worker_info.last_seen =
+                g_pool_workers[addr].shares++;
+                g_pool_workers[addr].shares_pending++;
+                g_pool_workers[addr].last_seen =
                     static_cast<std::uint64_t>(::time(nullptr));
 
                 g_pool_total_shares++;

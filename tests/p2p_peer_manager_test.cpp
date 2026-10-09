@@ -76,8 +76,11 @@ int main() {
     for (auto& client : clients)
         client.join();
 
-    for (auto& connection : extra_peers)
-        limited_manager.add_peer(std::move(connection), "127.0.0.1", 39424);
+    for (std::size_t i = 0; i < extra_peers.size(); ++i) {
+        limited_manager.add_peer(
+            std::move(extra_peers[i]), "127.0.0.1",
+            static_cast<std::uint16_t>(40000 + i));
+    }
 
     assert(limited_manager.size() == P2PPeerManager::MAX_PEERS);
 

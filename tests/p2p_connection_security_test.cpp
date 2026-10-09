@@ -65,7 +65,7 @@ int main() {
     // 3. Invalid message type above the protocol range.
     {
         auto attack = u32le(0);
-        attack.push_back(14);
+        attack.push_back(static_cast<std::uint8_t>(P2P_MESSAGE_TYPE_MAX + 1));
 
         expect_receive_reject(attack);
     }

@@ -1,5 +1,9 @@
 # Caesar CZR
 
+[![Caesar CZR CI](https://github.com/zaraiskais-byte/myminer/actions/workflows/caesar-ci.yml/badge.svg?branch=main)](https://github.com/zaraiskais-byte/myminer/actions/workflows/caesar-ci.yml)
+
+[![Build APK](https://github.com/zaraiskais-byte/myminer/actions/workflows/build-apk.yml/badge.svg?branch=main)](https://github.com/zaraiskais-byte/myminer/actions/workflows/build-apk.yml)
+
 A mobile-first Layer-1 cryptocurrency with a native mining pool, web wallet, block explorer, and a 4-level invite tree — all built to run on a single Android device.
 
 ## Status (2026-10-02)

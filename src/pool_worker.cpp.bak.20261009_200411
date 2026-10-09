@@ -205,15 +205,8 @@ int main(int argc, char** argv) {
             std::ostringstream body;
             body << "{\"address\":\"" << address
                  << "\",\"hashes\":" << count << "}";
-            HttpResult tr = http_request(host, port, "POST",
-                                         "/api/pool/telemetry", body.str());
-            if (tr.status == 404) {
-                std::string registration =
-                    "{\"address\":\"" + address +
-                    "\",\"worker\":\"" + name + "\"}";
-                (void)http_request(host, port, "POST",
-                                   "/api/pool/register", registration);
-            }
+            (void)http_request(host, port, "POST",
+                               "/api/pool/telemetry", body.str());
         }
     });
     telemetry.detach();

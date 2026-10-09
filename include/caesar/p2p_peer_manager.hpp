@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <functional>
@@ -12,6 +13,7 @@
 #include <vector>
 
 #include <caesar/p2p_connection.hpp>
+#include <caesar/p2p_peer_discovery.hpp>
 
 namespace caesar {
 
@@ -71,6 +73,15 @@ class P2PPeerManager {
 
             if (is_banned_locked(address)) {
                 throw std::runtime_error("Cannot add banned P2P peer");
+            }
+
+            for (const auto& kv : peers_) {
+                const auto& existing = kv.second.info;
+                if (existing.address == address &&
+                    existing.port == port) {
+                    throw std::runtime_error(
+                        "P2P peer endpoint is already connected");
+                }
             }
 
             id = next_id_++;
@@ -190,6 +201,92 @@ class P2PPeerManager {
     }
 
     /*
+     * Returns endpoints of currently connected peers.
+     *
+     * This is intentionally a snapshot: callers must not retain
+     * references into the manager's internal state.
+     */
+    std::vector<P2PPeerEndpoint> peer_endpoints_snapshot() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        std::vector<P2PPeerEndpoint> endpoints;
+        endpoints.reserve(peers_.size());
+
+        for (const auto& kv : peers_) {
+            const auto& info = kv.second.info;
+
+            if (info.address.empty() || info.port == 0)
+                continue;
+
+            endpoints.push_back(
+                P2PPeerEndpoint{info.address, info.port});
+        }
+
+        return endpoints;
+    }
+
+    /*
+     * Bounded discovery candidate cache.
+     *
+     * This stores validated endpoints received through P2P
+     * discovery. It does NOT initiate outbound connections.
+     * Connection policy remains at the node/server layer.
+     */
+    static constexpr std::size_t MAX_KNOWN_PEERS = 256;
+
+    void remember_peer_endpoint(
+        const P2PPeerEndpoint& endpoint) {
+
+        endpoint.validate();
+
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        for (const auto& known : known_peers_) {
+            if (known.address == endpoint.address &&
+                known.port == endpoint.port) {
+                return;
+            }
+        }
+
+        if (known_peers_.size() >= MAX_KNOWN_PEERS)
+            return;
+
+        known_peers_.push_back(endpoint);
+    }
+
+    void remember_peer_endpoints(
+        const std::vector<P2PPeerEndpoint>& endpoints) {
+
+        for (const auto& endpoint : endpoints)
+            remember_peer_endpoint(endpoint);
+    }
+
+    std::vector<P2PPeerEndpoint>
+    known_peer_endpoints_snapshot() const {
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        return known_peers_;
+    }
+
+    void forget_peer_endpoint(
+        const std::string& address,
+        std::uint16_t port) {
+
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        known_peers_.erase(
+            std::remove_if(
+                known_peers_.begin(),
+                known_peers_.end(),
+                [&](const P2PPeerEndpoint& endpoint) {
+                    return endpoint.address == address &&
+                           endpoint.port == port;
+                }),
+            known_peers_.end());
+    }
+
+
+    /*
      * Returns the current score of a connected peer, or 0 if the id
      * is unknown.
      */
@@ -290,6 +387,7 @@ class P2PPeerManager {
     }
 
     std::unordered_map<std::uint64_t, PeerEntry> peers_;
+    std::vector<P2PPeerEndpoint> known_peers_;
     /*
      * mutable so that is_banned_locked() -- which is const because it
      * is called from the const method is_banned() -- can lazily drop

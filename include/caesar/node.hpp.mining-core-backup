@@ -37,10 +37,8 @@ class CaesarNode {
         relay_.set_chain_replacement_callback(
             [this](const std::vector<Block>& candidate) { return replace_chain(candidate); });
 
-        relay_.set_invalidate_cache_callback([this]() {
-            std::lock_guard<std::mutex> lock(*chain_mutex_);
-            chain_cache_valid_ = false;
-        });
+        relay_.set_invalidate_cache_callback(
+            [this]() { chain_cache_valid_ = false; });
 
         relay_.set_transaction_callback(
             [this](const Transaction& tx) { return accept_transaction(tx).accepted(); });
@@ -126,25 +124,16 @@ class CaesarNode {
     }
 
     void stop() noexcept {
-    {
-        std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
+        std::lock_guard<std::mutex> lock(lifecycle_mutex_);
 
         if (!running_)
             return;
 
         running_ = false;
+
+        relay_.stop();
+        server_.stop();
     }
-
-    {
-        std::lock_guard<std::mutex> mining_lock(mining_mutex_);
-
-        if (mining_thread_.joinable())
-            mining_thread_.join();
-    }
-
-    relay_.stop();
-    server_.stop();
-}
 
     bool running() const noexcept {
         return running_;
@@ -160,25 +149,14 @@ class CaesarNode {
     }
 
     std::size_t height() const {
-        std::unique_lock<std::mutex> lock(
-            *chain_mutex_, std::try_to_lock);
-
-        // Keep HTTP status and pool badge responsive while a block
-        // is being validated or persisted under the chain mutex.
-        if (!lock.owns_lock())
-            return height_snapshot_.load(std::memory_order_relaxed);
-
+        std::lock_guard<std::mutex> lock(*chain_mutex_);
         if (!chain_cache_valid_) {
             chain_cache_ = storage_.load();
             chain_cache_valid_ = true;
         }
-
-        const std::size_t current_height = chain_cache_.empty()
-            ? 0
-            : static_cast<std::size_t>(chain_cache_.back().header.height);
-
-        height_snapshot_.store(current_height, std::memory_order_relaxed);
-        return current_height;
+        if (chain_cache_.empty())
+            return 0;
+        return static_cast<std::size_t>(chain_cache_.back().header.height);
     }
 
     bool replace_chain(const std::vector<Block>& candidate) {
@@ -303,153 +281,54 @@ class CaesarNode {
         return out;
     }
 
-    bool request_mine_one_block(
-        const std::string& miner_recipient,
-        std::uint64_t max_attempts = 1000000) {
-    {
-        std::lock_guard<std::mutex> lifecycle_lock(lifecycle_mutex_);
-
+    void mine_one_block(const std::string& miner_recipient, std::uint64_t max_attempts = 1000000) {
         if (!running_)
             throw std::runtime_error("cannot mine while node is stopped");
 
         if (miner_recipient.empty())
             throw std::runtime_error("miner recipient is empty");
 
-        bool expected = false;
-        if (!mining_job_active_.compare_exchange_strong(
-                expected, true,
-                std::memory_order_acq_rel,
-                std::memory_order_acquire)) {
-            return false;
-        }
-    }
+        std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
 
-    std::lock_guard<std::mutex> mining_lock(mining_mutex_);
+        std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
 
-    if (mining_thread_.joinable())
-        mining_thread_.join();
+        auto current_chain = storage_.load();
 
-    try {
-        mining_thread_ = std::thread(
-            [this, miner_recipient, max_attempts]() {
-                try {
-                    mine_one_block(miner_recipient, max_attempts);
-                } catch (...) {
-                    // The HTTP request has already returned.
-                    // Mining failures are contained here.
-                }
+        if (current_chain.empty())
+            throw std::runtime_error("cannot mine on empty blockchain");
 
-                mining_job_active_.store(false, std::memory_order_release);
-            });
-    } catch (...) {
-        mining_job_active_.store(false, std::memory_order_release);
-        throw;
-    }
+        const Block& previous = current_chain.back();
 
-    return true;
-}
+        const UTXOSet previous_utxos = rebuild_utxo_set(current_chain);
 
-void mine_one_block(const std::string& miner_recipient,
-                        std::uint64_t max_attempts = 1000000) {
-        if (!running_)
-            throw std::runtime_error("cannot mine while node is stopped");
+        const auto now = std::chrono::duration_cast<std::chrono::seconds>(
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
 
-        if (miner_recipient.empty())
-            throw std::runtime_error("miner recipient is empty");
+        const std::uint64_t timestamp = static_cast<std::uint64_t>(now < 0 ? 0 : now);
 
-        Block candidate;
-        std::vector<Block> mining_chain;
-        UTXOSet mining_utxos;
+        const std::uint64_t block_timestamp =
+            timestamp < previous.header.timestamp ? previous.header.timestamp : timestamp;
 
-        /*
-         * Snapshot the chain and mempool while holding their locks.
-         * The expensive PoW operation must never run while either lock
-         * is held, otherwise P2P sync and transaction admission can be
-         * blocked for many seconds on a mobile CPU.
-         */
-        {
-            std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
-            std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
+        const std::uint32_t difficulty = expected_next_difficulty(current_chain);
 
-            mining_chain = storage_.load();
+        Block candidate = BlockBuilder::build(previous, mempool_, miner_recipient, block_timestamp,
+                                              difficulty, 0, &previous_utxos);
 
-            if (mining_chain.empty())
-                throw std::runtime_error("cannot mine on empty blockchain");
-
-            mining_utxos = rebuild_utxo_set(mining_chain);
-
-            const Block& previous = mining_chain.back();
-
-            const auto now = std::chrono::duration_cast<std::chrono::seconds>(
-                                 std::chrono::system_clock::now().time_since_epoch())
-                                 .count();
-
-            const std::uint64_t timestamp =
-                static_cast<std::uint64_t>(now < 0 ? 0 : now);
-
-            const std::uint64_t block_timestamp =
-                timestamp < previous.header.timestamp
-                    ? previous.header.timestamp
-                    : timestamp;
-
-            const std::uint32_t difficulty =
-                expected_next_difficulty(mining_chain);
-
-            candidate = BlockBuilder::build(
-                previous,
-                mempool_,
-                miner_recipient,
-                block_timestamp,
-                difficulty,
-                0,
-                &mining_utxos);
-        }
-
-        /*
-         * PoW is intentionally performed without chain/mempool locks.
-         * Consensus parameters and the PoW algorithm are unchanged.
-         */
-        if (!BlockBuilder::mine(candidate, 0, max_attempts))
+        if (!BlockBuilder::mine(candidate, 0, max_attempts)) {
             throw std::runtime_error("mining failed");
-
-        /*
-         * Reacquire the locks and verify that the chain tip used to build
-         * the candidate is still current. A competing P2P block or reorg
-         * invalidates the candidate and it must never be appended.
-         */
-        {
-            std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
-            std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
-
-            const auto current_chain = storage_.load();
-
-            if (current_chain.empty())
-                throw std::runtime_error("blockchain became empty while mining");
-
-            const Block& current_previous = current_chain.back();
-
-            if (candidate.header.previous_hash != current_previous.hash() ||
-                candidate.header.height != current_previous.header.height + 1) {
-                throw std::runtime_error(
-                    "mined block became stale; chain advanced during mining");
-            }
-
-            const UTXOSet current_utxos = rebuild_utxo_set(current_chain);
-
-            if (!validate_block_consensus(
-                    candidate, current_chain, current_utxos)) {
-                throw std::runtime_error("mined block failed consensus");
-            }
-
-            storage_.append(candidate);
-            chain_cache_valid_ = false;
-
-            mempool_.clear();
         }
 
-        /*
-         * Relay only after all chain/mempool locks are released.
-         */
+        if (!validate_block_consensus(candidate, current_chain, previous_utxos)) {
+            throw std::runtime_error("mined block failed consensus");
+        }
+
+        storage_.append(candidate);
+        chain_cache_valid_ = false;
+
+        mempool_.clear();
+
+
         relay_.announce_block(candidate);
     }
 
@@ -458,59 +337,21 @@ void mine_one_block(const std::string& miner_recipient,
             throw std::runtime_error("cannot build candidate while node is stopped");
         if (miner_recipient.empty())
             throw std::runtime_error("miner recipient is empty");
-
-        std::vector<Block> current_chain;
-
-        /*
-         * Load a consistent chain snapshot under the chain lock.
-         * Expensive UTXO reconstruction and candidate construction
-         * happen after releasing the chain lock.
-         */
-        {
-            std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
-            current_chain = storage_.load();
-        }
-
+        std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
+        std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
+        auto current_chain = storage_.load();
         if (current_chain.empty())
             throw std::runtime_error("cannot mine on empty blockchain");
-
         const Block& previous = current_chain.back();
         const UTXOSet previous_utxos = rebuild_utxo_set(current_chain);
-
         const auto now = std::chrono::duration_cast<std::chrono::seconds>(
-                             std::chrono::system_clock::now().time_since_epoch())
-                             .count();
-
-        const std::uint64_t timestamp =
-            static_cast<std::uint64_t>(now < 0 ? 0 : now);
-
+                             std::chrono::system_clock::now().time_since_epoch()).count();
+        const std::uint64_t timestamp = static_cast<std::uint64_t>(now < 0 ? 0 : now);
         const std::uint64_t block_timestamp =
-            timestamp < previous.header.timestamp
-                ? previous.header.timestamp
-                : timestamp;
-
-        const std::uint32_t difficulty =
-            expected_next_difficulty(current_chain);
-
-        Mempool mempool_snapshot;
-        {
-            std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
-            mempool_snapshot = mempool_;
-        }
-
-        /*
-         * The returned candidate is based on snapshots. Submission
-         * must still reject stale previous hashes/heights and validate
-         * PoW and consensus before appending.
-         */
-        return BlockBuilder::build(
-            previous,
-            mempool_snapshot,
-            miner_recipient,
-            block_timestamp,
-            difficulty,
-            0,
-            &previous_utxos);
+            timestamp < previous.header.timestamp ? previous.header.timestamp : timestamp;
+        const std::uint32_t difficulty = expected_next_difficulty(current_chain);
+        return BlockBuilder::build(previous, mempool_, miner_recipient,
+                                   block_timestamp, difficulty, 0, &previous_utxos);
     }
 
     bool submit_pool_solution(Block candidate) {
@@ -520,102 +361,25 @@ void mine_one_block(const std::string& miner_recipient,
                   << std::endl;
 
         if (!running_)
-            throw std::runtime_error(
-                "cannot submit solution while node is stopped");
-
-        {
-            const auto chain_wait_start = std::chrono::steady_clock::now();
-            std::cerr << "[submit:lock] chain waiting" << std::endl;
-            std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
-            const auto chain_wait_ms =
-                std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now() - chain_wait_start).count();
-            std::cerr << "[submit:lock] chain acquired wait_ms="
-                      << chain_wait_ms << std::endl;
-
-            const auto mempool_wait_start = std::chrono::steady_clock::now();
-            std::cerr << "[submit:lock] mempool waiting" << std::endl;
-            std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
-            const auto mempool_wait_ms =
-                std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now() - mempool_wait_start).count();
-            std::cerr << "[submit:lock] mempool acquired wait_ms="
-                      << mempool_wait_ms << std::endl;
-
-            std::cerr << "[submit:1] storage.load begin" << std::endl;
-            auto current_chain = storage_.load();
-            std::cerr << "[submit:2] storage.load done blocks="
-                      << current_chain.size() << std::endl;
-
-            if (current_chain.empty())
-                throw std::runtime_error(
-                    "cannot submit on empty blockchain");
-
-            const Block& previous = current_chain.back();
-
-            if (candidate.header.previous_hash != previous.hash()) {
-                std::cerr << "[FAIL-PREVHASH]" << std::endl;
+            throw std::runtime_error("cannot submit solution while node is stopped");
+        std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
+        std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
+        auto current_chain = storage_.load();
+        if (current_chain.empty())
+            throw std::runtime_error("cannot submit on empty blockchain");
+        const Block& previous = current_chain.back();
+        if (candidate.header.previous_hash != previous.hash()) { std::cerr << "[FAIL-PREVHASH]" << std::endl; return false; }
+        if (candidate.header.height != previous.header.height + 1) { std::cerr << "[FAIL-HEIGHT] cand=" << candidate.header.height << " want=" << (previous.header.height + 1) << std::endl; return false; }
+        if (!candidate.validate_pow()) { std::cerr << "FAILPOW h=" << candidate.header.height << std::endl; return false; }
+        const UTXOSet previous_utxos = rebuild_utxo_set(current_chain);
+        if (!validate_block_consensus(candidate, current_chain, previous_utxos)) {
                 return false;
-            }
-
-            if (candidate.header.height !=
-                previous.header.height + 1) {
-                std::cerr << "[FAIL-HEIGHT] cand="
-                          << candidate.header.height
-                          << " want="
-                          << (previous.header.height + 1)
-                          << std::endl;
-                return false;
-            }
-
-            std::cerr << "[submit:3] validate_pow begin" << std::endl;
-            const bool submit_pow_ok = candidate.validate_pow();
-            std::cerr << "[submit:4] validate_pow done ok="
-                      << submit_pow_ok << std::endl;
-            if (!submit_pow_ok) {
-                std::cerr << "FAILPOW h="
-                          << candidate.header.height
-                          << std::endl;
-                return false;
-            }
-
-            std::cerr << "[submit:5] rebuild_utxo begin" << std::endl;
-            const UTXOSet previous_utxos =
-                rebuild_utxo_set(current_chain);
-            std::cerr << "[submit:6] rebuild_utxo done" << std::endl;
-
-            std::cerr << "[submit:7] consensus begin" << std::endl;
-            const bool submit_consensus_ok = validate_block_consensus(
-                    candidate, current_chain, previous_utxos);
-            std::cerr << "[submit:8] consensus done ok="
-                      << submit_consensus_ok << std::endl;
-            if (!submit_consensus_ok) {
-                return false;
-            }
-
-            const auto append_start = std::chrono::steady_clock::now();
-            std::cerr << "[submit:9] append begin height="
-                      << candidate.header.height << std::endl;
-            storage_.append(candidate);
-            const auto append_ms =
-                std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::steady_clock::now() - append_start).count();
-            std::cerr << "[submit:10] append done duration_ms="
-                      << append_ms << std::endl;
-            chain_cache_valid_ = false;
-            mempool_.clear();
         }
-
-        /*
-         * Relay only after all chain/mempool locks are released.
-         * announce_block() may acquire relay/storage-related locks.
-         */
-        std::cerr << "[submit:11] relay begin" << std::endl;
+        storage_.append(candidate);
+        chain_cache_valid_ = false;
+        mempool_.clear();
         relay_.announce_block(candidate);
-        std::cerr << "[submit:12] relay done" << std::endl;
-
-        std::cerr << "[submit] returning true" << std::endl;
-        return true;
+        std::cerr << "[submit] returning true" << std::endl; return true;
     }
 
     void request_sync_from_peer(std::uint64_t peer_id) {
@@ -672,7 +436,6 @@ void mine_one_block(const std::string& miner_recipient,
 
     mutable std::vector<Block> chain_cache_;
     mutable bool chain_cache_valid_ = false;
-    mutable std::atomic<std::size_t> height_snapshot_{0};
 
     P2PServer server_;
     P2PRelay relay_;
@@ -681,9 +444,6 @@ void mine_one_block(const std::string& miner_recipient,
     std::uint32_t network_id_;
 
     std::atomic<bool> running_{false};
-    std::mutex mining_mutex_;
-    std::thread mining_thread_;
-    std::atomic<bool> mining_job_active_{false};
 };
 
 } // namespace caesar

@@ -998,3 +998,30 @@ target_link_libraries(caesar_worker PRIVATE
     OpenSSL::Crypto
     Threads::Threads
 )
+
+
+add_executable(caesar_p2p_discovery_scheduler_test
+    tests/p2p_discovery_scheduler_test.cpp
+)
+target_include_directories(caesar_p2p_discovery_scheduler_test
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+add_test(
+    NAME CaesarP2PDiscoverySchedulerTest
+    COMMAND caesar_p2p_discovery_scheduler_test
+)
+
+add_executable(caesar_p2p_peer_discovery_test
+    tests/p2p_peer_discovery_test.cpp
+)
+
+target_include_directories(caesar_p2p_peer_discovery_test
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+
+add_test(
+    NAME CaesarP2PPeerDiscoveryTest
+    COMMAND caesar_p2p_peer_discovery_test
+)
