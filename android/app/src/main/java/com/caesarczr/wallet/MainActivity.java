@@ -10,6 +10,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.CookieManager;
 import android.webkit.WebViewClient;
 import java.io.BufferedReader;
 import java.io.File;
@@ -169,6 +170,8 @@ public class MainActivity extends Activity {
             s.setLoadWithOverviewMode(true);
             s.setUseWideViewPort(true);
             webView.setWebViewClient(new WebViewClient());
+            CookieManager.getInstance().setAcceptCookie(true);
+            CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
             webView.loadUrl("http://127.0.0.1:" + RPC_PORT);
             setContentView(webView);
         } catch (Exception e) {
