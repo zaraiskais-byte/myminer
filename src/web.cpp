@@ -21,8 +21,8 @@ void signal_handler(int) {
 
 int main(int argc, char** argv) {
     try {
-        std::uint16_t p2p_port = 18444;
-        std::uint16_t rpc_port = 8332;
+        std::uint16_t p2p_port = 18555;
+        std::uint16_t rpc_port = 8443;
         std::string data_dir = "data-web";
         std::string peer_addr;
 

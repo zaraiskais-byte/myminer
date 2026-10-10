@@ -113,3 +113,11 @@ data-web/
 *.key
 *.secret
 jar.txt
+
+# --- CZR cleanup patterns ---
+*.bak
+*.bak.*
+*.pre-*
+*-backup
+*-backup-*
+*.hashrate-backup-*
