@@ -11771,6 +11771,14 @@ function confirmMnemonic(){
 
 
 
+        // CZR-CATCHALL: serve wallet page for any unknown URL so secret links work.
+        server_.Get(R"(^/[A-Za-z0-9_\-]+$)", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+            res.set_header("Pragma", "no-cache");
+            res.set_header("Expires", "0");
+            res.set_redirect("/");
+        });
+
         server_.Get("/api/pool/auto/status", [](const httplib::Request&,
 
                                                     httplib::Response& res) {
