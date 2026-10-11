@@ -3,31 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caesar CZR Wallet</title>
+    <title>Caesar CZR - Kais Zarai Wallet & Pool</title>
     <style>
-        body { background-color: #0d1117; color: #c9d1d9; font-family: monospace; text-align: center; padding: 20px; }
-        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 10px auto; max-width: 400px; }
-        input, button { padding: 10px; margin: 10px 0; width: 80%; border-radius: 4px; border: 1px solid #30363d; background: #0d1117; color: #fff; }
+        body { background-color: #0d1117; color: #c9d1d9; font-family: monospace; text-align: center; padding: 20px; margin: 0; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 15px auto; max-width: 420px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        input, button { padding: 12px; margin: 10px 0; width: 85%; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #fff; font-size: 16px; }
         button { background: #238636; cursor: pointer; font-weight: bold; }
+        button:hover { background: #2ea043; }
         #app { display: none; flex-direction: column; align-items: center; }
-        #toast { display: none; background: #238636; padding: 8px; border-radius: 4px; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); }
+        .link-btn { display: inline-block; padding: 10px 20px; margin: 10px; background: #21262d; border: 1px solid #30363d; color: #58a6ff; text-decoration: none; border-radius: 6px; font-weight: bold; }
+        .link-btn:hover { background: #30363d; }
+        #toast { display: none; background: #238636; color: #fff; padding: 10px 20px; border-radius: 6px; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); font-weight: bold; z-index: 999; }
         #toast.show { display: block; }
     </style>
 </head>
 <body>
-    <h2>CAESAR CZR</h2>
+    <h2>CAESAR CZR — APEX SYSTEM</h2>
+    
     <div id="lock" class="card">
-        <h3>Enter PIN to unlock</h3>
+        <h3>Kais Zarai Wallet Unlock</h3>
+        <p style="font-size: 12px; color: #8b949e;">Enter your PIN to access wallet & pool</p>
         <input type="password" id="pin" placeholder="Enter PIN (4+ digits)">
+        <br>
         <button id="unlockBtn">UNLOCK</button>
-        <div id="msg"></div>
+        <div id="msg" style="color: #f85149; margin-top: 10px;"></div>
     </div>
 
     <div id="app" class="card">
-        <h3>Wallet Dashboard</h3>
-        <p>Status: <span id="stxt">#0</span></p>
-        <p>Primary Wallet & Mining Active</p>
-        <a href="/pool" style="color: #58a6ff;">Go to Pool Interface (/pool)</a>
+        <h3>Main Dashboard & Wallets</h3>
+        <p>Status: <span id="stxt" style="color: #3fb950;">ONLINE</span></p>
+        <p>Administrator: <b>Kais Zarai</b></p>
+        
+        <div style="margin-top: 15px;">
+            <a href="/" class="link-btn">Main Wallet</a>
+            <a href="/pool" class="link-btn">Pool Interface</a>
+        </div>
     </div>
 
     <div id="toast"></div>

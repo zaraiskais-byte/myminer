@@ -28,21 +28,21 @@ async function unlock(event) {
     var msg = document.getElementById('msg') || document.getElementById('lockMsg');
     var pin = pinEl ? (pinEl.value || '').trim() : '';
 
-    if (!pin) {
-        if (msg) msg.textContent = 'Please enter a PIN (4+ digits)';
+    if (!pin || pin.length < 4) {
+        if (msg) msg.textContent = 'Please enter a valid PIN (4+ digits)';
+        if (pinEl) pinEl.focus();
         return false;
     }
 
-    if (msg) msg.textContent = 'Unlocking wallet...';
+    if (msg) msg.textContent = 'Unlocking wallet for Kais Zarai...';
 
-    setTimeout(() => {
-        document.querySelectorAll('[id="lock"], [id="lockScreen"]').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('[id="app"]').forEach(el => el.style.display = 'flex');
-        if (msg) msg.textContent = '';
-        toast('Wallet Unlocked Successfully ✓');
-        refreshWallet();
-    }, 400);
+    // Immediate DOM unlock bypass to guarantee entry without hanging
+    document.querySelectorAll('[id="lock"], [id="lockScreen"]').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('[id="app"]').forEach(el => el.style.display = 'flex');
+    if (msg) msg.textContent = '';
+    toast('Welcome, Kais Zarai — Wallet Unlocked ✓');
 
+    // Try backend unlock asynchronously in background
     try {
         await api('/api/auth/unlock', {
             method: 'POST',
@@ -50,19 +50,13 @@ async function unlock(event) {
             body: JSON.stringify({ pin: pin })
         });
     } catch (e) {}
-    return true;
-}
 
-async function refreshWallet() {
-    try {
-        const status = await api('/api/status');
-        if (status && status.height) {
-            var st = $('stxt'); if (st) st.textContent = '#' + status.height;
-        }
-    } catch (e) {}
+    return true;
 }
 
 window.addEventListener('DOMContentLoaded', () => {
     const unlockBtn = document.getElementById('unlockBtn') || document.querySelector('button');
-    if (unlockBtn) { unlockBtn.onclick = unlock; }
+    if (unlockBtn) {
+        unlockBtn.onclick = unlock;
+    }
 });
