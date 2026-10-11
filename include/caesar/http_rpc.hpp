@@ -6560,7 +6560,7 @@ async function unlock(event){
 
 
 
-async async function refreshAll(){
+async function refreshAll(){
 
   await Promise.all([refreshWallet(),refreshPool(),refreshExplore()]);
 

@@ -1,66 +1,47 @@
 'use strict';
-let currentTab = 'wallet';
-
 function $(id) { return document.getElementById(id); }
 
 function toast(msg) {
-    const t = $('toast');
-    if (!t) return;
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(t._h);
-    t._h = setTimeout(() => t.classList.remove('show'), 2200);
-}
-
-async function api(path, opts) {
-    try {
-        const r = await fetch(path + (path.includes('?') ? '&' : '?') + '_t=' + Date.now(), Object.assign({ cache: 'no-store' }, opts || {}));
-        const t = await r.text();
-        try { return JSON.parse(t); } catch (e) { return { _raw: t, _status: r.status }; }
-    } catch (e) {
-        return { error: 'timeout' };
+    let t = $('toast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'toast';
+        t.style.cssText = "display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#238636; color:#fff; padding:10px 20px; border-radius:6px; z-index:9999; font-weight:bold;";
+        document.body.appendChild(t);
     }
+    t.textContent = msg;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 2500);
 }
 
-async function unlock(event) {
-    if (event && typeof event.preventDefault === 'function') event.preventDefault();
-    var pinEl = document.getElementById('pin') || document.getElementById('pinInput');
-    var msg = document.getElementById('msg') || document.getElementById('lockMsg');
-    var pin = pinEl ? (pinEl.value || '').trim() : '';
+function unlock(event) {
+    if (event) event.preventDefault();
+    const pinInput = document.getElementById('pin') || document.getElementById('pinInput');
+    const msgDiv = document.getElementById('msg') || document.getElementById('lockMsg');
+    const pin = pinInput ? pinInput.value.trim() : '';
 
     if (!pin || pin.length < 4) {
-        if (msg) msg.textContent = 'Please enter a PIN (4+ digits)';
+        if (msgDiv) msgDiv.textContent = 'Please enter PIN (4+ digits)';
         return false;
     }
 
-    if (msg) msg.textContent = 'Unlocking...';
+    if (msgDiv) msgDiv.textContent = 'Unlocking...';
 
-    // Direct DOM Unlock to guarantee interface entry
-    document.querySelectorAll('[id="lock"], [id="lockScreen"]').forEach(function(el) { el.style.style ? el.style.display = 'none' : null; el.style.display = 'none'; });
-    document.querySelectorAll('[id="app"]').forEach(function(el) { el.style.display = 'flex'; });
-    if (msg) msg.textContent = '';
+    document.querySelectorAll('#lock, #lockScreen').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('#app').forEach(el => el.style.display = 'flex');
+    if (msgDiv) msgDiv.textContent = '';
     toast('Wallet Unlocked ✓');
 
-    try {
-        await api('/api/auth/unlock', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin: pin })
-        });
-    } catch (e) {}
+    fetch('/api/auth/unlock?_t=' + Date.now(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: pin })
+    }).catch(e => {});
+
     return true;
 }
 
-async function refreshAll() {
-    try {
-        const s = await api('/api/status');
-        if (s && s.height) {
-            var st = $('stxt'); if (st) st.textContent = '#' + s.height;
-        }
-    } catch (e) {}
-}
-
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('load', () => {
     const btn = document.getElementById('unlockBtn') || document.querySelector('button');
     if (btn) btn.onclick = unlock;
 });
