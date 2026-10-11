@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>Caesar CZR - Kais Zarai Wallet & Pool</title>
     <style>
         body { background-color: #0d1117; color: #c9d1d9; font-family: monospace; text-align: center; padding: 20px; margin: 0; }
         .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 15px auto; max-width: 420px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         input, button { padding: 12px; margin: 10px 0; width: 85%; border-radius: 6px; border: 1px solid #30363d; background: #0d1117; color: #fff; font-size: 16px; }
         button { background: #238636; cursor: pointer; font-weight: bold; }
-        button:hover { background: #2ea043; }
         #app { display: none; flex-direction: column; align-items: center; }
         .link-btn { display: inline-block; padding: 10px 20px; margin: 10px; background: #21262d; border: 1px solid #30363d; color: #58a6ff; text-decoration: none; border-radius: 6px; font-weight: bold; }
-        .link-btn:hover { background: #30363d; }
-        #toast { display: none; background: #238636; color: #fff; padding: 10px 20px; border-radius: 6px; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); font-weight: bold; z-index: 999; }
+        #toast { display: none; background: #238636; color: #fff; padding: 10px 20px; border-radius: 6px; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 999; }
         #toast.show { display: block; }
     </style>
 </head>
@@ -41,6 +40,6 @@
     </div>
 
     <div id="toast"></div>
-    <script src="app.js"></script>
+    <script src="app.js?v=999"></script>
 </body>
 </html>
