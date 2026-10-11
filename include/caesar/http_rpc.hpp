@@ -2325,13 +2325,13 @@ class HttpRpcServer {
 
     void start() {
 
-        std::atomic<bool> listen_done{false};
-        std::atomic<bool> listen_ok{false};
+        auto listen_done = std::make_shared<std::atomic<bool>>(false);
+        auto listen_ok = std::make_shared<std::atomic<bool>>(false);
 
-        thread_ = std::thread([this, &listen_done, &listen_ok]() {
+        thread_ = std::thread([this, listen_done, listen_ok]() {
             const bool ok = server_.listen("127.0.0.1", port_);
-            listen_ok.store(ok, std::memory_order_release);
-            listen_done.store(true, std::memory_order_release);
+            listen_ok->store(ok, std::memory_order_release);
+            listen_done->store(true, std::memory_order_release);
         });
 
         constexpr int startup_wait_ms = 5000;
@@ -2342,7 +2342,7 @@ class HttpRpcServer {
                 return;
             }
 
-            if (listen_done.load(std::memory_order_acquire)) {
+            if (listen_done->load(std::memory_order_acquire)) {
                 break;
             }
 
@@ -2355,7 +2355,7 @@ class HttpRpcServer {
         }
 
         const bool listen_ok_value =
-            listen_ok.load(std::memory_order_acquire);
+            listen_ok->load(std::memory_order_acquire);
 
         server_.stop();
 
