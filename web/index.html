@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caesar CZR Wallet</title>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: monospace; text-align: center; padding: 20px; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin: 10px auto; max-width: 400px; }
+        input, button { padding: 10px; margin: 10px 0; width: 80%; border-radius: 4px; border: 1px solid #30363d; background: #0d1117; color: #fff; }
+        button { background: #238636; cursor: pointer; font-weight: bold; }
+        #app { display: none; flex-direction: column; align-items: center; }
+        #toast { display: none; background: #238636; padding: 8px; border-radius: 4px; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); }
+        #toast.show { display: block; }
+    </style>
+</head>
+<body>
+    <h2>CAESAR CZR</h2>
+    <div id="lock" class="card">
+        <h3>Enter PIN to unlock</h3>
+        <input type="password" id="pin" placeholder="Enter PIN (4+ digits)">
+        <button id="unlockBtn">UNLOCK</button>
+        <div id="msg"></div>
+    </div>
+
+    <div id="app" class="card">
+        <h3>Wallet Dashboard</h3>
+        <p>Status: <span id="stxt">#0</span></p>
+        <p>Primary Wallet & Mining Active</p>
+        <a href="/pool" style="color: #58a6ff;">Go to Pool Interface (/pool)</a>
+    </div>
+
+    <div id="toast"></div>
+    <script src="app.js"></script>
+</body>
+</html>
