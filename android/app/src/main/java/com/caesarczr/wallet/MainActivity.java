@@ -23,8 +23,8 @@ import java.util.Locale;
 
 public class MainActivity extends Activity {
     private static final String TAG = "CaesarCZR";
-    private static final int RPC_PORT = 8443;
-    private static final int P2P_PORT = 18555;
+    private static final int RPC_PORT = 38543;
+    private static final int P2P_PORT = 39555;
 
     private Process nodeProcess;
     private WebView webView;
@@ -172,6 +172,9 @@ public class MainActivity extends Activity {
             webView.setWebViewClient(new WebViewClient());
             CookieManager.getInstance().setAcceptCookie(true);
             CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
+            webView.clearCache(true);
+            webView.clearHistory();
+            webView.clearFormData();
             webView.loadUrl("http://127.0.0.1:" + RPC_PORT);
             setContentView(webView);
         } catch (Exception e) {
