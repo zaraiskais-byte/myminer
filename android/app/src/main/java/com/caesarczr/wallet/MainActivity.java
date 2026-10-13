@@ -23,7 +23,7 @@ import java.util.Locale;
 
 public class MainActivity extends Activity {
     private static final String TAG = "CaesarCZR";
-    private static final int RPC_PORT = 8332;
+    private static final int RPC_PORT = 8443;
     private static final int P2P_PORT = 18555;
 
     private Process nodeProcess;

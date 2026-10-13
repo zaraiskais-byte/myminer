@@ -32,8 +32,8 @@ int main(int argc, char** argv) {
             if (arg == "--help") {
                 std::cout << "Usage: caesar_web [options]\n\n"
                           << "Options:\n"
-                          << "  --port PORT       P2P port (default 18444)\n"
-                          << "  --rpc-port PORT   HTTP RPC port (default 8332)\n"
+                          << "  --port PORT       P2P port (default 18555)\n"
+                          << "  --rpc-port PORT   HTTP RPC port (default 8443)\n"
                           << "  --data PATH       Data directory (default data-web)\n"
                           << "  --peer HOST:PORT  Connect to a peer at startup (retries)\n"
                           << "  --help\n";
