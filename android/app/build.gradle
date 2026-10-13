@@ -4,6 +4,18 @@ android {
     namespace 'com.caesarczr.wallet'
     compileSdk 34
 
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("KEYSTORE_PATH") ?: "../keystore/caesar-release.keystore")
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "caesar123"
+            keyAlias System.getenv("KEY_ALIAS") ?: "caesar"
+            keyPassword System.getenv("KEY_PASSWORD") ?: "caesar123"
+            enableV1Signing true
+            enableV2Signing true
+            enableV3Signing true
+        }
+    }
+
     defaultConfig {
         applicationId "com.caesarczr.wallet"
         minSdk 26
@@ -15,7 +27,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
         }
         debug {
             debuggable true

@@ -101,12 +101,34 @@ jobs:
           ls -la ../jniLibs/arm64-v8a/
           file ../jniLibs/arm64-v8a/libcaesar_web.so
 
+      - name: Generate release keystore
+        run: |
+          set -e
+          mkdir -p android/keystore
+          keytool -genkeypair -v \
+            -keystore android/keystore/caesar-release.keystore \
+            -alias caesar \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass caesar123 -keypass caesar123 \
+            -dname "CN=Caesar CZR, OU=Wallet, O=Caesar, L=Tripoli, C=LY"
+          ls -la android/keystore/
+          echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/android/keystore/caesar-release.keystore" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=caesar123" >> $GITHUB_ENV
+          echo "KEY_ALIAS=caesar" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=caesar123" >> $GITHUB_ENV
+
       - name: Build Release APK
         run: |
           set -e
           cd android
           echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
           gradle clean assembleRelease --no-daemon --no-build-cache
+
+      - name: Verify APK signature
+        run: |
+          set -e
+          APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
+          $ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner verify --verbose "$APK"
 
       - name: Verify libcaesar_web.so inside APK
         run: |
