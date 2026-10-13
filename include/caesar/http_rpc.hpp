@@ -6571,89 +6571,38 @@ async function api(path,opts){
 
 
 async function unlock(event){
-
-  if(event && typeof event.preventDefault === 'function'){
-    event.preventDefault();
+  var dbg = document.getElementById('__dbg');
+  if(!dbg){
+    dbg = document.createElement('div');
+    dbg.id = '__dbg';
+    dbg.style.cssText = 'position:fixed;bottom:10px;left:10px;right:10px;padding:12px;background:rgba(0,0,0,0.95);color:#58a6ff;font-family:monospace;font-size:13px;border:2px solid #58a6ff;border-radius:6px;z-index:999999;';
+    document.body.appendChild(dbg);
   }
-
-  var pinEl =
-    document.getElementById('pin') ||
-    document.getElementById('pinInput');
-  var msg =
-    document.getElementById('msg') ||
-    document.getElementById('lockMsg');
-  var pin = pinEl ? (pinEl.value || '').trim() : '';
-
-  if(!pin || pin.length < 4){
-    if(msg) msg.textContent = 'Please enter a PIN (4+ digits)';
-    if(pinEl) pinEl.focus();
-    return false;
-  }
-
-  if(msg) msg.textContent = 'Checking wallet...';
-
+  function log(s,c){ dbg.style.color = c || '#58a6ff'; dbg.textContent = s; try{console.log(s);}catch(e){} }
   try{
+    log('1: unlock called');
+    if(event && typeof event.preventDefault === 'function') event.preventDefault();
+    var pinEl = document.getElementById('pin') || document.getElementById('pinInput');
+    var pin = pinEl ? (pinEl.value || '').trim() : '';
+    log('2: pin length = ' + pin.length);
+    if(!pin || pin.length < 4){ log('2b: PIN too short', '#f85149'); return false; }
+    log('3: fetching /api/auth/status ...');
     var status = await api('/api/auth/status');
-
-    if(!status || status.error){
-      throw new Error('Unable to read wallet status');
-    }
-
-    var endpoint = status.has_pin
-      ? '/api/auth/unlock'
-      : '/api/auth/setup';
-
-    var result = await api(endpoint,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({pin:pin})
-    });
-
-    if(!result || result.unlocked !== true){
-      throw new Error(
-        result && result.error
-          ? result.error
-          : 'Wallet unlock failed'
-      );
-    }
-
-    /* CZR-XOF-APEX-POOL-UNLOCK-DOM-FIX */
-    document.querySelectorAll('[id="lock"], [id="lockScreen"]').forEach(function(el){
-      el.style.display = 'none';
-    });
-    document.querySelectorAll('[id="app"]').forEach(function(el){
-      el.style.display = 'flex';
-    });
-
-    if(msg) msg.textContent = '';
-
-    try{
-      if(typeof startPolling === 'function'){
-        startPolling();
-      }
-
-      if(typeof refreshAll === 'function'){
-        await refreshAll();
-      }else if(typeof refreshWallet === 'function'){
-        await refreshWallet();
-      }
-    }catch(refreshError){
-      console.warn('Wallet unlocked; refresh failed:', refreshError);
-    }
-
-    return true;
-
-  }catch(err){
-
-    if(msg){
-      msg.textContent =
-        err && err.message
-          ? err.message
-          : 'Wallet unlock failed';
-    }
-
-    return false;
+    log('4: status = ' + JSON.stringify(status));
+    if(!status){ log('4b: null status', '#f85149'); return false; }
+    var endpoint = status.has_pin ? '/api/auth/unlock' : '/api/auth/setup';
+    log('5: fetching ' + endpoint + ' ...');
+    var result = await api(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:pin})});
+    log('6: result = ' + JSON.stringify(result));
+    if(!result || result.unlocked !== true){ log('6b: not unlocked', '#f85149'); return false; }
+    log('7: hiding lock screen');
+    document.querySelectorAll('#lock, #lockScreen, [id="lock"], [id="lockScreen"]').forEach(function(el){ el.style.display = 'none'; });
+    document.querySelectorAll('#app').forEach(function(el){ el.style.display = 'flex'; });
+    log('8: SUCCESS', '#3fb950');
+  }catch(e){
+    log('ERROR: ' + (e && e.message ? e.message : String(e)), '#f85149');
   }
+  return false;
 }
 
 
