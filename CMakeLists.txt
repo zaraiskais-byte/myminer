@@ -1025,3 +1025,20 @@ add_test(
     NAME CaesarP2PPeerDiscoveryTest
     COMMAND caesar_p2p_peer_discovery_test
 )
+
+add_executable(caesar_otp_auth_test
+    tests/otp_auth_test.cpp
+)
+target_include_directories(caesar_otp_auth_test
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_otp_auth_test
+    PRIVATE
+        OpenSSL::Crypto
+        Threads::Threads
+)
+add_test(
+    NAME CaesarOtpAuthTest
+    COMMAND caesar_otp_auth_test
+)
