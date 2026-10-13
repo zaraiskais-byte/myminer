@@ -1,5 +1,8 @@
 name: Build APK
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
   push:
@@ -148,3 +151,16 @@ jobs:
           name: app-release
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
+
+      - name: Publish APK to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v3.0.${{ github.run_number }}
+          name: Caesar CZR v3.0.${{ github.run_number }}
+          body: |
+            Automatic build from commit ${{ github.sha }}
+            Built at ${{ github.event.head_commit.timestamp }}
+          files: android/app/build/outputs/apk/release/*.apk
+          make_latest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true

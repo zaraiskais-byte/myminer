@@ -2989,6 +2989,10 @@ class HttpRpcServer {
 
 
 
+        server_.Get("/api/app/version", [](const httplib::Request&, httplib::Response& res) {
+            res.set_content("{\"version\":\"3.0.0\",\"build\":1,\"apk_url\":\"https://github.com/zaraiskais-byte/myminer/releases/latest\"}", "application/json");
+        });
+
         server_.Get("/api/auth/status", [this](const httplib::Request& req, httplib::Response& res) {
 
             bool unlocked = is_authenticated(req);
