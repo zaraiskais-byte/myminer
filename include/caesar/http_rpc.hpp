@@ -5777,6 +5777,10 @@ try{
 </script>
 
 <script>
+window.onerror=function(m,u,l,cc,e){try{alert('JS_ERROR: '+m+' Line:'+l+' Col:'+cc);}catch(x){}return false;};
+window.addEventListener('unhandledrejection',function(e){try{var r=(e.reason&&e.reason.message)?e.reason.message:JSON.stringify(e.reason);alert('PROMISE_ERROR: '+r);}catch(x){alert('PROMISE_ERROR unknown');}});
+window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.message||'')+' '+(e.filename||''));}catch(x){}});
+
 
 (function(){
 
