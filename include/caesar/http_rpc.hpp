@@ -148,7 +148,7 @@ inline std::uint64_t g_pool_total_blocks = 0;
 
 inline std::uint64_t g_pool_job_counter = 0;
 
-inline double g_pool_fee_percent = 35.0;
+inline double g_pool_fee_percent = 2.0;
 
 inline std::uint64_t g_pool_owner_share_accum = 0;
 
