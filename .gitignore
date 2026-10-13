@@ -121,3 +121,5 @@ jar.txt
 *-backup
 *-backup-*
 *.hashrate-backup-*
+smtp_config.txt
+outgoing.eml

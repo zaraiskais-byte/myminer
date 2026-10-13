@@ -1,0 +1,10 @@
+# Caesar CZR SMTP Configuration
+# Copy this file to your data directory as smtp_config.txt
+# and fill in your real credentials.
+# Never commit the real smtp_config.txt to git.
+host=smtp.gmail.com
+port=465
+username=your-email@gmail.com
+password=your-16-char-app-password
+from_address=your-email@gmail.com
+from_name=Caesar CZR

@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <map>
 #include <mutex>
 #include <sstream>
@@ -24,10 +25,14 @@ struct OtpEntry {
 
 class OtpStore {
 public:
+    using Sender = std::function<void(const std::string&, const std::string&)>;
+
     explicit OtpStore(std::filesystem::path storage_path)
         : storage_path_(std::move(storage_path)) {
         load();
     }
+
+    void set_sender(Sender s) { sender_ = std::move(s); }
 
     std::string create(const std::string& identifier, int ttl_seconds = 300) {
         std::lock_guard<std::mutex> lk(mutex_);
@@ -81,8 +86,12 @@ public:
     }
 
     virtual void send(const std::string& identifier, const std::string& code) {
-        std::fprintf(stderr, "[OTP] identifier=%s code=%s\n",
-                     identifier.c_str(), code.c_str());
+        if (sender_) {
+            sender_(identifier, code);
+        } else {
+            std::fprintf(stderr, "[OTP] identifier=%s code=%s\n",
+                         identifier.c_str(), code.c_str());
+        }
     }
 
 private:
@@ -124,6 +133,7 @@ private:
     std::filesystem::path storage_path_;
     std::map<std::string, OtpEntry> entries_;
     std::mutex mutex_;
+    Sender sender_;
 };
 
 }  // namespace caesar

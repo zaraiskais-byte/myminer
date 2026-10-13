@@ -58,6 +58,7 @@
 
 #include <caesar/wallet_auth.hpp>
 #include <caesar/otp_auth.hpp>
+#include <caesar/smtp_sender.hpp>
 
 #include <caesar/bip39.hpp>
 
@@ -2289,6 +2290,23 @@ class HttpRpcServer {
         if (sf) std::getline(sf, session_token_);
 
         otp_store_ = std::make_unique<OtpStore>(data_dir / "otp_store.txt");
+        smtp_sender_ = std::make_unique<SmtpSender>();
+        smtp_sender_->load_config(data_dir / "smtp_config.txt");
+        SmtpSender* smtp_ptr = smtp_sender_.get();
+        otp_store_->set_sender([smtp_ptr](const std::string& email, const std::string& code) {
+            if (smtp_ptr && smtp_ptr->is_enabled()) {
+                std::string subject = "Caesar CZR - Verification Code";
+                std::string body = "Your verification code is: " + code +
+                    "\n\nThis code expires in 5 minutes.\n" +
+                    "If you did not request this, ignore this message.";
+                if (!smtp_ptr->send(email, subject, body)) {
+                    std::fprintf(stderr, "[OTP] smtp failed, fallback to log\n");
+                    std::fprintf(stderr, "[OTP] identifier=%s code=%s\n", email.c_str(), code.c_str());
+                }
+            } else {
+                std::fprintf(stderr, "[OTP] identifier=%s code=%s\n", email.c_str(), code.c_str());
+            }
+        });
 
 
 
@@ -2664,6 +2682,7 @@ class HttpRpcServer {
     std::unordered_map<std::string, std::pair<int, std::chrono::steady_clock::time_point>> auth_failures_;
 
     std::unique_ptr<OtpStore> otp_store_;
+    std::unique_ptr<SmtpSender> smtp_sender_;
     std::string pending_email_;
 
 
