@@ -101,16 +101,21 @@ jobs:
           ls -la ../jniLibs/arm64-v8a/
           file ../jniLibs/arm64-v8a/libcaesar_web.so
 
-      - name: Generate release keystore
+      - name: Restore or create release keystore
         run: |
           set -e
           mkdir -p android/keystore
-          keytool -genkeypair -v \
-            -keystore android/keystore/caesar-release.keystore \
-            -alias caesar \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass caesar123 -keypass caesar123 \
-            -dname "CN=Caesar CZR, OU=Wallet, O=Caesar, L=Tripoli, C=LY"
+          if [ -f android/keystore/caesar-release.keystore ]; then
+            echo "Keystore already in repo, using it"
+          else
+            echo "Creating new keystore (first time only)"
+            keytool -genkeypair -v \
+              -keystore android/keystore/caesar-release.keystore \
+              -alias caesar \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass caesar123 -keypass caesar123 \
+              -dname "CN=Caesar CZR, OU=Wallet, O=Caesar, L=Tripoli, C=LY"
+          fi
           ls -la android/keystore/
           echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/android/keystore/caesar-release.keystore" >> $GITHUB_ENV
           echo "KEYSTORE_PASSWORD=caesar123" >> $GITHUB_ENV
