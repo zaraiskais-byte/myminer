@@ -57,6 +57,7 @@
 #include <caesar/persistent_wallet.hpp>
 
 #include <caesar/wallet_auth.hpp>
+#include <caesar/otp_auth.hpp>
 
 #include <caesar/bip39.hpp>
 
@@ -2287,6 +2288,8 @@ class HttpRpcServer {
 
         if (sf) std::getline(sf, session_token_);
 
+        otp_store_ = std::make_unique<OtpStore>(data_dir / "otp_store.txt");
+
 
 
         // Record whether the wallet pre-existed BEFORE PersistentWallet
@@ -2659,6 +2662,9 @@ class HttpRpcServer {
     mutable std::mutex auth_failures_mutex_;
 
     std::unordered_map<std::string, std::pair<int, std::chrono::steady_clock::time_point>> auth_failures_;
+
+    std::unique_ptr<OtpStore> otp_store_;
+    std::string pending_email_;
 
 
 
@@ -3299,6 +3305,75 @@ class HttpRpcServer {
         // unlock-get removed: PIN-in-URL security issue
 
 
+
+        server_.Post("/api/auth/request-otp", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_csrf_safe(req)) {
+                res.status = 403;
+                res.set_content("{\"error\":\"csrf\"}", "application/json");
+                return;
+            }
+            std::string ip = req.remote_addr.empty() ? "local" : req.remote_addr;
+            if (!check_rate_limit(ip)) {
+                res.status = 429;
+                res.set_content("{\"error\":\"too many attempts\"}", "application/json");
+                return;
+            }
+            try {
+                auto pos = req.body.find("\"email\"");
+                if (pos == std::string::npos) throw std::runtime_error("missing email");
+                auto s = req.body.find('"', pos + 8);
+                auto e = req.body.find('"', s + 1);
+                std::string email = req.body.substr(s + 1, e - s - 1);
+                otp_store_->create(email);
+                clear_auth_failures(ip);
+                res.set_content("{\"status\":\"ok\",\"sent\":true}", "application/json");
+            } catch (const std::exception& ex) {
+                record_auth_failure(ip);
+                res.status = 400;
+                res.set_content(std::string("{\"error\":\"") + ex.what() + "\"}", "application/json");
+            }
+        });
+
+        server_.Post("/api/auth/verify-otp", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_csrf_safe(req)) {
+                res.status = 403;
+                res.set_content("{\"error\":\"csrf\"}", "application/json");
+                return;
+            }
+            std::string ip = req.remote_addr.empty() ? "local" : req.remote_addr;
+            if (!check_rate_limit(ip)) {
+                res.status = 429;
+                res.set_content("{\"error\":\"too many attempts\"}", "application/json");
+                return;
+            }
+            try {
+                auto pos = req.body.find("\"email\"");
+                if (pos == std::string::npos) throw std::runtime_error("missing email");
+                auto s = req.body.find('"', pos + 8);
+                auto e = req.body.find('"', s + 1);
+                std::string email = req.body.substr(s + 1, e - s - 1);
+                auto cpos = req.body.find("\"code\"");
+                if (cpos == std::string::npos) throw std::runtime_error("missing code");
+                auto cs = req.body.find('"', cpos + 7);
+                auto ce = req.body.find('"', cs + 1);
+                std::string code = req.body.substr(cs + 1, ce - cs - 1);
+                if (!otp_store_->verify(email, code)) {
+                    record_auth_failure(ip);
+                    res.status = 401;
+                    res.set_content("{\"error\":\"invalid or expired code\"}", "application/json");
+                    return;
+                }
+                {
+                    std::lock_guard<std::mutex> lk(auth_mutex_);
+                    pending_email_ = email;
+                }
+                clear_auth_failures(ip);
+                res.set_content("{\"status\":\"ok\",\"verified\":true}", "application/json");
+            } catch (const std::exception& ex) {
+                res.status = 400;
+                res.set_content(std::string("{\"error\":\"") + ex.what() + "\"}", "application/json");
+            }
+        });
 
         server_.Post("/api/auth/recover", [this](const httplib::Request& req, httplib::Response& res) {
 
