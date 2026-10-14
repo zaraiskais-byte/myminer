@@ -10,7 +10,7 @@
 
 #include <caesar/http_rpc.hpp>
 #include <caesar/node.hpp>
-#include "auth_google.hpp"
+#include "caesar/auth_google.hpp"
 
 namespace {
 std::atomic<bool> g_running{true};
