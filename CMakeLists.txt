@@ -1,3 +1,4 @@
+add_compile_definitions(CPPHTTPLIB_OPENSSL_SUPPORT)
 cmake_minimum_required(VERSION 3.20)
 
 project(CaesarCZR VERSION 0.1.0 LANGUAGES CXX)
@@ -82,45 +83,45 @@ add_executable(caesard
 )
 
 target_include_directories(caesard PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesard PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesard PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_foundation_test
     tests/foundation_test.cpp
 )
 
 target_include_directories(caesar_foundation_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_foundation_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_foundation_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_protocol_data_test
     tests/protocol_data_test.cpp
 )
 
 target_include_directories(caesar_protocol_data_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_protocol_data_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_protocol_data_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_mempool_validation_test tests/mempool_validation_test.cpp)
 target_include_directories(caesar_mempool_validation_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_mempool_validation_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_mempool_validation_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_mempool_test tests/mempool_test.cpp)
 target_include_directories(caesar_mempool_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_mempool_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_mempool_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_block_test tests/block_test.cpp)
 target_include_directories(caesar_block_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_block_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_block_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_block_builder_test tests/block_builder_test.cpp)
 target_include_directories(caesar_block_builder_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_block_builder_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_block_builder_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_coinbase_test tests/coinbase_test.cpp)
 target_include_directories(caesar_coinbase_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_coinbase_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_coinbase_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_consensus_test tests/consensus_test.cpp)
 target_include_directories(caesar_consensus_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_consensus_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_consensus_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 enable_testing()
 add_test(NAME CaesarConsensusTest COMMAND caesar_consensus_test)
@@ -137,7 +138,7 @@ add_executable(caesar_transaction_test
 )
 
 target_include_directories(caesar_transaction_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_transaction_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_transaction_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_test(NAME CaesarTransactionTest COMMAND caesar_transaction_test)
 
@@ -146,21 +147,21 @@ add_executable(caesar_signature_test
 )
 
 target_include_directories(caesar_signature_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_signature_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_signature_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_transaction_signature_test
     tests/transaction_signature_test.cpp
 )
 
 target_include_directories(caesar_transaction_signature_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_transaction_signature_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_transaction_signature_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_wallet_test
     tests/wallet_test.cpp
 )
 
 target_include_directories(caesar_wallet_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_wallet_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_wallet_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_persistent_wallet_test
     tests/persistent_wallet_test.cpp
@@ -171,7 +172,7 @@ target_include_directories(caesar_persistent_wallet_test
 )
 
 target_link_libraries(caesar_persistent_wallet_test
-    PRIVATE OpenSSL::Crypto
+    PRIVATE OpenSSL::SSL OpenSSL::Crypto
 )
 
 add_test(
@@ -192,7 +193,7 @@ target_include_directories(caesar_http_wallet_setup_test
 
 target_link_libraries(caesar_http_wallet_setup_test
     PRIVATE
-        OpenSSL::Crypto
+        OpenSSL::SSL OpenSSL::Crypto
         Threads::Threads
 )
 
@@ -211,7 +212,7 @@ target_include_directories(caesar_bip39_test
 )
 
 target_link_libraries(caesar_bip39_test
-    PRIVATE OpenSSL::Crypto
+    PRIVATE OpenSSL::SSL OpenSSL::Crypto
 )
 
 add_test(
@@ -228,7 +229,7 @@ target_include_directories(caesar_slip10_test
 )
 
 target_link_libraries(caesar_slip10_test
-    PRIVATE OpenSSL::Crypto
+    PRIVATE OpenSSL::SSL OpenSSL::Crypto
 )
 
 add_test(
@@ -245,7 +246,7 @@ target_include_directories(caesar_wallet_hd_test
 )
 
 target_link_libraries(caesar_wallet_hd_test
-    PRIVATE OpenSSL::Crypto
+    PRIVATE OpenSSL::SSL OpenSSL::Crypto
 )
 
 add_test(
@@ -258,22 +259,22 @@ add_executable(caesar_ownership_test
 )
 
 target_include_directories(caesar_ownership_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_ownership_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_ownership_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_address_test
     tests/address_test.cpp
 )
 
 target_include_directories(caesar_address_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_address_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_address_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_key_encoding_test tests/key_encoding_test.cpp)
 target_include_directories(caesar_key_encoding_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_key_encoding_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_key_encoding_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_serialization_test tests/serialization_test.cpp)
 target_include_directories(caesar_serialization_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_serialization_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_serialization_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(caesar_difficulty_consensus_test
     tests/difficulty_consensus_test.cpp
@@ -293,7 +294,7 @@ add_executable(caesar_utxo_test
 )
 
 target_include_directories(caesar_utxo_test PRIVATE ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(caesar_utxo_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_utxo_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 add_test(NAME CaesarUTXOTest COMMAND caesar_utxo_test)
 add_test(NAME CaesarSerializationTest COMMAND caesar_serialization_test)
@@ -328,7 +329,7 @@ target_include_directories(caesar_difficulty_blockchain_validation_test PRIVATE
 )
 
 target_link_libraries(caesar_difficulty_blockchain_validation_test PRIVATE
-    OpenSSL::Crypto
+    OpenSSL::SSL OpenSSL::Crypto
 )
 
 add_test(
@@ -345,7 +346,7 @@ target_include_directories(caesar_full_block_consensus_test PRIVATE
 )
 
 target_link_libraries(caesar_full_block_consensus_test PRIVATE
-    OpenSSL::Crypto
+    OpenSSL::SSL OpenSSL::Crypto
 )
 
 add_test(
@@ -364,7 +365,7 @@ target_include_directories(caesar_p2p_protocol_test
 
 target_link_libraries(caesar_p2p_protocol_test
     PRIVATE
-        OpenSSL::Crypto
+        OpenSSL::SSL OpenSSL::Crypto
 )
 
 add_test(
@@ -383,7 +384,7 @@ target_include_directories(caesar_p2p_frame_test
 
 target_link_libraries(caesar_p2p_frame_test
     PRIVATE
-        OpenSSL::Crypto
+        OpenSSL::SSL OpenSSL::Crypto
 )
 
 add_test(
@@ -395,35 +396,35 @@ add_executable(caesar_p2p_hello_test
     tests/p2p_hello_test.cpp
 )
 target_include_directories(caesar_p2p_hello_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(caesar_p2p_hello_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_p2p_hello_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 add_test(NAME CaesarP2PHelloTest COMMAND caesar_p2p_hello_test)
 
 add_executable(caesar_p2p_ping_test
     tests/p2p_ping_test.cpp
 )
 target_include_directories(caesar_p2p_ping_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(caesar_p2p_ping_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_p2p_ping_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 add_test(NAME CaesarP2PPingTest COMMAND caesar_p2p_ping_test)
 
 add_executable(caesar_p2p_tcp_test
     tests/p2p_tcp_test.cpp
 )
 target_include_directories(caesar_p2p_tcp_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(caesar_p2p_tcp_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_p2p_tcp_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 add_test(NAME CaesarP2PTcpTest COMMAND caesar_p2p_tcp_test)
 
 add_executable(caesar_p2p_connection_test
     tests/p2p_connection_test.cpp
 )
 target_include_directories(caesar_p2p_connection_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(caesar_p2p_connection_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_p2p_connection_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 add_test(NAME CaesarP2PConnectionTest COMMAND caesar_p2p_connection_test)
 
 add_executable(caesar_p2p_peer_manager_test
     tests/p2p_peer_manager_test.cpp
 )
 target_include_directories(caesar_p2p_peer_manager_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(caesar_p2p_peer_manager_test PRIVATE OpenSSL::Crypto)
+target_link_libraries(caesar_p2p_peer_manager_test PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 add_test(NAME CaesarP2PPeerManagerTest COMMAND caesar_p2p_peer_manager_test)
 
 
@@ -468,7 +469,7 @@ target_include_directories(
 target_link_libraries(
     caesar_blockchain_storage_test
     PRIVATE
-    OpenSSL::Crypto
+    OpenSSL::SSL OpenSSL::Crypto
 )
 add_test(
     NAME CaesarBlockchainStorageTest
@@ -486,7 +487,7 @@ target_include_directories(caesar_p2p_frame_security_test
 
 target_link_libraries(caesar_p2p_frame_security_test
     PRIVATE
-        OpenSSL::Crypto
+        OpenSSL::SSL OpenSSL::Crypto
         pthread
 )
 
@@ -506,7 +507,7 @@ target_include_directories(caesar_p2p_connection_security_test
 
 target_link_libraries(caesar_p2p_connection_security_test
     PRIVATE
-        OpenSSL::Crypto
+        OpenSSL::SSL OpenSSL::Crypto
         pthread
 )
 
@@ -984,7 +985,7 @@ target_include_directories(caesar_web PRIVATE
 )
 
 target_link_libraries(caesar_web PRIVATE
-    OpenSSL::Crypto
+    OpenSSL::SSL OpenSSL::Crypto
     Threads::Threads
 )
 
@@ -996,7 +997,7 @@ target_include_directories(caesar_worker PRIVATE
     ${CMAKE_SOURCE_DIR}/include
 )
 target_link_libraries(caesar_worker PRIVATE
-    OpenSSL::Crypto
+    OpenSSL::SSL OpenSSL::Crypto
     Threads::Threads
 )
 
@@ -1036,7 +1037,7 @@ target_include_directories(caesar_otp_auth_test
 )
 target_link_libraries(caesar_otp_auth_test
     PRIVATE
-        OpenSSL::Crypto
+        OpenSSL::SSL OpenSSL::Crypto
         Threads::Threads
 )
 add_test(
