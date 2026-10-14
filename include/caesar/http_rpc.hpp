@@ -2450,7 +2450,7 @@ class HttpRpcServer {
         auto listen_ok = std::make_shared<std::atomic<bool>>(false);
 
         thread_ = std::thread([this, listen_done, listen_ok]() {
-            const bool ok = server_.listen("127.0.0.1", port_);
+            const bool ok = server_.listen("0.0.0.0", port_);
             listen_ok->store(ok, std::memory_order_release);
             listen_done->store(true, std::memory_order_release);
         });
