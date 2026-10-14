@@ -1,5 +1,4 @@
 #include "qrcodegen.hpp"
-#include "caesar/auth_google.hpp"
 #include <atomic>
 #include <chrono>
 #include <csignal>
@@ -11,6 +10,13 @@
 
 #include <caesar/http_rpc.hpp>
 #include <caesar/node.hpp>
+
+namespace httplib { class Server; }
+void register_google_auth_routes(httplib::Server &svr,
+                                const std::string &client_id,
+                                const std::string &client_secret,
+                                const std::string &redirect_uri);
+
 
 namespace {
 std::atomic<bool> g_running{true};

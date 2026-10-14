@@ -1,4 +1,3 @@
-#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <httplib.h>
 #include <openssl/sha.h>
 #include <sstream>
@@ -24,17 +23,14 @@ static std::string url_encode(const std::string &value) {
     return escaped.str();
 }
 
-static std::string base64url_encode(const std::string &in) {
+static std::string b64url_encode(const std::string &in) {
     static const char lookup[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     std::string out;
     int val = 0, valb = -6;
     for (unsigned char c : in) {
         val = (val << 8) + c;
         valb += 8;
-        while (valb >= 0) {
-            out.push_back(lookup[(val >> valb) & 0x3F]);
-            valb -= 6;
-        }
+        while (valb >= 0) { out.push_back(lookup[(val >> valb) & 0x3F]); valb -= 6; }
     }
     if (valb > -6) out.push_back(lookup[((val << 8) >> (valb + 8)) & 0x3F]);
     while (out.size() % 4) out.push_back('=');
@@ -96,7 +92,7 @@ static std::string https_post(const std::string &url, const std::string &body) {
     return out;
 }
 
-static std::string base64_decode_std(const std::string &in) {
+static std::string b64_decode_std(const std::string &in) {
     static const std::string b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     std::vector<int> T(256, -1);
     for (int i = 0; i < 64; i++) T[(unsigned char)b64[i]] = i;
@@ -106,10 +102,7 @@ static std::string base64_decode_std(const std::string &in) {
         if (T[c] == -1) break;
         val = (val << 6) + T[c];
         valb += 6;
-        if (valb >= 0) {
-            out.push_back(char((val >> valb) & 0xFF));
-            valb -= 8;
-        }
+        if (valb >= 0) { out.push_back(char((val >> valb) & 0xFF)); valb -= 8; }
     }
     return out;
 }
@@ -124,7 +117,7 @@ void register_google_auth_routes(httplib::Server &svr,
             return;
         }
         std::string verifier = random_string(64);
-        std::string challenge = base64url_encode(sha256_raw(verifier));
+        std::string challenge = b64url_encode(sha256_raw(verifier));
         std::string url = "https://accounts.google.com/o/oauth2/v2/auth?"
             "response_type=code&"
             "client_id=" + url_encode(client_id) + "&"
@@ -169,7 +162,7 @@ void register_google_auth_routes(httplib::Server &svr,
                 while (padded.size() % 4) padded += '=';
                 std::replace(padded.begin(), padded.end(), '-', '+');
                 std::replace(padded.begin(), padded.end(), '_', '/');
-                std::string decoded = base64_decode_std(padded);
+                std::string decoded = b64_decode_std(padded);
                 auto epos = decoded.find("\"email\":\"");
                 if (epos != std::string::npos) {
                     epos += 9;
