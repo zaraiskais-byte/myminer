@@ -1569,7 +1569,7 @@ nav.bottom button.active::before{
   };
 })();
 </script>
-<button id="unlockBtn" type="button" style="background:#f0c040;color:#000;border:none;padding:14px 50px;font-size:16px;font-weight:bold;border-radius:8px;margin-top:14px;cursor:pointer;font-family:monospace" onclick="return unlock(event);">UNLOCK</button>
+<button id="unlockBtn" type="button" style="background:#f0c040;color:#000;border:none;padding:14px 50px;font-size:16px;font-weight:bold;border-radius:8px;margin-top:14px;cursor:pointer;font-family:monospace" >UNLOCK</button>
 
   <div id="lockMsg" style="color:#ff6b6b;font-size:13px;margin-top:14px;min-height:20px;text-align:center;max-width:280px;font-family:monospace"></div>
 
@@ -2322,6 +2322,42 @@ checkAuth();
 </div>
 
 
+
+
+<script>
+/* CZR_UNLOCK_FINAL_FIX */
+window.unlock = function(ev){
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var pinEl = document.getElementById('pinInput');
+  var msgEl = document.getElementById('lockMsg');
+  var pin = pinEl ? (pinEl.value || '').trim() : '';
+  if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
+  fetch('/api/auth/unlock', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({pin: pin})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d && d.status === 'ok') {
+      if (msgEl) msgEl.textContent = '';
+      var ls = document.getElementById('lockScreen') || document.getElementById('lock');
+      if (ls) ls.style.display = 'none';
+      if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
+    } else if (msgEl) {
+      msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
+    }
+  }).catch(function(e){
+    if (msgEl) msgEl.textContent = 'Unlock failed';
+  });
+  return false;
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('unlockBtn');
+  if (btn) {
+    btn.addEventListener('click', window.unlock);
+  }
+});
+</script>
 
 </body>
 
@@ -3910,6 +3946,42 @@ load();
 
 setInterval(load, 10000);
 
+</script>
+
+
+<script>
+/* CZR_UNLOCK_FINAL_FIX */
+window.unlock = function(ev){
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var pinEl = document.getElementById('pinInput');
+  var msgEl = document.getElementById('lockMsg');
+  var pin = pinEl ? (pinEl.value || '').trim() : '';
+  if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
+  fetch('/api/auth/unlock', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({pin: pin})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d && d.status === 'ok') {
+      if (msgEl) msgEl.textContent = '';
+      var ls = document.getElementById('lockScreen') || document.getElementById('lock');
+      if (ls) ls.style.display = 'none';
+      if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
+    } else if (msgEl) {
+      msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
+    }
+  }).catch(function(e){
+    if (msgEl) msgEl.textContent = 'Unlock failed';
+  });
+  return false;
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('unlockBtn');
+  if (btn) {
+    btn.addEventListener('click', window.unlock);
+  }
+});
 </script>
 
 </body>
@@ -7964,7 +8036,43 @@ document.addEventListener('visibilitychange',()=>{
 
 </script>
 
-<script src="/inject.js"></script></body>
+<script src="/inject.js"></script>
+<script>
+/* CZR_UNLOCK_FINAL_FIX */
+window.unlock = function(ev){
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var pinEl = document.getElementById('pinInput');
+  var msgEl = document.getElementById('lockMsg');
+  var pin = pinEl ? (pinEl.value || '').trim() : '';
+  if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
+  fetch('/api/auth/unlock', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({pin: pin})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d && d.status === 'ok') {
+      if (msgEl) msgEl.textContent = '';
+      var ls = document.getElementById('lockScreen') || document.getElementById('lock');
+      if (ls) ls.style.display = 'none';
+      if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
+    } else if (msgEl) {
+      msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
+    }
+  }).catch(function(e){
+    if (msgEl) msgEl.textContent = 'Unlock failed';
+  });
+  return false;
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('unlockBtn');
+  if (btn) {
+    btn.addEventListener('click', window.unlock);
+  }
+});
+</script>
+
+</body>
 
 </html>)CAESARAPP";
 
@@ -11924,6 +12032,42 @@ function confirmMnemonic(){
   }
 })();
 </script>
+
+<script>
+/* CZR_UNLOCK_FINAL_FIX */
+window.unlock = function(ev){
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var pinEl = document.getElementById('pinInput');
+  var msgEl = document.getElementById('lockMsg');
+  var pin = pinEl ? (pinEl.value || '').trim() : '';
+  if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
+  fetch('/api/auth/unlock', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({pin: pin})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d && d.status === 'ok') {
+      if (msgEl) msgEl.textContent = '';
+      var ls = document.getElementById('lockScreen') || document.getElementById('lock');
+      if (ls) ls.style.display = 'none';
+      if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
+    } else if (msgEl) {
+      msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
+    }
+  }).catch(function(e){
+    if (msgEl) msgEl.textContent = 'Unlock failed';
+  });
+  return false;
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('unlockBtn');
+  if (btn) {
+    btn.addEventListener('click', window.unlock);
+  }
+});
+</script>
+
 </body>
 
 </html>)CAESARAPP";
