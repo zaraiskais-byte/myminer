@@ -1,7 +1,7 @@
-add_compile_definitions(CPPHTTPLIB_OPENSSL_SUPPORT)
 cmake_minimum_required(VERSION 3.20)
 
 project(CaesarCZR VERSION 0.1.0 LANGUAGES CXX)
+add_compile_definitions(CPPHTTPLIB_OPENSSL_SUPPORT)
 
 # Android/Termux: use the platform-compatible libunwind explicitly for
 # C++ exception cleanup/unwinding.  This is a linker setting, not a
