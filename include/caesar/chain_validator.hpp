@@ -17,12 +17,8 @@ struct ChainValidationResult {
     std::uint64_t total_issued = 0;
 };
 
-inline bool apply_block_transactions_canonical(const Block& block, const UTXOSet& previous_utxos,
-                                               UTXOSet& result) {
-    if (!block.validate_basic())
-        return false;
-
-    result = previous_utxos;
+inline bool apply_block_transactions_in_place_after_basic_validation(
+    const Block& block, UTXOSet& utxos) {
 
     if (block.transactions.empty())
         return false;
@@ -42,7 +38,7 @@ inline bool apply_block_transactions_canonical(const Block& block, const UTXOSet
 
         const OutPoint point{coinbase_txid, static_cast<std::uint32_t>(i)};
 
-        if (!result.add(point, coinbase.outputs[i])) {
+        if (!utxos.add(point, coinbase.outputs[i])) {
             return false;
         }
     }
@@ -53,14 +49,14 @@ inline bool apply_block_transactions_canonical(const Block& block, const UTXOSet
         if (is_coinbase_transaction(tx))
             return false;
 
-        if (!validate_transaction_witness(tx, result)) {
+        if (!validate_transaction_witness(tx, utxos)) {
             return false;
         }
 
         for (const auto& input : tx.inputs) {
             const OutPoint point{input.previous_txid, input.output_index};
 
-            if (!result.spend(point))
+            if (!utxos.spend(point))
                 return false;
         }
 
@@ -73,13 +69,32 @@ inline bool apply_block_transactions_canonical(const Block& block, const UTXOSet
 
             const OutPoint point{txid, static_cast<std::uint32_t>(i)};
 
-            if (!result.add(point, tx.outputs[i])) {
+            if (!utxos.add(point, tx.outputs[i])) {
                 return false;
             }
         }
     }
 
     return true;
+}
+
+
+inline bool apply_block_transactions_after_basic_validation(
+    const Block& block, const UTXOSet& previous_utxos, UTXOSet& result) {
+    UTXOSet candidate = previous_utxos;
+    if (!apply_block_transactions_in_place_after_basic_validation(block, candidate))
+        return false;
+
+    result = std::move(candidate);
+    return true;
+}
+inline bool apply_block_transactions_canonical(
+    const Block& block, const UTXOSet& previous_utxos, UTXOSet& result) {
+    if (!block.validate_basic())
+        return false;
+
+    return apply_block_transactions_after_basic_validation(
+        block, previous_utxos, result);
 }
 
 inline bool validate_genesis_canonical(const Block& genesis) {
@@ -166,13 +181,9 @@ inline bool validate_and_rebuild_chain(const std::vector<Block>& chain,
             return false;
         }
 
-        UTXOSet next;
-
-        if (!apply_block_transactions_canonical(block, utxos, next)) {
+        if (!apply_block_transactions_in_place_after_basic_validation(block, utxos)) {
             return false;
         }
-
-        utxos = std::move(next);
     }
 
     result.utxo = std::move(utxos);

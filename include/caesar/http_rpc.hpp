@@ -2446,6 +2446,7 @@ class HttpRpcServer {
 
     void start() {
 
+        // Keep startup flags alive for the listener thread.
         auto listen_done = std::make_shared<std::atomic<bool>>(false);
         auto listen_ok = std::make_shared<std::atomic<bool>>(false);
 
@@ -6722,7 +6723,12 @@ async function api(path,opts){
 
   }catch(e){
 
-    return {error:'timeout', _aborted:true};
+    return {
+      error: e && e.name === 'AbortError'
+        ? 'Request timed out'
+        : 'Request failed: ' + (e && e.message ? e.message : String(e)),
+      _aborted: !!(e && e.name === 'AbortError')
+    };
 
   }finally{
 
@@ -10363,7 +10369,7 @@ CZR JS CHECKING
 
 <!-- ============ LOCK SCREEN ============ -->
 
-<div id="lock" style="display:none!important">
+<div id="lock">
 
   <div class="logo">C</div>
 
@@ -10385,7 +10391,7 @@ CZR JS CHECKING
 
 <!-- ============ APP ============ -->
 
-<div id="app" style="display:flex!important">
+<div id="app">
 
   <header class="app-header">
 
@@ -10954,7 +10960,12 @@ async function api(path,opts){
 
   }catch(e){
 
-    return {error:'timeout', _aborted:true};
+    return {
+      error: e && e.name === 'AbortError'
+        ? 'Request timed out'
+        : 'Request failed: ' + (e && e.message ? e.message : String(e)),
+      _aborted: !!(e && e.name === 'AbortError')
+    };
 
   }finally{
 
@@ -10994,7 +11005,11 @@ async function unlock(event){
     var status = await api('/api/auth/status');
 
     if(!status || status.error){
-      throw new Error('Unable to read wallet status');
+      throw new Error(
+        status && status.error
+          ? String(status.error)
+          : 'Unable to read wallet status (empty response)'
+      );
     }
 
     var endpoint = status.has_pin ? '/api/auth/unlock' : '/api/auth/setup';
@@ -11043,17 +11058,16 @@ $('pin').addEventListener('keydown',e=>{if(e.key==='Enter')unlock()});
 async function checkAuth(){
 
   const r=await api('/api/auth/status');
+  const unlocked = !!(r && r.unlocked === true);
+  const lock = $('lock');
+  const app = $('app');
 
-  if(r.unlocked){
+  if(lock) lock.style.display = unlocked ? 'none' : 'flex';
+  if(app) app.style.display = unlocked ? 'flex' : 'none';
 
-    $('lock').style.display='none';
-
-    $('app').style.display='flex';
-
+  if(unlocked){
     startPolling();
-
     await refreshAll();
-
   }
 
 }
@@ -11879,33 +11893,7 @@ function confirmMnemonic(){
 
 <script>
 
-/* CZR-AUTO-BOOT */
-(function(){
-  function boot(){
-    try{
-      if(typeof refreshAll === 'function'){
-        refreshAll();
-      }else if(typeof refreshCurrentTab === 'function'){
-        refreshCurrentTab();
-      }
-    }catch(e){}
-    try{
-      if(typeof startPolling === 'function'){
-        startPolling();
-      }
-    }catch(e){}
-  }
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', function(){
-      setTimeout(boot, 300);
-    });
-  } else {
-    setTimeout(boot, 300);
-  }
-  // إعادة المحاولة بعد 1.5 ثانية في حال تأخر التحميل
-  setTimeout(boot, 1500);
-})();
-
+/* CZR-AUTO-BOOT: authenticated polling starts in checkAuth/unlock. */
 /* CZR-XOF-APEX-JS-ERROR-BADGE */
 (function(){
   var shown = false;
@@ -11960,11 +11948,12 @@ function confirmMnemonic(){
       var r = await _origApi(path, opts);
       if (r && typeof r === 'object') {
         var code = r._status;
-        if (!r.error && !r.ok && !r.status) {
+        if (!r.error && typeof code === 'number' && code >= 400) {
           if (code === 401) r.error = 'unauthorized (unlock wallet first)';
           else if (code === 404) r.error = 'endpoint not found: ' + path;
-          else if (code >= 400) r.error = 'http ' + code;
-          else r.error = 'bad response';
+          else r.error = 'http ' + code;
+        } else if (!r.error && Object.prototype.hasOwnProperty.call(r, '_raw')) {
+          r.error = 'bad response';
         }
       }
       return r;

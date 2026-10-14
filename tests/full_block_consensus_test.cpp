@@ -175,6 +175,34 @@ int main() {
     ok &= check("Missing UTXO rejected by full consensus",
                 !validate_block_consensus(missing_utxo_block, chain, funded_utxos));
 
+    UTXOSet failed_result;
+    const OutPoint failed_coinbase{
+        missing_utxo_block.transactions.front().txid(), 0};
+    ok &= check("Failed block application leaves result unchanged",
+                !apply_block_transactions_after_basic_validation(
+                    missing_utxo_block, funded_utxos, failed_result) &&
+                failed_result.size() == 0 &&
+                !failed_result.contains(failed_coinbase));
+
+    UTXOSet preserved_result;
+    const OutPoint sentinel{sha256("utxo-preserve-sentinel"), 7};
+    const TransactionOutput sentinel_output{123, "CZ1_TEST_SENTINEL"};
+    preserved_result.add(sentinel, sentinel_output);
+
+    const bool failed_with_existing_result =
+        !apply_block_transactions_after_basic_validation(
+            missing_utxo_block, funded_utxos, preserved_result);
+
+    const TransactionOutput* preserved_output = preserved_result.get(sentinel);
+    ok &= check("Failed application preserves existing result",
+                failed_with_existing_result &&
+                preserved_result.size() == 1 &&
+                preserved_result.contains(sentinel) &&
+                preserved_output != nullptr &&
+                preserved_output->amount == sentinel_output.amount &&
+                preserved_output->recipient == sentinel_output.recipient &&
+                !preserved_result.contains(failed_coinbase));
+
     Transaction double_spend;
     double_spend.inputs.push_back(TransactionInput{funding_txid, 0});
     double_spend.outputs.push_back(TransactionOutput{80, "CZ1_DOUBLE_SPEND"});

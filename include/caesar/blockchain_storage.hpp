@@ -1,6 +1,8 @@
 #pragma once
 
 #include <fcntl.h>
+#include <iostream>
+#include <chrono>
 #include <unistd.h>
 #include <cerrno>
 #include <cstdint>
@@ -110,14 +112,21 @@ class BlockchainStorage {
     }
 
     void save(const std::vector<Block>& chain) const {
+        const auto diag_save_start = std::chrono::steady_clock::now();
         if (chain.empty())
             throw std::runtime_error("cannot save empty blockchain");
 
+        const auto diag_validate_start = std::chrono::steady_clock::now();
         if (!validate_candidate_chain(chain))
             throw std::runtime_error("refusing to save invalid blockchain");
+        std::cerr << "[storage:save] validate_ms="
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::steady_clock::now() - diag_validate_start).count()
+                  << std::endl;
 
         const auto temp = path_.string() + ".tmp";
 
+        const auto diag_write_start = std::chrono::steady_clock::now();
         {
             std::ofstream out(temp, std::ios::binary | std::ios::trunc);
 
@@ -137,9 +146,18 @@ class BlockchainStorage {
                 throw std::runtime_error("failed while writing blockchain storage");
         }
 
+        std::cerr << "[storage:save] write_ms="
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::steady_clock::now() - diag_write_start).count()
+                  << std::endl;
         // The stream is now closed. Force its bytes to disk before the
         // rename makes the new file reachable under the canonical name.
+        const auto diag_fsync_start = std::chrono::steady_clock::now();
         detail::fsync_file(temp);
+        std::cerr << "[storage:save] fsync_file_ms="
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::steady_clock::now() - diag_fsync_start).count()
+                  << std::endl;
 
         // On the target platform (Linux/Termux), rename() replaces the
         // destination atomically. Never remove the existing canonical file
@@ -158,7 +176,15 @@ class BlockchainStorage {
         // The rename is visible to this process, but the directory
         // entry may still be in the page cache. Force it to disk so a
         // crash does not leave the chain pointing at the old file.
+        const auto diag_dir_start = std::chrono::steady_clock::now();
         detail::fsync_parent_dir(path_);
+        std::cerr << "[storage:save] fsync_dir_ms="
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::steady_clock::now() - diag_dir_start).count()
+                  << " total_ms="
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::steady_clock::now() - diag_save_start).count()
+                  << std::endl;
     }
 
     // Explicit full-chain replacement API.
@@ -170,6 +196,7 @@ class BlockchainStorage {
     }
 
     std::vector<Block> load() const {
+        const auto diag_load_start = std::chrono::steady_clock::now();
         std::ifstream in(path_, std::ios::binary);
 
         if (!in)
@@ -197,8 +224,16 @@ class BlockchainStorage {
         if (in.peek() != std::ifstream::traits_type::eof())
             throw std::runtime_error("trailing bytes after blockchain storage");
 
+        const auto diag_load_validate_start = std::chrono::steady_clock::now();
         if (!validate_candidate_chain(chain))
             throw std::runtime_error("stored blockchain failed canonical validation");
+        std::cerr << "[storage:load] validate_ms="
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::steady_clock::now() - diag_load_validate_start).count()
+                  << " total_ms="
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(
+                         std::chrono::steady_clock::now() - diag_load_start).count()
+                  << " blocks=" << chain.size() << std::endl;
 
         return chain;
     }
