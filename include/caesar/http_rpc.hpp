@@ -1577,6 +1577,37 @@ nav.bottom button.active::before{
 
 
 
+
+<script>
+/* CZR_UNLOCK_GLOBAL_FIX */
+window.unlock = function(ev){
+  try {
+    if (ev && ev.preventDefault) ev.preventDefault();
+    var pinEl = document.getElementById('pinInput');
+    var msgEl = document.getElementById('lockMsg');
+    var pin = pinEl ? (pinEl.value || '').trim() : '';
+    if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
+    fetch('/api/auth/unlock', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pin: pin})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.status === 'ok') {
+        if (msgEl) msgEl.textContent = '';
+        var ls = document.getElementById('lockScreen') || document.getElementById('lock');
+        if (ls) ls.style.display = 'none';
+        if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
+      } else if (msgEl) {
+        msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
+      }
+    }).catch(function(e){
+      if (msgEl) msgEl.textContent = 'Unlock failed';
+    });
+  } catch (e) {}
+  return false;
+};
+</script>
+
 <!-- Mnemonic confirmation screen -->
 
 <div id="mnemonicScreen" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#0f1115;z-index:10000;flex-direction:column;justify-content:center;align-items:center;padding:20px;box-sizing:border-box;overflow-y:auto">
