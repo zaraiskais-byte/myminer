@@ -1,4 +1,5 @@
 #include "qrcodegen.hpp"
+#include "caesar/auth_google.hpp"
 #include <atomic>
 #include <chrono>
 #include <csignal>
@@ -10,7 +11,6 @@
 
 #include <caesar/http_rpc.hpp>
 #include <caesar/node.hpp>
-#include "caesar/auth_google.hpp"
 
 namespace {
 std::atomic<bool> g_running{true};

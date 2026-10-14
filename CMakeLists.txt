@@ -78,6 +78,8 @@ if(CAESAR_ENABLE_TSAN)
 endif()
 
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+
 add_executable(caesard
     src/main.cpp
 )
