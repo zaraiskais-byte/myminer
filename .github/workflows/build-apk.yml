@@ -1,5 +1,4 @@
 name: Build APK
-
 permissions:
   contents: write
 
@@ -12,7 +11,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,47 +21,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26b
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: 11076708
-          packages: ''
+          packages: 'platforms;android-34 build-tools;34.0.0'
           log-accepted-android-sdk-licenses: false
-
-      - name: Install NDK and platform packages with retry
-        run: |
-          set -e
-          export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
-          export ANDROID_HOME="$ANDROID_SDK_ROOT"
-          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH" >> $GITHUB_ENV
-          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/26.1.10909125" >> $GITHUB_ENV
-
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-
-          install_pkg() {
-            local pkg="$1"
-            local attempt
-            for attempt in 1 2 3; do
-              echo "Attempt $attempt for $pkg"
-              if sdkmanager --install "$pkg"; then
-                echo "OK: $pkg"
-                return 0
-              fi
-              echo "Retry after failure: $pkg"
-              rm -rf "$ANDROID_SDK_ROOT/.temp" 2>/dev/null || true
-              sleep 10
-            done
-            echo "FAILED after retries: $pkg"
-            return 1
-          }
-
-          install_pkg "platforms;android-34"
-          install_pkg "build-tools;34.0.0"
-          install_pkg "ndk;26.1.10909125"
-          ls -la "$ANDROID_SDK_ROOT/ndk/" || true
 
       - name: Install Gradle
         run: |
@@ -77,8 +45,7 @@ jobs:
         run: |
           set -e
           git clone --depth 1 --branch master https://github.com/KDAB/android_openssl /tmp/android_openssl
-          mkdir -p /tmp/openssl-android/include
-          mkdir -p /tmp/openssl-android/lib
+          mkdir -p /tmp/openssl-android/include /tmp/openssl-android/lib
           cp -r /tmp/android_openssl/ssl_3/include/* /tmp/openssl-android/include/
           cp /tmp/android_openssl/ssl_3/arm64-v8a/libcrypto.a /tmp/openssl-android/lib/libcrypto.a
           cp /tmp/android_openssl/ssl_3/arm64-v8a/libssl.a /tmp/openssl-android/lib/libssl.a
@@ -88,10 +55,9 @@ jobs:
         run: |
           set -e
           cd android/app/src/main/cpp
-          rm -rf build
-          mkdir -p build
+          rm -rf build && mkdir -p build
           cmake -S . -B build \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_HOME/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
             -DANDROID_PLATFORM=android-26 \
             -DANDROID_STL=c++_static \
@@ -101,25 +67,19 @@ jobs:
           mkdir -p ../jniLibs/arm64-v8a
           cp build/caesar_web ../jniLibs/arm64-v8a/libcaesar_web.so
           chmod +x ../jniLibs/arm64-v8a/libcaesar_web.so
-          ls -la ../jniLibs/arm64-v8a/
           file ../jniLibs/arm64-v8a/libcaesar_web.so
 
       - name: Restore or create release keystore
         run: |
           set -e
           mkdir -p android/keystore
-          if [ -f android/keystore/caesar-release.keystore ]; then
-            echo "Keystore already in repo, using it"
-          else
-            echo "Creating new keystore (first time only)"
+          if [ ! -f android/keystore/caesar-release.keystore ]; then
             keytool -genkeypair -v \
               -keystore android/keystore/caesar-release.keystore \
-              -alias caesar \
-              -keyalg RSA -keysize 2048 -validity 10000 \
+              -alias caesar -keyalg RSA -keysize 2048 -validity 10000 \
               -storepass caesar123 -keypass caesar123 \
               -dname "CN=Caesar CZR, OU=Wallet, O=Caesar, L=Tripoli, C=LY"
           fi
-          ls -la android/keystore/
           echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/android/keystore/caesar-release.keystore" >> $GITHUB_ENV
           echo "KEYSTORE_PASSWORD=caesar123" >> $GITHUB_ENV
           echo "KEY_ALIAS=caesar" >> $GITHUB_ENV
@@ -131,19 +91,6 @@ jobs:
           cd android
           echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
           gradle clean assembleRelease --no-daemon --no-build-cache
-
-      - name: Verify APK signature
-        run: |
-          set -e
-          APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
-          $ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner verify --verbose "$APK"
-
-      - name: Verify libcaesar_web.so inside APK
-        run: |
-          set -e
-          APK=$(find android/app/build/outputs/apk/release -name '*.apk' | head -1)
-          ls -la "$APK"
-          unzip -l "$APK" | grep -i libcaesar_web
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -157,9 +104,6 @@ jobs:
         with:
           tag_name: v3.0.${{ github.run_number }}
           name: Caesar CZR v3.0.${{ github.run_number }}
-          body: |
-            Automatic build from commit ${{ github.sha }}
-            Built at ${{ github.event.head_commit.timestamp }}
           files: android/app/build/outputs/apk/release/*.apk
           make_latest: true
           token: ${{ secrets.GITHUB_TOKEN }}

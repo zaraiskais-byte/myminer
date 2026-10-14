@@ -4,6 +4,7 @@ project(caesar_web_android CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Correctly resolve the repository root (5 levels up from android/app/src/main/cpp)
 get_filename_component(REPO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../.." ABSOLUTE)
 
 add_compile_definitions(CPPHTTPLIB_NO_IFADDRS=1)
