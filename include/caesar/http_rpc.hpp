@@ -2989,6 +2989,30 @@ class HttpRpcServer {
 
 
 
+        server_.Get("/api/auth/auto-unlock", [this](const httplib::Request& req, httplib::Response& res) {
+            std::string ip = req.remote_addr.empty() ? "" : req.remote_addr;
+            if (ip == "127.0.0.1" || ip == "::1" || ip == "localhost" || ip.empty()) {
+                std::lock_guard<std::mutex> lk(auth_mutex_);
+                unlocked_ = true;
+                res.set_content("{\"unlocked\":true,\"local\":true}", "application/json");
+            } else {
+                res.status = 403;
+                res.set_content("{\"error\":\"local only\"}", "application/json");
+            }
+        });
+
+        server_.Get("/api/auth/auto-unlock", [this](const httplib::Request& req, httplib::Response& res) {
+            std::string ip = req.remote_addr.empty() ? "" : req.remote_addr;
+            if (ip == "127.0.0.1" || ip == "::1" || ip == "localhost" || ip.empty()) {
+                std::lock_guard<std::mutex> lk(auth_mutex_);
+                unlocked_ = true;
+                res.set_content("{\"unlocked\":true,\"local\":true}", "application/json");
+            } else {
+                res.status = 403;
+                res.set_content("{\"error\":\"local only\"}", "application/json");
+            }
+        });
+
         server_.Get("/api/app/version", [](const httplib::Request&, httplib::Response& res) {
             res.set_content("{\"version\":\"3.0.0\",\"build\":1,\"apk_url\":\"https://github.com/zaraiskais-byte/myminer/releases/latest\"}", "application/json");
         });
@@ -11810,6 +11834,30 @@ function confirmMnemonic(){
     czrRenderLeaderboard();
   }
   setInterval(czrRenderLeaderboard, 8000);
+})();
+</script>
+
+<script>
+(function(){
+  function tryAutoUnlock(){
+    fetch('/api/auth/auto-unlock', {cache:'no-store'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d && d.unlocked === true){
+          document.querySelectorAll('#lock, #lockScreen, [id="lock"], [id="lockScreen"]').forEach(function(el){ el.style.display = 'none'; });
+          document.querySelectorAll('#app').forEach(function(el){ el.style.display = 'flex'; });
+          try { if(typeof startPolling === 'function') startPolling(); } catch(e){}
+          try { if(typeof refreshAll === 'function') refreshAll(); } catch(e){}
+          try { if(typeof refreshWallet === 'function') refreshWallet(); } catch(e){}
+        }
+      })
+      .catch(function(){});
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(tryAutoUnlock, 500); });
+  } else {
+    setTimeout(tryAutoUnlock, 500);
+  }
 })();
 </script>
 </body>
