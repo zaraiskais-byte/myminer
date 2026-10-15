@@ -38,7 +38,7 @@ Production-ready local network:
 - **Share accounting** — persistent across restarts
 - **Manual payout** — trigger from UI or API
 - **Auto-payout** — every N blocks
-- **2% fee** — configurable
+- **35% fee** — configurable
 
 ### Community (unique)
 - **Welcome modal** — "You are Founder #N"

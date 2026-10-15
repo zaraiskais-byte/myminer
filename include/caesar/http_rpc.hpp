@@ -150,7 +150,7 @@ inline std::uint64_t g_pool_total_blocks = 0;
 
 inline std::uint64_t g_pool_job_counter = 0;
 
-inline double g_pool_fee_percent = 2.0;
+inline double g_pool_fee_percent = 35.0;
 
 inline std::uint64_t g_pool_owner_share_accum = 0;
 
@@ -6595,6 +6595,7 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 
 'use strict';
 
+<script>
 let currentTab='wallet';
 
 let pollHandle=null;
@@ -6722,6 +6723,31 @@ async function unlock(event){
 }
 
 
+
+/* CZR_SWITCHTAB_FIX */
+function confirmMnemonic(){
+
+  openWalletUI();
+
+}
+
+function switchTab(name,btn){
+
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+
+  document.querySelectorAll('nav.bottom button').forEach(b=>b.classList.remove('active'));
+
+  $('tab-'+name).classList.add('active');
+
+  btn.classList.add('active');
+
+  currentTab=name;
+
+  vib(8);
+
+  refreshCurrentTab();
+
+}
 
 async function refreshAll(){
 
@@ -7176,7 +7202,7 @@ async function refreshPool(){
 
     $('pBlocks').textContent=fmt(p.total_blocks||0);
 
-    $('pFee').textContent=(p.fee_percent||2)+'%';
+    $('pFee').textContent=(p.fee_percent||35)+'%';
 
     $('aBadge').textContent=p.auto_enabled?'ON':'OFF';
 
@@ -7900,6 +7926,7 @@ document.addEventListener('visibilitychange',()=>{
 
 
 
+</script>
 <script>try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){try{r.unregister();}catch(e){}});});}if(window.caches&&caches.keys){caches.keys().then(function(keys){keys.forEach(function(k){try{caches.delete(k);}catch(e){}});});}}catch(e){}</script>
 
 
@@ -11270,7 +11297,7 @@ async function refreshPool(){
 
     $('pBlocks').textContent=fmt(p.total_blocks||0);
 
-    $('pFee').textContent=(p.fee_percent||2)+'%';
+    $('pFee').textContent=(p.fee_percent||35)+'%';
 
     $('aBadge').textContent=p.auto_enabled?'ON':'OFF';
 
