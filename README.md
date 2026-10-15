@@ -69,7 +69,7 @@ Production-ready local network:
       --data ~/.caesar/data-web
 
 Then open: http://127.0.0.1:8443/
-PIN: `18555`
+PIN: (set on first run)
 
 ### Run a worker
 
@@ -168,6 +168,6 @@ MIT — see [LICENSE](LICENSE).
 [![CI](https://github.com/zaraiskais-byte/myminer/actions/workflows/caesar-ci.yml/badge.svg)](https://github.com/zaraiskais-byte/myminer/actions/workflows/caesar-ci.yml)
 [![CZR-XOF-APEX](https://img.shields.io/badge/CZR--XOF--APEX-0ERR-00ff88?style=flat-square)](https://github.com/zaraiskais-byte/myminer)
 
-**PIN:** 18555
+**PIN:** (private)
 **Pool:** http://127.0.0.1:8443/pool
 **QR:** /api/wallet/qr.svg

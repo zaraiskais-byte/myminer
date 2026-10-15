@@ -1578,68 +1578,10 @@ nav.bottom button.active::before{
 
 
 
-<script>
-/* CZR_UNLOCK_GLOBAL_FIX */
-window.unlock = function(ev){
-  try {
-    if (ev && ev.preventDefault) ev.preventDefault();
-    var pinEl = document.getElementById('pinInput');
-    var msgEl = document.getElementById('lockMsg');
-    var pin = pinEl ? (pinEl.value || '').trim() : '';
-    if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
-    fetch('/api/auth/unlock', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({pin: pin})
-    }).then(function(r){ return r.json(); }).then(function(d){
-      if (d && d.status === 'ok') {
-        if (msgEl) msgEl.textContent = '';
-        var ls = document.getElementById('lockScreen') || document.getElementById('lock');
-        if (ls) ls.style.display = 'none';
-        if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
-      } else if (msgEl) {
-        msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
-      }
-    }).catch(function(e){
-      if (msgEl) msgEl.textContent = 'Unlock failed';
-    });
-  } catch (e) {}
-  return false;
-};
-</script>
 
 
-<script>
-/* CZR_UNLOCK_ADDEVENTLISTENER */
-document.addEventListener('DOMContentLoaded', function() {
-  var btn = document.getElementById('unlockBtn');
-  if (btn) {
-    btn.addEventListener('click', function(ev) {
-      ev.preventDefault();
-      var pinEl = document.getElementById('pinInput');
-      var msgEl = document.getElementById('lockMsg');
-      var pin = pinEl ? (pinEl.value || '').trim() : '';
-      if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return; }
-      fetch('/api/auth/unlock', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({pin: pin})
-      }).then(function(r){ return r.json(); }).then(function(d){
-        if (d && d.status === 'ok') {
-          if (msgEl) msgEl.textContent = '';
-          var ls = document.getElementById('lockScreen') || document.getElementById('lock');
-          if (ls) ls.style.display = 'none';
-          if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
-        } else if (msgEl) {
-          msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
-        }
-      }).catch(function(e){
-        if (msgEl) msgEl.textContent = 'Unlock failed';
-      });
-    });
-  }
-});
-</script>
+
+
 
 <!-- Mnemonic confirmation screen -->
 
@@ -2328,8 +2270,9 @@ checkAuth();
 /* CZR_UNLOCK_FINAL_FIX */
 window.unlock = function(ev){
   if (ev && ev.preventDefault) ev.preventDefault();
-  var pinEl = document.getElementById('pinInput');
-  var msgEl = document.getElementById('lockMsg');
+  /* CZR_PIN_ID_FIX */
+  var pinEl = document.getElementById('pin') || document.getElementById('pinInput');
+  var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
   fetch('/api/auth/unlock', {
@@ -2337,16 +2280,17 @@ window.unlock = function(ev){
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({pin: pin})
   }).then(function(r){ return r.json(); }).then(function(d){
-    if (d && d.status === 'ok') {
+    if (d && (d.status === 'ok' || d.unlocked === true)) {
       if (msgEl) msgEl.textContent = '';
       var ls = document.getElementById('lockScreen') || document.getElementById('lock');
       if (ls) ls.style.display = 'none';
+      var ap = document.getElementById('app'); if (ap) ap.style.display = 'flex';
       if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
     } else if (msgEl) {
       msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
     }
   }).catch(function(e){
-    if (msgEl) msgEl.textContent = 'Unlock failed';
+    if (msgEl) msgEl.textContent = 'Unlock failed: ' + (e && e.message ? e.message : e);
   });
   return false;
 };
@@ -3954,8 +3898,9 @@ setInterval(load, 10000);
 /* CZR_UNLOCK_FINAL_FIX */
 window.unlock = function(ev){
   if (ev && ev.preventDefault) ev.preventDefault();
-  var pinEl = document.getElementById('pinInput');
-  var msgEl = document.getElementById('lockMsg');
+  /* CZR_PIN_ID_FIX */
+  var pinEl = document.getElementById('pin') || document.getElementById('pinInput');
+  var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
   fetch('/api/auth/unlock', {
@@ -3963,16 +3908,17 @@ window.unlock = function(ev){
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({pin: pin})
   }).then(function(r){ return r.json(); }).then(function(d){
-    if (d && d.status === 'ok') {
+    if (d && (d.status === 'ok' || d.unlocked === true)) {
       if (msgEl) msgEl.textContent = '';
       var ls = document.getElementById('lockScreen') || document.getElementById('lock');
       if (ls) ls.style.display = 'none';
+      var ap = document.getElementById('app'); if (ap) ap.style.display = 'flex';
       if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
     } else if (msgEl) {
       msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
     }
   }).catch(function(e){
-    if (msgEl) msgEl.textContent = 'Unlock failed';
+    if (msgEl) msgEl.textContent = 'Unlock failed: ' + (e && e.message ? e.message : e);
   });
   return false;
 };
@@ -8047,8 +7993,9 @@ document.addEventListener('visibilitychange',()=>{
 /* CZR_UNLOCK_FINAL_FIX */
 window.unlock = function(ev){
   if (ev && ev.preventDefault) ev.preventDefault();
-  var pinEl = document.getElementById('pinInput');
-  var msgEl = document.getElementById('lockMsg');
+  /* CZR_PIN_ID_FIX */
+  var pinEl = document.getElementById('pin') || document.getElementById('pinInput');
+  var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
   fetch('/api/auth/unlock', {
@@ -8056,16 +8003,17 @@ window.unlock = function(ev){
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({pin: pin})
   }).then(function(r){ return r.json(); }).then(function(d){
-    if (d && d.status === 'ok') {
+    if (d && (d.status === 'ok' || d.unlocked === true)) {
       if (msgEl) msgEl.textContent = '';
       var ls = document.getElementById('lockScreen') || document.getElementById('lock');
       if (ls) ls.style.display = 'none';
+      var ap = document.getElementById('app'); if (ap) ap.style.display = 'flex';
       if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
     } else if (msgEl) {
       msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
     }
   }).catch(function(e){
-    if (msgEl) msgEl.textContent = 'Unlock failed';
+    if (msgEl) msgEl.textContent = 'Unlock failed: ' + (e && e.message ? e.message : e);
   });
   return false;
 };
@@ -11771,6 +11719,7 @@ function openWalletUI(){
   var ls = document.getElementById('lock');
 
   if (ls) ls.style.display = 'none';
+      var ap = document.getElementById('app'); if (ap) ap.style.display = 'flex';
 
   var ms = document.getElementById('mnemonicScreen');
 
@@ -12026,8 +11975,9 @@ function confirmMnemonic(){
 /* CZR_UNLOCK_FINAL_FIX */
 window.unlock = function(ev){
   if (ev && ev.preventDefault) ev.preventDefault();
-  var pinEl = document.getElementById('pinInput');
-  var msgEl = document.getElementById('lockMsg');
+  /* CZR_PIN_ID_FIX */
+  var pinEl = document.getElementById('pin') || document.getElementById('pinInput');
+  var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
   fetch('/api/auth/unlock', {
@@ -12035,16 +11985,17 @@ window.unlock = function(ev){
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({pin: pin})
   }).then(function(r){ return r.json(); }).then(function(d){
-    if (d && d.status === 'ok') {
+    if (d && (d.status === 'ok' || d.unlocked === true)) {
       if (msgEl) msgEl.textContent = '';
       var ls = document.getElementById('lockScreen') || document.getElementById('lock');
       if (ls) ls.style.display = 'none';
+      var ap = document.getElementById('app'); if (ap) ap.style.display = 'flex';
       if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
     } else if (msgEl) {
       msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
     }
   }).catch(function(e){
-    if (msgEl) msgEl.textContent = 'Unlock failed';
+    if (msgEl) msgEl.textContent = 'Unlock failed: ' + (e && e.message ? e.message : e);
   });
   return false;
 };
