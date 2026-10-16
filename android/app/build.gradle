@@ -1,15 +1,27 @@
 plugins { id 'com.android.application' }
 
+// Release signing: no defaults, no fallbacks. If any required
+// variable is missing the build fails immediately, so an unsigned
+// or hardcoded-key release cannot be produced by accident.
+def requireEnv = { String name ->
+    def v = System.getenv(name)
+    if (v == null || v.isEmpty()) {
+        throw new GradleException(
+            "Missing required environment variable: ${name}")
+    }
+    return v
+}
+
 android {
     namespace 'com.caesarczr.wallet'
     compileSdk 34
 
     signingConfigs {
         release {
-            storeFile file(System.getenv("KEYSTORE_PATH") ?: "../keystore/caesar-release.keystore")
-            storePassword System.getenv("KEYSTORE_PASSWORD") ?: "caesar123"
-            keyAlias System.getenv("KEY_ALIAS") ?: "caesar"
-            keyPassword System.getenv("KEY_PASSWORD") ?: "caesar123"
+            storeFile     file(requireEnv("KEYSTORE_PATH"))
+            storePassword requireEnv("KEYSTORE_PASSWORD")
+            keyAlias      requireEnv("KEY_ALIAS")
+            keyPassword   requireEnv("KEY_PASSWORD")
             enableV1Signing true
             enableV2Signing true
             enableV3Signing true
