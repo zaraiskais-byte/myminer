@@ -134,3 +134,9 @@ outgoing.eml
 UI
 myminer/
 .czr-audit/
+
+# Android signing material — never commit
+android/keystore/*.keystore
+android/keystore/*.jks
+*.keystore
+*.jks
