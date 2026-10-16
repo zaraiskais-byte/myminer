@@ -2,14 +2,17 @@
 
 #include <atomic>
 #include <cerrno>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -225,6 +228,82 @@ class P2PTcpSocket {
                 throw P2PTimeout(
                     "TCP receive timeout during partial frame");
             }
+
+            throw std::runtime_error(
+                std::string("TCP receive failed: ") +
+                std::strerror(saved_errno) +
+                " (errno=" + std::to_string(saved_errno) + ")");
+        }
+    }
+
+    /*
+     * Deadline-bounded variant of receive_all().
+     *
+     * The socket-level SO_RCVTIMEO used by receive_all() limits each
+     * individual recv() call, not the total time spent on one logical
+     * read. A peer that sends one byte every few seconds can hold a
+     * receive_all() call open for an arbitrarily long time without
+     * ever triggering SO_RCVTIMEO. That is a slowloris-style DoS
+     * against the single accept thread.
+     *
+     * This variant accepts an absolute deadline and enforces it
+     * across the whole read using poll() between recv() calls.
+     * When the deadline is reached or exceeded, it throws P2PTimeout.
+     */
+    void receive_all_until(std::chrono::steady_clock::time_point deadline,
+                           std::uint8_t* data, std::size_t size) const {
+        std::size_t received = 0;
+
+        while (received < size) {
+            const int current = fd_.load();
+            if (current < 0)
+                throw std::runtime_error("TCP receive failed: socket closed");
+
+            const auto now = std::chrono::steady_clock::now();
+            if (now >= deadline)
+                throw P2PTimeout("TCP receive deadline exceeded");
+
+            long long remaining_ms =
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    deadline - now).count();
+            if (remaining_ms <= 0)
+                remaining_ms = 1;
+            if (remaining_ms > static_cast<long long>(std::numeric_limits<int>::max()))
+                remaining_ms = static_cast<long long>(std::numeric_limits<int>::max());
+
+            pollfd pfd{};
+            pfd.fd = current;
+            pfd.events = POLLIN;
+
+            const int poll_result =
+                ::poll(&pfd, 1, static_cast<int>(remaining_ms));
+            if (poll_result == 0)
+                throw P2PTimeout("TCP receive deadline exceeded");
+            if (poll_result < 0) {
+                if (errno == EINTR)
+                    continue;
+                const int saved_errno = errno;
+                throw std::runtime_error(
+                    std::string("TCP poll failed: ") +
+                    std::strerror(saved_errno) +
+                    " (errno=" + std::to_string(saved_errno) + ")");
+            }
+
+            const ssize_t result =
+                ::recv(current, data + received, size - received, 0);
+
+            if (result > 0) {
+                received += static_cast<std::size_t>(result);
+                continue;
+            }
+            if (result == 0)
+                throw std::runtime_error("TCP receive failed: peer closed connection");
+
+            const int saved_errno = errno;
+            if (saved_errno == EINTR ||
+                saved_errno == EAGAIN ||
+                saved_errno == EWOULDBLOCK)
+                continue;
 
             throw std::runtime_error(
                 std::string("TCP receive failed: ") +

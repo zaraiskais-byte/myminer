@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -60,6 +61,39 @@ class P2PConnection {
         std::memcpy(encoded.data(), length_bytes.data(), length_bytes.size());
 
         socket_.receive_all(encoded.data() + 4, encoded.size() - 4);
+
+        return P2PFrame::deserialize_binary(encoded);
+    }
+
+    /*
+     * Deadline-bounded variant of receive_frame().
+     *
+     * Semantically identical to receive_frame(), but the entire
+     * read (length prefix + body) is bounded by an absolute
+     * deadline rather than by per-recv() socket timeouts. Used by
+     * the handshake path, where we must not let a slow-drip peer
+     * hold the accept thread for an unbounded time.
+     */
+    P2PFrame receive_frame_with_deadline(
+        std::chrono::steady_clock::time_point deadline) const {
+        std::array<std::uint8_t, 4> length_bytes{};
+
+        socket_.receive_all_until(deadline, length_bytes.data(), length_bytes.size());
+
+        const std::uint32_t payload_size =
+            static_cast<std::uint32_t>(length_bytes[0]) |
+            (static_cast<std::uint32_t>(length_bytes[1]) << 8) |
+            (static_cast<std::uint32_t>(length_bytes[2]) << 16) |
+            (static_cast<std::uint32_t>(length_bytes[3]) << 24);
+
+        if (payload_size > CZR_P2P_MAX_PAYLOAD)
+            throw std::runtime_error("P2P payload too large");
+
+        std::vector<std::uint8_t> encoded(5 + static_cast<std::size_t>(payload_size));
+
+        std::memcpy(encoded.data(), length_bytes.data(), length_bytes.size());
+
+        socket_.receive_all_until(deadline, encoded.data() + 4, encoded.size() - 4);
 
         return P2PFrame::deserialize_binary(encoded);
     }
