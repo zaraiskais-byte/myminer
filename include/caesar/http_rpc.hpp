@@ -9107,10 +9107,8 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                 }
             }
 
-            /*
-             * Disk I/O happens completely outside g_pool_mutex.
-             */
             if (credited || block_added) {
+                std::lock_guard<std::mutex> save_lock(g_pool_mutex);
                 pool_save_state_unlocked(
                     wallet_path_.parent_path() / "pool_state.txt");
             }
@@ -12209,14 +12207,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 g_pool_auto_blocks.store(static_cast<std::uint32_t>(blk));
 
             {
-
                 std::lock_guard<std::mutex> lock(g_pool_mutex);
-
-                // just to serialize saves against payouts
-
+                pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
             }
-
-            pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
 
             std::ostringstream out;
 
@@ -12574,21 +12567,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 u.joined_at = static_cast<std::uint64_t>(::time(nullptr));
 
-                u.user_number = static_cast<std::uint32_t>(g_pool_next_user_number++);
+                {
+                    std::lock_guard<std::mutex> reg_lock(g_pool_mutex);
 
-                u.is_founder = (u.user_number <= 1000);
+                    if (!g_pool_state_loaded.exchange(true)) {
+                        pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+                    }
 
-                g_pool_total_registered++;
+                    u.user_number = static_cast<std::uint32_t>(g_pool_next_user_number++);
 
-                if (!parent.empty() && g_pool_users.count(parent) && parent != new_addr) {
+                    u.is_founder = (u.user_number <= 1000);
 
-                    g_pool_users[parent].children.push_back(new_addr);
+                    g_pool_total_registered++;
 
+                    if (!parent.empty() && g_pool_users.count(parent) && parent != new_addr) {
+
+                        g_pool_users[parent].children.push_back(new_addr);
+
+                    }
+
+                    g_pool_users[new_addr] = u;
+
+                    pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
                 }
-
-                g_pool_users[new_addr] = u;
-
-                pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
 
 
 
