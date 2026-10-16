@@ -1,5 +1,5 @@
 #include <httplib.h>
-#include <openssl/sha.h>
+#include <caesar/crypto.hpp>
 #include <sstream>
 #include <iomanip>
 #include <string>
@@ -38,12 +38,15 @@ static std::string b64url_encode(const std::string &in) {
 }
 
 static std::string sha256_raw(const std::string &data) {
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256_CTX ctx;
-    SHA256_Init(&ctx);
-    SHA256_Update(&ctx, data.c_str(), data.size());
-    SHA256_Final(hash, &ctx);
-    return std::string((char*)hash, SHA256_DIGEST_LENGTH);
+    /*
+     * The deprecated SHA256_Init / _Update / _Final API was
+     * replaced here. OpenSSL 3.0 marks it deprecated and it
+     * will be removed in a future major release. caesar::sha256()
+     * uses the EVP_Digest API and produces the identical
+     * 32-byte SHA-256 digest.
+     */
+    const caesar::Hash256 hash = caesar::sha256(data);
+    return std::string(reinterpret_cast<const char *>(hash.data()), hash.size());
 }
 
 static std::string random_string(size_t len) {
@@ -57,15 +60,18 @@ static std::string random_string(size_t len) {
 }
 
 static std::string derive_wallet(const std::string &email, const std::string &extra = "") {
-    std::string seed = email + extra;
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256_CTX ctx;
-    SHA256_Init(&ctx);
-    SHA256_Update(&ctx, seed.c_str(), seed.size());
-    SHA256_Final(hash, &ctx);
+    /*
+     * See sha256_raw(): SHA256_Init / _Update / _Final are
+     * deprecated in OpenSSL 3.0. caesar::sha256() is the
+     * EVP_Digest equivalent.
+     */
+    const std::string seed = email + extra;
+    const caesar::Hash256 hash = caesar::sha256(seed);
     std::ostringstream oss;
     oss << "CZ1";
-    for (int i = 0; i < 20; ++i) oss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    for (int i = 0; i < 20; ++i)
+        oss << std::hex << std::setw(2) << std::setfill('0')
+            << static_cast<int>(hash[i]);
     return oss.str();
 }
 
