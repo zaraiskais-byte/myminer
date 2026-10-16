@@ -6,6 +6,7 @@
 #include <iostream>
 #include <functional>
 #include <limits>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -1156,17 +1157,24 @@ class P2PRelay {
         /*
          * Resolve requested hashes against the local canonical chain.
          * Only known blocks are returned.
+         *
+         * Build the hash -> index map once: the previous nested loop
+         * recomputed block.hash() for every (requested, local) pair,
+         * which is O(requested.size() * chain.size()) SHA256 calls. A
+         * single 1024-hash GetBlocks request against a large chain
+         * could burn minutes of CPU.
          */
+        std::map<Hash256, std::size_t> chain_index;
+        for (std::size_t i = 0; i < chain.size(); ++i)
+            chain_index.emplace(chain[i].hash(), i);
+
         std::vector<const Block*> blocks;
         blocks.reserve(requested.size());
 
         for (const auto& requested_hash : requested) {
-            for (const auto& block : chain) {
-                if (block.hash() == requested_hash) {
-                    blocks.push_back(&block);
-                    break;
-                }
-            }
+            const auto it = chain_index.find(requested_hash);
+            if (it != chain_index.end())
+                blocks.push_back(&chain[it->second]);
         }
 
         if (blocks.empty())
@@ -1233,12 +1241,21 @@ class P2PRelay {
 
             const auto chain = storage_.load();
 
-            for (const auto& hash : request.block_hashes) {
-                const auto it = std::find_if(
-                    chain.begin(), chain.end(),
-                    [&](const Block& block) { return block.hash() == hash; });
+            /*
+             * Same index strategy as handle_get_blocks: hash the chain
+             * once, then resolve each request hash with a map lookup.
+             * MAX_HASHES = 1024 and the previous find_if recomputed
+             * every block hash per requested hash, which is
+             * O(1024 * chain_size) SHA256 calls per request.
+             */
+            std::map<Hash256, std::size_t> chain_index;
+            for (std::size_t i = 0; i < chain.size(); ++i)
+                chain_index.emplace(chain[i].hash(), i);
 
-                if (it == chain.end()) {
+            for (const auto& hash : request.block_hashes) {
+                const auto chain_it = chain_index.find(hash);
+
+                if (chain_it == chain_index.end()) {
                     /*
                      * The requested block is stale: the serving peer has
                      * reorged since the GetSyncBlocks request was created.
@@ -1258,7 +1275,7 @@ class P2PRelay {
                     return;
                 }
 
-                requested.push_back(*it);
+                requested.push_back(chain[chain_it->second]);
             }
         }
 
@@ -1466,13 +1483,71 @@ class P2PRelay {
                 throw std::runtime_error("no local chain");
 
             auto chain = storage_.load();
+
+            if (chain.empty())
+                throw std::runtime_error("cannot process blocks on empty chain");
+
+            /*
+             * Rebuild the UTXO set once for the entire batch and then
+             * apply each candidate block incrementally. The previous
+             * implementation called rebuild_utxo_set() inside the loop
+             * and validate_total_coinbase_issuance() (also O(chain_size))
+             * per block, so a batch of K blocks cost O(K * N) with
+             * SHA256 recomputation at every step. K is bounded at 1024
+             * by the wire format, so a single relayed Blocks message
+             * could burn minutes of CPU on a large chain.
+             */
+            UTXOSet utxos = rebuild_utxo_set(chain);
+
+            std::uint64_t total_issued = 0;
+            for (const auto& historical : chain) {
+                if (historical.header.height == 0)
+                    continue;
+                if (!add_coinbase_issuance(historical, total_issued))
+                    throw std::runtime_error("stored chain has invalid coinbase issuance");
+            }
+
             bool modified = false;
 
             for (const auto& block : incoming) {
-                const auto previous_utxos = rebuild_utxo_set(chain);
-                if (!validate_block_consensus(block, chain, previous_utxos)) {
+                // Header-level checks: cheap, no UTXO access.
+                if (!block.validate_basic())
+                    continue;
+
+                const Block& previous = chain.back();
+
+                if (block.header.height != previous.header.height + 1)
+                    continue;
+                if (block.header.previous_hash != previous.hash())
+                    continue;
+                if (block.header.timestamp < previous.header.timestamp)
+                    continue;
+                if (block.header.difficulty != expected_next_difficulty(chain))
+                    continue;
+
+                // Coinbase issuance against the running total: O(outputs).
+                std::uint64_t candidate_total = total_issued;
+                if (!add_coinbase_issuance(block, candidate_total))
+                    continue;
+
+                /*
+                 * apply_block_transactions_in_place_after_basic_validation
+                 * mutates the UTXO set in place and does not roll back on
+                 * failure. Work on a copy so a rejected block leaves the
+                 * running UTXO state untouched. Copying an unordered_map
+                 * is O(M) with a very small constant — no SHA256, no
+                 * deserialization — so it is dramatically cheaper than
+                 * calling rebuild_utxo_set() once per block.
+                 */
+                UTXOSet candidate_utxos = utxos;
+
+                if (!apply_block_transactions_in_place_after_basic_validation(
+                        block, candidate_utxos)) {
                     continue;
                 }
+
+                utxos = std::move(candidate_utxos);
+                total_issued = candidate_total;
                 chain.push_back(block);
                 accepted.push_back(block);
                 modified = true;
@@ -1484,8 +1559,20 @@ class P2PRelay {
             }
         }
 
-        if (invalidate_cache_callback_ && !accepted.empty()) {
-            try { invalidate_cache_callback_(); } catch (...) {}
+        /*
+         * Snapshot the callback under pending_mutex_, the same lock
+         * that set_invalidate_cache_callback() uses to write it.
+         * Reading the std::function outside the lock races with a
+         * concurrent setter, which is undefined behaviour.
+         */
+        std::function<void()> invalidate_cb;
+        {
+            std::lock_guard<std::mutex> lock(pending_mutex_);
+            invalidate_cb = invalidate_cache_callback_;
+        }
+
+        if (invalidate_cb && !accepted.empty()) {
+            try { invalidate_cb(); } catch (...) {}
         }
 
         // Gossip accepted blocks to peers except sender
