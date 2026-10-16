@@ -123,3 +123,14 @@ jar.txt
 *.hashrate-backup-*
 smtp_config.txt
 outgoing.eml
+
+# Backup files with timestamp suffixes
+*.bak
+*.bak[0-9]
+*.bak-*
+*.pre-*
+
+# Local scratch
+UI
+myminer/
+.czr-audit/
