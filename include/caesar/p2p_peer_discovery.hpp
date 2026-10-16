@@ -23,6 +23,24 @@ namespace caesar {
 inline constexpr std::uint32_t CZR_P2P_MAX_DISCOVERY_PEERS = 32;
 inline constexpr std::uint32_t CZR_P2P_MAX_PEER_ADDRESS = 255;
 
+/*
+ * Discovery endpoints are IPv4-only by design.
+ *
+ * The Peers wire message carries a length-prefixed address
+ * string plus a u32 port. Only dotted-quad IPv4 addresses are
+ * accepted. IPv6 support would require:
+ *   - a family discriminator in the wire format (or a text
+ *     format that unambiguously separates v4 from v6),
+ *   - a separate size budget from CZR_P2P_MAX_PEER_ADDRESS,
+ *   - a re-review of the loopback/multicast classification
+ *     below, which assumes in_addr and exactly 4 octets.
+ *
+ * Until then, a peer that sends an IPv6 address is rejected
+ * by validate() as "invalid P2P IPv4 peer address". This is
+ * a deliberate scope limit, not an oversight. The wire
+ * format is unchanged: the IPv4 restriction lives entirely
+ * in validate().
+ */
 struct P2PPeerEndpoint {
     std::string address;
     std::uint16_t port{0};
@@ -57,10 +75,33 @@ struct P2PPeerEndpoint {
             throw std::runtime_error(
                 "unspecified P2P peer address");
 
+        /*
+         * Loopback (127.0.0.0/8) is rejected even though a
+         * peer on the same host is reachable through it.
+         * Accepting loopback would let a remote peer inject
+         * "127.0.0.1:<rpc_port>" into the discovery set and
+         * turn the outbound dialer into a confused-deputy
+         * gadget against local services.
+         *
+         * Private LAN ranges (10/8, 172.16/12, 192.168/16)
+         * are intentionally NOT rejected here: they are the
+         * normal case for a LAN-only deployment, and the
+         * connect path re-checks reachability anyway.
+         */
         if (first_octet == 127U)
             throw std::runtime_error(
                 "loopback P2P peer address");
 
+        /*
+         * Multicast (224.0.0.0/4) and reserved (240.0.0.0/4,
+         * which includes the 255.255.255.255 limited
+         * broadcast) are not unicast endpoints. A discovery
+         * list containing them would either silently fail to
+         * connect (multicast requires a socket option the P2P
+         * client does not set) or, for 255.255.255.255, be
+         * usable to amplify by dialing every local interface.
+         * Reject both at the trust boundary.
+         */
         if (first_octet >= 224U)
             throw std::runtime_error(
                 "non-unicast P2P peer address");
@@ -130,10 +171,31 @@ parse_peers_payload(const std::vector<std::uint8_t>& payload) {
         if (raw_port == 0 || raw_port > 65535)
             throw std::runtime_error("invalid discovered peer port");
 
-        peers.push_back(P2PPeerEndpoint{
+        /*
+         * parse_peers_payload is a trust boundary: the address
+         * string arrives from an untrusted remote peer. The
+         * length and port checks above are not sufficient.
+         *
+         * Without validate(), a hostile peer can inject:
+         *   - non-IPv4 strings ("not-an-ip") that pass the
+         *     length check but fail inet_pton;
+         *   - loopback (127.0.0.0/8), turning the outbound
+         *     dialer into a confused deputy against local
+         *     services;
+         *   - multicast / reserved / broadcast (>= 224.0.0.0),
+         *     which are not unicast endpoints.
+         *
+         * make_peers_frame() already calls validate() on the
+         * send path. This call makes the receive path
+         * symmetric, so the two halves agree on what a valid
+         * endpoint is.
+         */
+        P2PPeerEndpoint peer{
             address,
             static_cast<std::uint16_t>(raw_port)
-        });
+        };
+        peer.validate();
+        peers.push_back(std::move(peer));
     }
 
     if (reader.remaining() != 0)

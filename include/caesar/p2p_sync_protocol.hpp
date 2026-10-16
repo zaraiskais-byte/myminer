@@ -93,6 +93,26 @@ struct GetSyncBlocksMessage {
     }
 };
 
+/*
+ * SyncBlocksMessage is deliberately NOT self-limiting to
+ * CZR_P2P_MAX_PAYLOAD on the wire. Each individual block is
+ * bounded by CZR_P2P_MAX_PAYLOAD and the count is bounded by
+ * MAX_BLOCKS, but the serialized total is not.
+ *
+ * The batching contract is:
+ *   - The caller (handle_get_sync_blocks) must group blocks
+ *     into frames that each fit CZR_P2P_MAX_PAYLOAD. A single
+ *     sync session may therefore span multiple SyncBlocks
+ *     frames carrying the same session_id.
+ *   - The receiver (handle_sync_blocks) accumulates frames
+ *     for a session_id until every pending header is filled.
+ *   - An empty blocks vector is a protocol-level abort for
+ *     the matching session and is always valid.
+ *
+ * deserialize_binary() additionally assumes the P2PFrame layer
+ * has already enforced the outer CZR_P2P_MAX_PAYLOAD limit on
+ * the incoming payload. It does not re-check data.size().
+ */
 struct SyncBlocksMessage {
     static constexpr std::uint32_t MAX_BLOCKS = 1024;
 
