@@ -2457,6 +2457,7 @@ class HttpRpcServer {
 
 
     PoolPayoutResult pool_execute_payout() {
+      std::lock_guard<std::mutex> payout_guard(payout_execution_mutex_);
 
     PoolPayoutResult r;
 
@@ -2526,6 +2527,9 @@ class HttpRpcServer {
 
         std::uint64_t assigned = 0;
 
+
+        std::size_t worker_recipient_count = 0;
+
         for (const auto& kv : snap) {
 
             std::uint64_t amount = (worker_pool * kv.second) / total_pending;
@@ -2535,8 +2539,8 @@ class HttpRpcServer {
             TransactionOutput o; o.amount = amount; o.recipient = kv.first;
 
             tx.outputs.push_back(o);
-
-            assigned += amount;
+              ++worker_recipient_count;
+              assigned += amount;
 
         }
 
@@ -2612,21 +2616,30 @@ class HttpRpcServer {
 
             rec.fee_amount = fee_amount;
 
-            rec.recipient_count = tx.outputs.size();
+            rec.recipient_count = worker_recipient_count;
 
-            g_pool_payouts.push_back(rec);
+              g_pool_payouts.push_back(rec);
 
-            for (auto& kv : g_pool_workers) kv.second.shares_pending = 0;
+              for (const auto& item : snap) {
+                  auto it = g_pool_workers.find(item.first);
+                  if (it == g_pool_workers.end()) continue;
 
-        }
+                  auto& pending = it->second.shares_pending;
+                  if (pending >= item.second) {
+                      pending -= item.second;
+                  } else {
+                      // Preserve unexpected pending state rather than underflow.
+                      std::cerr << "[pool] payout accounting invariant violation"
+                                << std::endl;
+                  }
+              }
 
+              pool_save_state_unlocked(
+                  wallet_path_.parent_path() / "pool_state.txt");
 
+          }
 
-        pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
-
-
-
-        r.ok = true;
+          r.ok = true;
 
         r.txid = final_txid;
 
@@ -2634,7 +2647,7 @@ class HttpRpcServer {
 
         r.fee = fee_amount;
 
-        r.recipients = tx.outputs.size();
+        r.recipients = worker_recipient_count;
 
         return r;
 
@@ -2681,10 +2694,12 @@ class HttpRpcServer {
         PoolPayoutResult r = pool_execute_payout();
 
         if (r.ok) {
-
-            g_pool_last_payout_height.store(static_cast<std::uint64_t>(h));
-
-            pool_save_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+              {
+                  std::lock_guard<std::mutex> lock(g_pool_mutex);
+                  g_pool_last_payout_height.store(static_cast<std::uint64_t>(h));
+                  pool_save_state_unlocked(
+                      wallet_path_.parent_path() / "pool_state.txt");
+              }
 
             std::cerr << "[pool-auto] payout height=" << h << " dist=" << r.distributed << std::endl;
 
