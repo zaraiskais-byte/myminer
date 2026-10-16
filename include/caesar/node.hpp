@@ -113,6 +113,7 @@ class CaesarNode {
             }
         }
 
+        height_snapshot_.store(chain.back().header.height, std::memory_order_relaxed);
         server_.start(p2p_port_, "0.0.0.0", network_id_, chain.back().header.height);
 
         try {
