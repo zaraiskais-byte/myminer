@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
@@ -80,13 +81,26 @@ class SecureWalletStorage {
         if (!in) throw std::runtime_error("cannot open wallet file");
 
         std::vector<std::uint8_t> salt(SALT_LEN), iv(IV_LEN), tag(TAG_LEN);
-        in.read(reinterpret_cast<char*>(salt.data()), SALT_LEN);
-        in.read(reinterpret_cast<char*>(iv.data()), IV_LEN);
-        in.read(reinterpret_cast<char*>(tag.data()), TAG_LEN);
+        if (!in.read(reinterpret_cast<char*>(salt.data()), SALT_LEN) ||
+            !in.read(reinterpret_cast<char*>(iv.data()), IV_LEN) ||
+            !in.read(reinterpret_cast<char*>(tag.data()), TAG_LEN)) {
+            throw std::runtime_error("invalid encrypted wallet header");
+        }
 
-        std::vector<std::uint8_t> ciphertext((std::istreambuf_iterator<char>(in)),
-                                               std::istreambuf_iterator<char>());
-        if (ciphertext.empty()) throw std::runtime_error("empty wallet file");
+        std::vector<std::uint8_t> ciphertext(
+            (std::istreambuf_iterator<char>(in)),
+            std::istreambuf_iterator<char>());
+
+        if (in.bad()) {
+            throw std::runtime_error("failed reading encrypted wallet file");
+        }
+        if (ciphertext.empty()) {
+            throw std::runtime_error("empty wallet file");
+        }
+        if (ciphertext.size() >
+            static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+            throw std::runtime_error("encrypted wallet file is too large");
+        }
 
         const auto key = derive_key(pin, salt);
 

@@ -3,8 +3,12 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
+#include <iterator>
 
 #include <caesar/persistent_wallet.hpp>
+#include <caesar/secure_wallet.hpp>
+#include <caesar/wallet_auth.hpp>
 
 namespace {
 
@@ -168,6 +172,90 @@ void test_existing_directory_is_supported() {
     assert(!ec);
 }
 
+
+void test_encrypted_wallet_unlock_roundtrip() {
+    const auto dir = make_test_dir();
+    const auto plain_path = dir / "plain.pem";
+    const auto encrypted_path = dir / "encrypted.wallet";
+    const std::string pin = "test-pin-7391";
+    std::string expected_address;
+    std::string expected_public_key;
+
+    {
+        caesar::PersistentWallet original(plain_path);
+        expected_address = original.address();
+        expected_public_key = original.public_key();
+    }
+
+    std::ifstream input(plain_path, std::ios::binary);
+    assert(input);
+    std::vector<std::uint8_t> pem(
+        (std::istreambuf_iterator<char>(input)),
+        std::istreambuf_iterator<char>());
+    assert(!pem.empty());
+
+    caesar::SecureWalletStorage::encrypt(encrypted_path, pin, pem);
+
+    {
+        caesar::PersistentWallet restored(encrypted_path);
+        assert(!restored.is_loaded());
+        restored.unlock_with_pin(pin);
+        assert(restored.is_loaded());
+        assert(restored.address() == expected_address);
+        assert(restored.public_key() == expected_public_key);
+    }
+
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+    assert(!ec);
+}
+
+void test_truncated_encrypted_wallet_is_rejected() {
+    const auto dir = make_test_dir();
+    const auto path = dir / "truncated.wallet";
+
+    {
+        std::ofstream out(path, std::ios::binary | std::ios::trunc);
+        assert(out);
+        out << "short";
+    }
+
+    bool rejected = false;
+    try {
+        (void)caesar::SecureWalletStorage::decrypt(path, "test-pin");
+    } catch (const std::exception&) {
+        rejected = true;
+    }
+    assert(rejected);
+    assert(std::filesystem::is_regular_file(path));
+
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+    assert(!ec);
+}
+
+void test_pin_hash_rejects_truncated_file() {
+    const auto dir = make_test_dir();
+    const auto path = dir / "pin.hash";
+    const std::string pin = "test-pin-7391";
+
+    caesar::save_pin(path, pin);
+    assert(caesar::verify_pin(path, pin));
+    assert(!caesar::verify_pin(path, "wrong-pin"));
+
+    {
+        std::ofstream out(path, std::ios::binary | std::ios::trunc);
+        assert(out);
+        out << "truncated";
+    }
+
+    assert(!caesar::verify_pin(path, pin));
+
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+    assert(!ec);
+}
+
 }  // namespace
 
 int main() {
@@ -175,6 +263,9 @@ int main() {
     test_explicit_save_is_atomic_and_persistent();
     test_corrupt_key_is_rejected();
     test_existing_directory_is_supported();
+    test_encrypted_wallet_unlock_roundtrip();
+    test_truncated_encrypted_wallet_is_rejected();
+    test_pin_hash_rejects_truncated_file();
 
     return 0;
 }
