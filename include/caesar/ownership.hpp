@@ -50,10 +50,19 @@ inline bool validate_transaction_witness(const Transaction& tx, const UTXOSet& u
         if (witness.public_key.empty() || witness.signature.empty())
             goto cleanup;
 
-        EVP_PKEY* key = public_key_from_hex(witness.public_key);
-
-        if (!key)
+        // public_key_from_hex() reports failures by throwing,
+        // not by returning nullptr. Catch here so that malformed
+        // witness data (invalid hex, wrong length) is treated as
+        // a validation failure rather than an exception escaping
+        // the no-throw contract of validate_transaction_witness().
+        // The goto cleanup ensures any EVP_PKEY already collected
+        // in public_keys is released before returning false.
+        EVP_PKEY* key = nullptr;
+        try {
+            key = public_key_from_hex(witness.public_key);
+        } catch (const std::exception&) {
             goto cleanup;
+        }
 
         public_keys.push_back(key);
         public_key_data.push_back(witness.public_key);

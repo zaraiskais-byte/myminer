@@ -125,6 +125,12 @@ class BinaryReader {
 };
 
 inline std::string bytes_to_binary_string(const std::vector<std::uint8_t>& bytes) {
+    // std::string(nullptr, 0) is formally undefined behavior in C++17.
+    // vector::data() may legally return nullptr for an empty vector, and
+    // this helper is called from txid()/wtxid() on every transaction.
+    if (bytes.empty())
+        return std::string{};
+
     return std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size());
 }
 
