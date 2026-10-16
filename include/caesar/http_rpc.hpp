@@ -6712,7 +6712,7 @@ async function unlock(event){
     dbg.style.cssText = 'position:fixed;bottom:10px;left:10px;right:10px;padding:12px;background:rgba(0,0,0,0.95);color:#58a6ff;font-family:monospace;font-size:13px;border:2px solid #58a6ff;border-radius:6px;z-index:999999;';
     document.body.appendChild(dbg);
   }
-  function log(s,c){ dbg.style.color = c || '#58a6ff'; dbg.textContent = s; try{console.log(s);}catch(e){} }
+  function log(s,c){ try{console.log(s);}catch(e){} if(c==='#f85149'){ dbg.style.display='block'; dbg.style.color=c; dbg.textContent=s; } else { dbg.style.display='none'; } }
   try{
     log('1: unlock called');
     if(event && typeof event.preventDefault === 'function') event.preventDefault();
@@ -6763,6 +6763,63 @@ function switchTab(name,btn){
   vib(8);
 
   refreshCurrentTab();
+
+}
+
+/* CZR_MISSING_FIX */
+async function checkAuth(){
+
+  const r=await api('/api/auth/status');
+  const unlocked = !!(r && r.unlocked === true);
+  const lock = $('lock');
+  const app = $('app');
+
+  if(lock) lock.style.display = unlocked ? 'none' : 'flex';
+  if(app) app.style.display = unlocked ? 'flex' : 'none';
+
+  if(unlocked){
+    startPolling();
+    await refreshAll();
+  }
+
+}
+
+function openWalletUI(){
+
+  var ls = document.getElementById('lock');
+
+  if (ls) ls.style.display = 'none';
+      var ap = document.getElementById('app'); if (ap) ap.style.display = 'flex';
+
+  var ms = document.getElementById('mnemonicScreen');
+
+  if (ms) ms.style.display = 'none';
+
+  var app = document.getElementById('app');
+
+  if (app) app.style.display = 'flex';
+
+  try { if (typeof startPolling === 'function') startPolling(); } catch(e){}
+
+  try { if (typeof refreshAll === 'function') refreshAll(); } catch(e){}
+
+}
+
+async function refreshCurrentTab(){
+
+  if(currentTab==='wallet')await refreshWallet();
+
+  else if(currentTab==='pool')await refreshPool();
+
+  else if(currentTab==='explore')await refreshExplore();
+
+}
+
+function startPolling(){
+
+  if(pollHandle)clearInterval(pollHandle);
+
+  pollHandle=setInterval(refreshCurrentTab,5000);
 
 }
 
@@ -7071,6 +7128,9 @@ async function refreshWallet(){
 
     }
 
+    if(!b || b.balance===undefined){
+      document.querySelectorAll('#bal').forEach(function(el){ el.textContent='\uD83D\uDD12'; el.title='Unlock the wallet on this URL to see balance'; });
+    }
     if(b && b.balance!==undefined){
       const balanceText = fmt(b.balance);
       const balanceNodes = document.querySelectorAll('#bal');
@@ -7215,9 +7275,9 @@ async function refreshPool(){
 
     $('pWorkers').textContent=p.workers?p.workers.length:0;
 
-    $('pShares').textContent=fmt(p.total_shares||0);
+    $('pShares').textContent=Number(p.total_shares||0).toLocaleString('en-US');
 
-    $('pBlocks').textContent=fmt(p.total_blocks||0);
+    $('pBlocks').textContent=Number(p.total_blocks||0).toLocaleString('en-US');
 
     $('pFee').textContent=(p.fee_percent||35)+'%';
 
@@ -7267,13 +7327,13 @@ function renderWorkers(ws){
 
   el.innerHTML='';
 
-  ws.forEach(w=>{
+  ws.filter(w=>w&&w.address).forEach(w=>{
 
     const d=document.createElement('div');
 
     d.className='row';
 
-    d.innerHTML='<div class="left">'+w.name+'<div class="sub">'+w.address.slice(0,24)+'...</div></div><div class="right">'+fmt(w.shares)+'</div>';
+    d.innerHTML='<div class="left">'+w.name+'<div class="sub">'+w.address.slice(0,24)+'...</div></div><div class="right">'+Number(w.shares||0).toLocaleString('en-US')+'</div>';
 
     el.appendChild(d);
 
@@ -10302,11 +10362,12 @@ CZR JS CHECKING
       if(!p || !Array.isArray(p.workers))
         throw new Error('invalid workers data');
 
-      var active = p.workers.filter(function(w){
-        return w && w.active === true;
+      var named = p.workers.filter(function(w){ return w && w.address; });
+      var active = named.filter(function(w){
+        return w.active === true;
       }).length;
       setBadge(
-        'CZR LIVE | MINERS ACTIVE: ' + active + '/' + p.workers.length,
+        'CZR LIVE | MINERS ACTIVE: ' + active + '/' + named.length,
         '#087f23'
       );
     })
@@ -11178,6 +11239,9 @@ async function refreshWallet(){
 
     }
 
+    if(!b || b.balance===undefined){
+      document.querySelectorAll('#bal').forEach(function(el){ el.textContent='\uD83D\uDD12'; el.title='Unlock the wallet on this URL to see balance'; });
+    }
     if(b && b.balance!==undefined){
       const balanceText = fmt(b.balance);
       const balanceNodes = document.querySelectorAll('#bal');
@@ -11310,9 +11374,9 @@ async function refreshPool(){
 
     $('pWorkers').textContent=p.workers?p.workers.length:0;
 
-    $('pShares').textContent=fmt(p.total_shares||0);
+    $('pShares').textContent=Number(p.total_shares||0).toLocaleString('en-US');
 
-    $('pBlocks').textContent=fmt(p.total_blocks||0);
+    $('pBlocks').textContent=Number(p.total_blocks||0).toLocaleString('en-US');
 
     $('pFee').textContent=(p.fee_percent||35)+'%';
 
@@ -11358,13 +11422,13 @@ function renderWorkers(ws){
 
   el.innerHTML='';
 
-  ws.forEach(w=>{
+  ws.filter(w=>w&&w.address).forEach(w=>{
 
     const d=document.createElement('div');
 
     d.className='row';
 
-    d.innerHTML='<div class="left">'+w.name+'<div class="sub">'+w.address.slice(0,24)+'...</div></div><div class="right">'+fmt(w.shares)+'</div>';
+    d.innerHTML='<div class="left">'+w.name+'<div class="sub">'+w.address.slice(0,24)+'...</div></div><div class="right">'+Number(w.shares||0).toLocaleString('en-US')+'</div>';
 
     el.appendChild(d);
 

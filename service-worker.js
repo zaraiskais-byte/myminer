@@ -33,3 +33,4 @@ self.addEventListener('fetch', event => {
       .then(response => response || fetch(event.request))
   );
 });
+// cache-bust 1792024741
