@@ -58,6 +58,33 @@ int main() {
     }
     std::cout << "[PASS] Invalid prefix rejected\n";
 
+    /*
+     * C3-2: case canonicalization.
+     *
+     * A hex-encoded public key with uppercase A-F must produce
+     * exactly the same address as the same key in lowercase.
+     * Otherwise a key that round-trips through a JSON API or
+     * any tool that uppercases hex would derive a different
+     * address from the wallet's own.
+     */
+    const std::string hex_lower =
+        "abcdef0123456789abcdef0123456789"
+        "abcdef0123456789abcdef0123456789";
+    const std::string hex_upper =
+        "ABCDEF0123456789ABCDEF0123456789"
+        "ABCDEF0123456789ABCDEF0123456789";
+
+    const std::string address_lower = address_from_public_key(hex_lower);
+    const std::string address_upper = address_from_public_key(hex_upper);
+
+    if (address_lower != address_upper) {
+        std::cerr << "[FAIL] Case-variant hex key produced different address\n";
+        std::cerr << "       lower: " << address_lower << '\n';
+        std::cerr << "       upper: " << address_upper << '\n';
+        return EXIT_FAILURE;
+    }
+    std::cout << "[PASS] Hex case canonicalization\n";
+
     std::cout << "Address: " << address << '\n';
     std::cout << "ALL ADDRESS CHECKSUM TESTS PASSED\n";
 
