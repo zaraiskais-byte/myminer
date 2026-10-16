@@ -220,9 +220,9 @@ class P2PTcpSocket {
                  * returns a partial frame to the frame parser.
                  */
                 if (received == 0)
-                    throw std::runtime_error("TCP receive timeout");
+                    throw P2PTimeout("TCP receive timeout");
 
-                throw std::runtime_error(
+                throw P2PTimeout(
                     "TCP receive timeout during partial frame");
             }
 
@@ -268,6 +268,9 @@ class P2PTcpSocket {
 
         while (sent < size) {
             const ssize_t result = ::send(current, data + sent, size - sent, MSG_NOSIGNAL);
+
+            if (result < 0 && errno == EINTR)
+                continue;
 
             if (result <= 0)
                 throw std::runtime_error("TCP send failed");
