@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
@@ -55,13 +56,31 @@ inline bool verify_pin(const std::filesystem::path& path, const std::string& pin
     std::ifstream f(path, std::ios::binary);
     if (!f) return false;
 
-    std::vector<std::uint8_t> salt(16);
-    f.read(reinterpret_cast<char*>(salt.data()), 16);
+    std::array<std::uint8_t, 16> salt{};
+    std::array<char, 64> stored_hash{};
 
-    std::string stored_hash(64, '\0');
-    f.read(&stored_hash[0], 64);
+    if (!f.read(reinterpret_cast<char*>(salt.data()),
+                 static_cast<std::streamsize>(salt.size())) ||
+        !f.read(stored_hash.data(),
+                static_cast<std::streamsize>(stored_hash.size()))) {
+        return false;
+    }
 
-    return hash_pin(pin, salt) == stored_hash;
+    // The established pin.hash format is exactly 16 salt bytes + 64 hex
+    // characters. Reject truncated or unexpectedly extended files.
+    if (f.peek() != std::char_traits<char>::eof()) {
+        return false;
+    }
+    if (f.bad()) {
+        return false;
+    }
+
+    const std::string expected = hash_pin(
+        pin, std::vector<std::uint8_t>(salt.begin(), salt.end()));
+
+    return expected.size() == stored_hash.size() &&
+           CRYPTO_memcmp(expected.data(), stored_hash.data(),
+                         stored_hash.size()) == 0;
 }
 
 }  // namespace caesar
