@@ -14,6 +14,10 @@
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 
+#if defined(__linux__) || defined(__ANDROID__)
+#include <sys/stat.h>
+#endif
+
 namespace caesar {
 
 // Generate secure random entropy
@@ -47,8 +51,21 @@ inline void save_pin(const std::filesystem::path& path, const std::string& pin) 
     auto hash = hash_pin(pin, salt);
 
     std::ofstream f(path, std::ios::binary);
+    if (!f) {
+        throw std::runtime_error("cannot open pin.hash for writing");
+    }
     f.write(reinterpret_cast<const char*>(salt.data()), salt.size());
     f.write(hash.data(), hash.size());
+    f.close();
+
+    // pin.hash contains salt + hash only, but restricting
+    // permissions keeps it out of reach of other users on
+    // shared systems, consistent with the wallet files.
+#if defined(__linux__) || defined(__ANDROID__)
+    if (::chmod(path.c_str(), 0600) != 0) {
+        throw std::runtime_error("failed to restrict pin.hash permissions");
+    }
+#endif
 }
 
 // Verify PIN
