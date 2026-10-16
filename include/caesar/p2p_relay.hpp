@@ -498,32 +498,6 @@ class P2PRelay {
         }
     }
 
-    void peer_loop(std::uint64_t id) {
-        auto connection = server_.peers().connection(id);
-
-        if (!connection)
-            return;
-
-        while (running_ && server_.peers().contains(id)) {
-            try {
-                const P2PFrame frame = connection->receive_frame();
-
-                handle_frame(id, frame);
-
-            } catch (...) {
-                break;
-            }
-        }
-
-        {
-            std::lock_guard<std::mutex> lock(pending_mutex_);
-            pending_chain_syncs_.erase(id);
-        }
-
-        if (server_.peers().contains(id))
-            server_.peers().remove_peer(id);
-    }
-
     void handle_frame(std::uint64_t id, const P2PFrame& frame) {
         // std::cerr << "[TRACE] handle_frame id=" << id << " type=" << static_cast<int>(frame.type) << std::endl;
         switch (frame.type) {
@@ -1052,20 +1026,28 @@ class P2PRelay {
          * case start becomes 1. Therefore a separate boolean is required
          * to distinguish "known genesis" from "no locator matched".
          */
+        /*
+         * Build the hash -> index map once. The nested loop recomputed
+         * chain[i].hash() for every (locator, local block) pair, which
+         * is O(locators.size() * chain_size) SHA256 calls per request.
+         * locators.size() is bounded at 32 by the wire format, so the
+         * blowup is smaller than in the GetBlocks/GetSyncBlocks
+         * handlers but the same fix applies.
+         */
+        std::map<Hash256, std::size_t> chain_index;
+        for (std::size_t i = 0; i < chain.size(); ++i)
+            chain_index.emplace(chain[i].hash(), i);
+
         std::size_t start = 0;
         bool common_ancestor_found = false;
 
         for (const auto& locator : locators) {
-            for (std::size_t i = chain.size(); i-- > 0;) {
-                if (chain[i].hash() == locator) {
-                    common_ancestor_found = true;
-                    start = i + 1;
-                    break;
-                }
-            }
-
-            if (common_ancestor_found)
+            const auto it = chain_index.find(locator);
+            if (it != chain_index.end()) {
+                common_ancestor_found = true;
+                start = it->second + 1;
                 break;
+            }
         }
 
         BinaryWriter writer;
@@ -1299,8 +1281,20 @@ class P2PRelay {
                 16 + 4 + (response.blocks.size() + 1) * 4 +
                 encoded.size();
 
-            if (!response.blocks.empty() &&
-                next_size > static_cast<std::size_t>(CZR_P2P_MAX_PAYLOAD)) {
+            if (next_size > static_cast<std::size_t>(CZR_P2P_MAX_PAYLOAD)) {
+                if (response.blocks.empty()) {
+                    /*
+                     * The block body itself fits the payload limit
+                     * (checked just above), but its SyncBlocks framing
+                     * pushes the frame over the wire maximum. Skip this
+                     * specific block: the requester's pending session
+                     * will not complete and will time out, at which
+                     * point it can retry. Tearing down the reader over
+                     * a marginal single-block size would be worse.
+                     */
+                    continue;
+                }
+
                 P2PFrame frame;
                 frame.type = P2PMessageType::SyncBlocks;
                 frame.payload = response.serialize_binary();
