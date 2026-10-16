@@ -2711,6 +2711,8 @@ class HttpRpcServer {
 
    private:
 
+
+      std::mutex payout_execution_mutex_;
     CaesarNode& node_;
 
     std::uint16_t port_;
