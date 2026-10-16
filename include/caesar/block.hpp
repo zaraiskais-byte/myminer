@@ -119,6 +119,17 @@ struct Block {
         return header.witness_root == calculate_witness_root();
     }
 
+    /*
+     * Test-only serialization helper.
+     *
+     * This format does not prefix each transaction with its length,
+     * so it is not the inverse of deserialize_full() and must not
+     * be used on the wire or in storage. The canonical on-the-wire
+     * encoding for a full block is serialize_full_binary(), which
+     * is symmetric with deserialize_full(). serialize_binary() is
+     * retained for a small number of tests that compare byte sizes
+     * or round-trip only the base (witness-free) form.
+     */
     std::vector<std::uint8_t> serialize_binary() const {
         BinaryWriter writer;
 
@@ -416,7 +427,12 @@ inline std::uint32_t expected_difficulty_at_position(const std::vector<Block>& c
                                                      std::size_t position) {
     // BOOTSTRAP: fixed difficulty for new blocks to let the network grow.
     // Existing blocks (height 0..39) keep their original difficulty.
-    // All new blocks (height 40+) use fixed difficulty 14.
+    // All new blocks (height 40+) use fixed difficulty 8.
+    //
+    // Note: this is a permanent constant, not a temporary bootstrap
+    // phase. There is currently no height or time condition that
+    // returns control to adjust_difficulty_window(). Changing the
+    // value of 8 is a consensus fork.
     if (position >= 40) {
         return 8;
     }

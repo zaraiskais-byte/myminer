@@ -241,6 +241,18 @@ class BlockchainStorage {
     void append(const Block& block) const {
         std::vector<Block> chain;
 
+        /*
+         * validate_pow() is deterministic: calculate_pow_hash() is a
+         * pure function of (header, nonce) with no PRNG, no cached
+         * state, and no dependence on chain state. This preflight is
+         * therefore a defensive assertion, not a real consistency
+         * check. It exists to catch a hypothetical future regression
+         * in which some non-determinism is introduced into the PoW
+         * path. On a hot path it is expensive (65536-word memory
+         * initialisation plus four mixing rounds); if append()
+         * throughput ever becomes a concern, this is the first thing
+         * to remove.
+         */
         const bool pow_before_load = block.validate_pow();
 
         if (exists())

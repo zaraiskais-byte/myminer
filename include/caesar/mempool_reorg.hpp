@@ -34,8 +34,11 @@ namespace caesar {
  *      silently discarded. Its descendants are discarded too
  *      because their inputs will never resolve.
  *
- * The function does not throw. It is safe to call with an empty
- * mempool or an empty chain.
+ * No exception is thrown on the expected path. Only a failed heap
+ * allocation (bad_alloc from the internal snapshot vector) or an
+ * unexpected serialization error raised inside Mempool::accept()
+ * can propagate. Neither is a protocol condition. The function is
+ * safe to call with an empty mempool or an empty chain.
  *
  * Note: this is a "drop invalid" policy, not Bitcoin's "reinsert
  * disconnected block transactions" policy. Once the reorg pipeline
