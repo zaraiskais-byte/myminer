@@ -160,11 +160,12 @@ inline const Hash256 GENESIS_HASH_TESTNET = {
  * Returns a pointer to the pinned genesis hash for a network, or
  * nullptr if the network has no pinned genesis yet.
  *
- * TESTNET is currently not defined, so it returns nullptr. This is
- * deliberate: nodes without a pinned genesis behave exactly as
- * before, so existing tests and internal chains keep working. Mainnet
- * nodes pass GENESIS_HASH_MAINNET explicitly and reject any chain
- * whose first block does not match.
+ * Both MAINNET and TESTNET currently have pinned genesis hashes.
+ * Returning nullptr for an unknown network is deliberate: a node
+ * configured with a network id that has no pinned genesis accepts
+ * any structurally valid genesis. This keeps unknown-network setups
+ * and unit tests working without weakening the pinned checks for
+ * the two known networks.
  */
 inline const Hash256* genesis_hash_for_network(std::uint32_t network) noexcept {
     if (network == NETWORK_MAINNET)

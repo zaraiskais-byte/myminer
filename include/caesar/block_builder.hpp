@@ -38,6 +38,13 @@ class BlockBuilder {
             for (const auto& tx : ordered)
                 block.transactions.push_back(tx);
         } else {
+            // UNSAFE: when chain_utxos is null, transactions are
+            // copied in mempool insertion order with no dependency
+            // analysis. A transaction that spends an output created
+            // by a later transaction in the same block will make
+            // the block invalid. Production callers MUST pass
+            // chain_utxos; this branch exists for unit tests that
+            // deliberately construct ad-hoc blocks.
             for (const auto& entry : mempool.transactions()) {
                 block.transactions.push_back(entry.second);
             }
