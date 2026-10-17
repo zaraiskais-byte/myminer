@@ -448,6 +448,14 @@ target_include_directories(caesar_p2p_server_handshake_test PRIVATE
 target_link_libraries(caesar_p2p_server_handshake_test PRIVATE crypto pthread)
 add_test(NAME caesar_p2p_server_handshake_test COMMAND caesar_p2p_server_handshake_test)
 
+add_executable(caesar_p2p_server_slowloris_test tests/p2p_server_slowloris_test.cpp)
+target_include_directories(caesar_p2p_server_slowloris_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(caesar_p2p_server_slowloris_test PRIVATE crypto pthread)
+add_test(NAME CaesarP2PServerSlowlorisTest COMMAND caesar_p2p_server_slowloris_test)
+set_tests_properties(CaesarP2PServerSlowlorisTest PROPERTIES TIMEOUT 30)
+
 add_executable(caesar_p2p_server_reject_test tests/p2p_server_reject_test.cpp)
 target_include_directories(caesar_p2p_server_reject_test PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/include")
