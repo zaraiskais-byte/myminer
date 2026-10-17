@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <iostream>
 #include <memory>
 #include <mutex>
 #include <stdexcept>
@@ -22,6 +23,28 @@
 #include <caesar/p2p_server.hpp>
 
 namespace caesar {
+
+/*
+ * Diagnostic tracing.
+ *
+ * submit_pool_solution() used to unconditionally write ~20 std::cerr
+ * lines per call. The pool backend posts a solution every few seconds
+ * on an idle rig, so the log volume alone is enough to saturate a
+ * mobile console, and there is no way to silence the traces without
+ * editing the source and recompiling.
+ *
+ * CZR_NODE_TRACE is a compile-time diagnostic switch. It is disabled
+ * by default. Define CZR_NODE_TRACE_ENABLED at build time to enable
+ * the traces for a debugging session.
+ *
+ * Arguments are not evaluated when the macro is disabled, so callers
+ * must not rely on side effects inside the argument list.
+ */
+#ifdef CZR_NODE_TRACE_ENABLED
+#define CZR_NODE_TRACE(expr) do { CZR_NODE_TRACE(expr); } while (0)
+#else
+#define CZR_NODE_TRACE(expr) do { } while (0)
+#endif
 
 class CaesarNode {
    public:
@@ -287,12 +310,26 @@ class CaesarNode {
     }
 
     bool submit_transaction(const Transaction& tx) {
-        std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
-        std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
-        const auto current_chain = storage_.load();
-        const UTXOSet utxos = rebuild_utxo_set(current_chain);
-        const auto result = mempool_.accept(tx, utxos);
-        return result.accepted();
+        /*
+         * Legacy alias for accept_transaction().
+         *
+         * Previous revisions duplicated the mempool admission path
+         * here without:
+         *   - checking running_,
+         *   - checking that the chain is non-empty,
+         *   - rejecting coinbase transactions,
+         *   - announcing the accepted transaction to peers.
+         *
+         * The last point was a liveness bug: a transaction
+         * submitted through this method (which is what the HTTP
+         * RPC path uses) entered the local mempool but never
+         * propagated to any peer.
+         *
+         * Route through accept_transaction() so both entry points
+         * share the same admission policy and the same relay
+         * behavior.
+         */
+        return accept_transaction(tx).accepted();
     }
 
     std::vector<Transaction> mempool_transactions() const {
@@ -515,10 +552,9 @@ void mine_one_block(const std::string& miner_recipient,
     }
 
     bool submit_pool_solution(Block candidate) {
-        std::cerr << "[submit] enter, height=" << candidate.header.height
+        CZR_NODE_TRACE("[submit] enter, height=" << candidate.header.height
                   << " nonce=" << candidate.header.nonce
-                  << " diff=" << candidate.header.difficulty
-                  << std::endl;
+                  << " diff=" << candidate.header.difficulty);
 
         if (!running_)
             throw std::runtime_error(
@@ -526,27 +562,27 @@ void mine_one_block(const std::string& miner_recipient,
 
         {
             const auto chain_wait_start = std::chrono::steady_clock::now();
-            std::cerr << "[submit:lock] chain waiting" << std::endl;
+            CZR_NODE_TRACE("[submit:lock] chain waiting");
             std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
             const auto chain_wait_ms =
                 std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::steady_clock::now() - chain_wait_start).count();
-            std::cerr << "[submit:lock] chain acquired wait_ms="
-                      << chain_wait_ms << std::endl;
+            CZR_NODE_TRACE("[submit:lock] chain acquired wait_ms="
+                      << chain_wait_ms);
 
             const auto mempool_wait_start = std::chrono::steady_clock::now();
-            std::cerr << "[submit:lock] mempool waiting" << std::endl;
+            CZR_NODE_TRACE("[submit:lock] mempool waiting");
             std::lock_guard<std::mutex> mempool_lock(mempool_mutex_);
             const auto mempool_wait_ms =
                 std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::steady_clock::now() - mempool_wait_start).count();
-            std::cerr << "[submit:lock] mempool acquired wait_ms="
-                      << mempool_wait_ms << std::endl;
+            CZR_NODE_TRACE("[submit:lock] mempool acquired wait_ms="
+                      << mempool_wait_ms);
 
-            std::cerr << "[submit:1] storage.load begin" << std::endl;
+            CZR_NODE_TRACE("[submit:1] storage.load begin");
             auto current_chain = storage_.load();
-            std::cerr << "[submit:2] storage.load done blocks="
-                      << current_chain.size() << std::endl;
+            CZR_NODE_TRACE("[submit:2] storage.load done blocks="
+                      << current_chain.size());
 
             if (current_chain.empty())
                 throw std::runtime_error(
@@ -555,54 +591,52 @@ void mine_one_block(const std::string& miner_recipient,
             const Block& previous = current_chain.back();
 
             if (candidate.header.previous_hash != previous.hash()) {
-                std::cerr << "[FAIL-PREVHASH]" << std::endl;
+                CZR_NODE_TRACE("[FAIL-PREVHASH]");
                 return false;
             }
 
             if (candidate.header.height !=
                 previous.header.height + 1) {
-                std::cerr << "[FAIL-HEIGHT] cand="
+                CZR_NODE_TRACE("[FAIL-HEIGHT] cand="
                           << candidate.header.height
                           << " want="
-                          << (previous.header.height + 1)
-                          << std::endl;
+                          << (previous.header.height + 1));
                 return false;
             }
 
-            std::cerr << "[submit:3] validate_pow begin" << std::endl;
+            CZR_NODE_TRACE("[submit:3] validate_pow begin");
             const bool submit_pow_ok = candidate.validate_pow();
-            std::cerr << "[submit:4] validate_pow done ok="
-                      << submit_pow_ok << std::endl;
+            CZR_NODE_TRACE("[submit:4] validate_pow done ok="
+                      << submit_pow_ok);
             if (!submit_pow_ok) {
-                std::cerr << "FAILPOW h="
-                          << candidate.header.height
-                          << std::endl;
+                CZR_NODE_TRACE("FAILPOW h="
+                          << candidate.header.height);
                 return false;
             }
 
-            std::cerr << "[submit:5] rebuild_utxo begin" << std::endl;
+            CZR_NODE_TRACE("[submit:5] rebuild_utxo begin");
             const UTXOSet previous_utxos =
                 rebuild_utxo_set(current_chain);
-            std::cerr << "[submit:6] rebuild_utxo done" << std::endl;
+            CZR_NODE_TRACE("[submit:6] rebuild_utxo done");
 
-            std::cerr << "[submit:7] consensus begin" << std::endl;
+            CZR_NODE_TRACE("[submit:7] consensus begin");
             const bool submit_consensus_ok = validate_block_consensus(
                     candidate, current_chain, previous_utxos);
-            std::cerr << "[submit:8] consensus done ok="
-                      << submit_consensus_ok << std::endl;
+            CZR_NODE_TRACE("[submit:8] consensus done ok="
+                      << submit_consensus_ok);
             if (!submit_consensus_ok) {
                 return false;
             }
 
             const auto append_start = std::chrono::steady_clock::now();
-            std::cerr << "[submit:9] append begin height="
-                      << candidate.header.height << std::endl;
+            CZR_NODE_TRACE("[submit:9] append begin height="
+                      << candidate.header.height);
             storage_.append(candidate);
             const auto append_ms =
                 std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::steady_clock::now() - append_start).count();
-            std::cerr << "[submit:10] append done duration_ms="
-                      << append_ms << std::endl;
+            CZR_NODE_TRACE("[submit:10] append done duration_ms="
+                      << append_ms);
             chain_cache_valid_ = false;
             mempool_.clear();
         }
@@ -611,11 +645,11 @@ void mine_one_block(const std::string& miner_recipient,
          * Relay only after all chain/mempool locks are released.
          * announce_block() may acquire relay/storage-related locks.
          */
-        std::cerr << "[submit:11] relay begin" << std::endl;
+        CZR_NODE_TRACE("[submit:11] relay begin");
         relay_.announce_block(candidate);
-        std::cerr << "[submit:12] relay done" << std::endl;
+        CZR_NODE_TRACE("[submit:12] relay done");
 
-        std::cerr << "[submit] returning true" << std::endl;
+        CZR_NODE_TRACE("[submit] returning true");
         return true;
     }
 
