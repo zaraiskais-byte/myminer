@@ -41,7 +41,7 @@ namespace caesar {
  * must not rely on side effects inside the argument list.
  */
 #ifdef CZR_NODE_TRACE_ENABLED
-#define CZR_NODE_TRACE(expr) do { CZR_NODE_TRACE(expr); } while (0)
+#define CZR_NODE_TRACE(expr) do { std::cerr << expr << std::endl; } while (0)
 #else
 #define CZR_NODE_TRACE(expr) do { } while (0)
 #endif
