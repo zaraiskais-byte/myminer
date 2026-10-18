@@ -2330,6 +2330,7 @@ class HttpRpcServer {
           session_file_(data_dir / "session.txt") {
 
         std::ifstream sf(session_file_);
+            pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
 
         if (sf) std::getline(sf, session_token_);
 
