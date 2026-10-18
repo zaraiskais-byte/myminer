@@ -2275,10 +2275,13 @@ window.unlock = function(ev){
   var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
-  fetch('/api/auth/unlock', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({pin: pin})
+  fetch('/api/auth/status', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(st){
+    var ep = (st && st.has_pin === false) ? '/api/auth/setup' : '/api/auth/unlock';
+    return fetch(ep, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pin: pin})
+    });
   }).then(function(r){ return r.json(); }).then(function(d){
     if (d && (d.status === 'ok' || d.unlocked === true)) {
       if (msgEl) msgEl.textContent = '';
@@ -3921,10 +3924,13 @@ window.unlock = function(ev){
   var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
-  fetch('/api/auth/unlock', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({pin: pin})
+  fetch('/api/auth/status', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(st){
+    var ep = (st && st.has_pin === false) ? '/api/auth/setup' : '/api/auth/unlock';
+    return fetch(ep, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pin: pin})
+    });
   }).then(function(r){ return r.json(); }).then(function(d){
     if (d && (d.status === 'ok' || d.unlocked === true)) {
       if (msgEl) msgEl.textContent = '';
@@ -8103,10 +8109,13 @@ window.unlock = function(ev){
   var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
-  fetch('/api/auth/unlock', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({pin: pin})
+  fetch('/api/auth/status', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(st){
+    var ep = (st && st.has_pin === false) ? '/api/auth/setup' : '/api/auth/unlock';
+    return fetch(ep, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pin: pin})
+    });
   }).then(function(r){ return r.json(); }).then(function(d){
     if (d && (d.status === 'ok' || d.unlocked === true)) {
       if (msgEl) msgEl.textContent = '';
@@ -12087,10 +12096,13 @@ window.unlock = function(ev){
   var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
-  fetch('/api/auth/unlock', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({pin: pin})
+  fetch('/api/auth/status', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(st){
+    var ep = (st && st.has_pin === false) ? '/api/auth/setup' : '/api/auth/unlock';
+    return fetch(ep, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pin: pin})
+    });
   }).then(function(r){ return r.json(); }).then(function(d){
     if (d && (d.status === 'ok' || d.unlocked === true)) {
       if (msgEl) msgEl.textContent = '';
