@@ -8948,13 +8948,6 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                                 "application/json");
                 return;
             }
-            /* CZR-ADDR-CHECK */
-            if (addr.empty() || addr.rfind("CZ", 0) != 0) {
-                res.status = 400;
-                res.set_content("{\"ok\":false,\"error\":\"valid address required\"}",
-                                "application/json");
-                return;
-            }
             std::string job_header_hex;
             Block solved;
             std::size_t job_height = 0;
