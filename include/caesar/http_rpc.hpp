@@ -7259,7 +7259,7 @@ async function send(){
 
   if(r.status==='ok'){toast('Sent! txid: '+(r.txid||'').slice(0,16)+'...');$('sendTo').value='';$('sendAmt').value='';await refreshWallet()}
 
-  else toast('Failed: '+(r.error||'unknown'));
+  else toast('Failed: '+(r.error||('HTTP '+(r._status||'?')+' '+String(r._raw||'').slice(0,80))));
 
 }
 
@@ -11384,7 +11384,7 @@ async function send(){
 
   if(r.status==='ok'){toast('Sent! txid: '+(r.txid||'').slice(0,16)+'...');$('sendTo').value='';$('sendAmt').value='';await refreshWallet()}
 
-  else toast('Failed: '+(r.error||'unknown'));
+  else toast('Failed: '+(r.error||('HTTP '+(r._status||'?')+' '+String(r._raw||'').slice(0,80))));
 
 }
 
