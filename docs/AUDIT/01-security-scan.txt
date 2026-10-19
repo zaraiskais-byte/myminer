@@ -1,0 +1,152 @@
+================================================================================
+CZR AUDIT - PHASE 1: AUTOMATED SECURITY PATTERN SCAN
+Date: 2026-10-16T14:38:05Z
+Commit: cacc521e01a2899244389a1ead1df70ee48a133b
+================================================================================
+
+===== 1. Command execution / shell injection patterns =====
+  NONE
+
+===== 2. Unsafe memory / string operations =====
+  NONE
+
+===== 3. memcpy/memmove without size bounds nearby =====
+
+===== 4. C-style casts and reinterpret_cast =====
+fuzz/crypto_fuzzer.cpp:13:        std::string input(reinterpret_cast<const char*>(data), size);
+include/caesar/bip39.hpp:87:            reinterpret_cast<const unsigned char*>(salt.data()),
+include/caesar/blockchain_storage.hpp:401:        out.write(reinterpret_cast<const char*>(data.data()),
+include/caesar/blockchain_storage.hpp:419:        in.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size()));
+include/caesar/blockchain_storage.hpp:427:        in.read(reinterpret_cast<char*>(stored_checksum.data()),
+include/caesar/crypto.hpp:52:    data.append(reinterpret_cast<const char*>(left.data()), left.size());
+include/caesar/crypto.hpp:53:    data.append(reinterpret_cast<const char*>(right.data()), right.size());
+include/caesar/otp_auth.hpp:77:        if (RAND_bytes(reinterpret_cast<unsigned char*>(&value), sizeof(value)) != 1) {
+include/caesar/p2p_tcp.hpp:109:        if (::bind(new_fd, reinterpret_cast<sockaddr*>(&server), sizeof(server)) < 0) {
+include/caesar/p2p_tcp.hpp:149:        if (::getpeername(current, reinterpret_cast<sockaddr*>(&peer), &peer_len) < 0) {
+include/caesar/p2p_tcp.hpp:173:        if (::getpeername(current, reinterpret_cast<sockaddr*>(&peer), &peer_len) < 0) {
+include/caesar/p2p_tcp.hpp:255:        if (::connect(new_fd, reinterpret_cast<sockaddr*>(&server), sizeof(server)) < 0) {
+include/caesar/persistent_wallet.hpp:170:            reinterpret_cast<std::uint8_t*>(mem->data),
+include/caesar/persistent_wallet.hpp:171:            reinterpret_cast<std::uint8_t*>(mem->data) + mem->length);
+include/caesar/secure_wallet.hpp:72:        out.write(reinterpret_cast<const char*>(salt.data()), SALT_LEN);
+include/caesar/secure_wallet.hpp:73:        out.write(reinterpret_cast<const char*>(iv.data()), IV_LEN);
+include/caesar/secure_wallet.hpp:74:        out.write(reinterpret_cast<const char*>(tag.data()), TAG_LEN);
+include/caesar/secure_wallet.hpp:75:        out.write(reinterpret_cast<const char*>(ciphertext.data()), total);
+include/caesar/secure_wallet.hpp:84:        if (!in.read(reinterpret_cast<char*>(salt.data()), SALT_LEN) ||
+include/caesar/secure_wallet.hpp:85:            !in.read(reinterpret_cast<char*>(iv.data()), IV_LEN) ||
+include/caesar/secure_wallet.hpp:86:            !in.read(reinterpret_cast<char*>(tag.data()), TAG_LEN)) {
+include/caesar/serialization.hpp:102:        std::string result(reinterpret_cast<const char*>(data_.data() + position_), size);
+include/caesar/serialization.hpp:128:    return std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+include/caesar/signature.hpp:107:                       reinterpret_cast<const unsigned char*>(message.data()),
+include/caesar/signature.hpp:116:                       reinterpret_cast<const unsigned char*>(message.data()),
+include/caesar/signature.hpp:147:                         reinterpret_cast<const unsigned char*>(message.data()), message.size());
+include/caesar/wallet_auth.hpp:50:    f.write(reinterpret_cast<const char*>(salt.data()), salt.size());
+include/caesar/wallet_auth.hpp:62:    if (!f.read(reinterpret_cast<char*>(salt.data()),
+src/pool_worker.cpp:50:    if (::connect(fd, reinterpret_cast<sockaddr*>(&addr), sizeof addr) < 0) {
+
+===== 5. Raw new/delete (potential leaks) =====
+
+===== 6. Exception swallowing (empty catch blocks) =====
+include/caesar/http_rpc.hpp:1457:  }catch(e){}
+include/caesar/http_rpc.hpp:1513:      .catch(function(){});
+include/caesar/http_rpc.hpp:1826:  }catch(e){}
+include/caesar/http_rpc.hpp:1862:  }catch(e){}
+include/caesar/http_rpc.hpp:2174:    try { storedVisitor = localStorage.getItem('czr_visitor_address') || ''; } catch(e){}
+include/caesar/http_rpc.hpp:2186:      try { refreshStatus(); } catch(e){}
+include/caesar/http_rpc.hpp:2188:      try { refreshWallet(); } catch(e){}
+include/caesar/http_rpc.hpp:2288:      if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
+include/caesar/http_rpc.hpp:3933:      if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
+include/caesar/http_rpc.hpp:4375:try{a=localStorage.getItem('czr_address')||'';}catch(e){}
+include/caesar/http_rpc.hpp:4427:}catch(e){}
+include/caesar/http_rpc.hpp:5835:  }catch(e){}
+include/caesar/http_rpc.hpp:5847:    try{ if(localStorage.getItem(k)!=='1') localStorage.setItem(k,'1'); }catch(e){}
+include/caesar/http_rpc.hpp:5851:}catch(e){}
+include/caesar/http_rpc.hpp:5861:    try{ if(localStorage.getItem(k)!=='1') localStorage.setItem(k,'1'); }catch(e){}
+include/caesar/http_rpc.hpp:5865:}catch(e){}
+include/caesar/http_rpc.hpp:5908:window.onerror=function(m,u,l,cc,e){try{alert('JS_ERROR: '+m+' Line:'+l+' Col:'+cc);}catch(x){}return false;};
+include/caesar/http_rpc.hpp:5910:window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.message||'')+' '+(e.filename||''));}catch(x){}});
+include/caesar/http_rpc.hpp:5925:  }catch(e){}
+include/caesar/http_rpc.hpp:6666:function vib(ms){try{navigator.vibrate&&navigator.vibrate(ms||10)}catch(e){}}
+include/caesar/http_rpc.hpp:6715:  function log(s,c){ try{console.log(s);}catch(e){} if(c==='#f85149'){ dbg.style.display='block'; dbg.style.color=c; dbg.textContent=s; } else { dbg.style.display='none'; } }
+include/caesar/http_rpc.hpp:6802:  try { if (typeof startPolling === 'function') startPolling(); } catch(e){}
+include/caesar/http_rpc.hpp:6804:  try { if (typeof refreshAll === 'function') refreshAll(); } catch(e){}
+include/caesar/http_rpc.hpp:7878:  }catch(e){}
+include/caesar/http_rpc.hpp:7938:  try{ localStorage.setItem('czr_welcome_seen', '1'); }catch(e){}
+include/caesar/http_rpc.hpp:7950:  }catch(e){}
+include/caesar/http_rpc.hpp:8007:<script>try{if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){try{r.unregister();}catch(e){}});});}if(window.caches&&caches.keys){caches.keys().then(function(keys){keys.forEach(function(k){try{caches.delete(k);}catch(e){}});});}}catch(e){}</script>
+include/caesar/http_rpc.hpp:8069:    }catch(e){}
+include/caesar/http_rpc.hpp:8115:      if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
+include/caesar/http_rpc.hpp:10333:    try{ if(el){ el.textContent = text; el.style.background = bg; } }catch(e){}
+include/caesar/http_rpc.hpp:10338:      try { console.log('[CZR badge] ignored SyntaxError:', __msg); } catch(_){}
+include/caesar/http_rpc.hpp:10935:    }catch(_){}
+include/caesar/http_rpc.hpp:10937:}catch(_){}
+include/caesar/http_rpc.hpp:10990:function vib(ms){try{navigator.vibrate&&navigator.vibrate(ms||10)}catch(e){}}
+include/caesar/http_rpc.hpp:11838:  try { if (typeof startPolling === 'function') startPolling(); } catch(e){}
+include/caesar/http_rpc.hpp:11840:  try { if (typeof refreshAll === 'function') refreshAll(); } catch(e){}
+include/caesar/http_rpc.hpp:11886:    try { addr = localStorage.getItem('czr_address') || ''; } catch(e){}
+include/caesar/http_rpc.hpp:11902:            try { localStorage.setItem('czr_address', a); } catch(e){}
+include/caesar/http_rpc.hpp:11910:        .catch(function(){});
+include/caesar/http_rpc.hpp:11976:    }catch(e){}
+include/caesar/http_rpc.hpp:12044:      .catch(function(){});
+include/caesar/http_rpc.hpp:12065:          try { if(typeof startPolling === 'function') startPolling(); } catch(e){}
+include/caesar/http_rpc.hpp:12066:          try { if(typeof refreshAll === 'function') refreshAll(); } catch(e){}
+include/caesar/http_rpc.hpp:12067:          try { if(typeof refreshWallet === 'function') refreshWallet(); } catch(e){}
+include/caesar/http_rpc.hpp:12070:      .catch(function(){});
+include/caesar/http_rpc.hpp:12099:      if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
+
+===== 7. catch(...) blocks =====
+
+===== 8. Potentially dangerous crypto: fixed IVs, weak rand =====
+  NONE
+
+===== 9. Hardcoded secrets / keys / passwords =====
+src/auth_google.cpp:142:            "&client_secret=" + client_secret +
+
+===== 10. HTTP auth checks — where is_authenticated is called =====
+include/caesar/http_rpc.hpp:2900:    bool is_authenticated(const httplib::Request& req) const {
+include/caesar/http_rpc.hpp:3084:            bool unlocked = is_authenticated(req);
+include/caesar/http_rpc.hpp:8194:        if (!is_authenticated(req)) {
+include/caesar/http_rpc.hpp:8258:            if (!is_authenticated(req)) {
+include/caesar/http_rpc.hpp:8352:            if (!is_authenticated(req)) {
+include/caesar/http_rpc.hpp:8412:            if (!is_authenticated(req)) {
+include/caesar/http_rpc.hpp:9313:            if (!is_authenticated(req)) {
+include/caesar/http_rpc.hpp:9351:            if (!is_authenticated(req)) {
+include/caesar/http_rpc.hpp:12161:            if (!is_authenticated(req)) {
+include/caesar/http_rpc.hpp:13036:            if (!is_authenticated(req)) {
+
+===== 11. Mutex usage density (top 10 files) =====
+  44  include/caesar/http_rpc.hpp
+  36  include/caesar/p2p_relay.hpp
+  35  include/caesar/node.hpp
+  23  include/caesar/p2p_peer_manager.hpp
+  12  include/caesar/p2p_server.hpp
+   4  include/caesar/smtp_sender.hpp
+   4  include/caesar/rate_limiter.hpp
+   3  include/caesar/otp_auth.hpp
+   2  include/caesar/p2p_connection.hpp
+
+===== 12. Shared mutable global state =====
+
+===== 13. File I/O without std::filesystem (raw fopen) =====
+
+===== 14. Environment variables read =====
+  NONE
+
+===== 15. Network binding to 0.0.0.0 (unrestricted) =====
+include/caesar/http_rpc.hpp:2398:            const bool ok = server_.listen("0.0.0.0", port_);
+include/caesar/node.hpp:117:        server_.start(p2p_port_, "0.0.0.0", network_id_, chain.back().header.height);
+include/caesar/p2p_server.hpp:38:    void start(std::uint16_t port, const std::string& address = "0.0.0.0",
+include/caesar/p2p_server.hpp:124:                (listen_address != "0.0.0.0" &&
+include/caesar/p2p_tcp.hpp:83:    void listen_on(std::uint16_t port, const std::string& address = "0.0.0.0") {
+tests/p2p_peer_discovery_test.cpp:108:            make_peers_frame({{"0.0.0.0", 18444}});
+
+===== 16. Commented-out code blocks (>3 consecutive //) =====
+  43  include/caesar/http_rpc.hpp
+
+===== 17. TODO/FIXME/HACK/XXX markers =====
+
+===== 18. Unsigned underflow risks (subtraction on size_t) =====
+
+===== 19. Integer narrowing casts =====
+38
+
+===== 20. sleep/blocking calls in request handlers =====
