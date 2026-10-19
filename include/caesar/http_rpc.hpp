@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_set>
 #include <queue>
 
 #include <functional>
@@ -8941,6 +8942,12 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
              * performing pool_state disk I/O.
              */
 
+            if (addr.empty() || addr.rfind("CZ", 0) != 0) {
+                res.status = 400;
+                res.set_content("{\"ok\":false,\"error\":\"valid address required\"}",
+                                "application/json");
+                return;
+            }
             std::string job_header_hex;
             Block solved;
             std::size_t job_height = 0;
@@ -9028,6 +9035,22 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                     return;
                 }
 
+                {
+                    static std::uint64_t dup_seen_job = 0;
+                    static std::unordered_set<std::string> dup_seen;
+                    if (dup_seen_job != current_job_id) {
+                        dup_seen.clear();
+                        dup_seen_job = current_job_id;
+                    }
+                    const std::string dup_key = addr + ":" + std::to_string(nonce);
+                    if (!dup_seen.insert(dup_key).second) {
+                        std::cerr << "[pool] duplicate share rejected nonce=" << nonce << std::endl;
+                        res.set_content(
+                            "{\"ok\":true,\"credited\":false,\"duplicate\":true}",
+                            "application/json");
+                        return;
+                    }
+                }
                 auto& worker_info = g_pool_workers[addr];
                 if (worker_info.address.empty())
                     worker_info.address = addr;
@@ -9058,6 +9081,9 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                     g_pool_owner_share_accum++;
 
                     if (g_pool_owner_share_accum >= 4) {
+                        g_pool_workers[pool_owner].address = pool_owner;
+                        if (g_pool_workers[pool_owner].worker_name.empty())
+                            g_pool_workers[pool_owner].worker_name = "pool-owner";
                         g_pool_workers[pool_owner].shares++;
                         g_pool_workers[pool_owner].shares_pending++;
                         g_pool_workers[pool_owner].last_seen =
