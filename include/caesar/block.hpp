@@ -433,8 +433,8 @@ inline std::uint32_t expected_difficulty_at_position(const std::vector<Block>& c
     // phase. There is currently no height or time condition that
     // returns control to adjust_difficulty_window(). Changing the
     // value of 8 is a consensus fork.
-    if (position >= 40) {
-        return 8;
+    if (position >= 17) {
+        return 14;
     }
 
     if (position == 0 || position > chain.size())
