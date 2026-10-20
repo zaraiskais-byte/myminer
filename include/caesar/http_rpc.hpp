@@ -11336,7 +11336,7 @@ async function mine(){
 
   vib(20);
 
-  const r=await api('/api/mine_default',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:(localStorage.getItem('czr_address')||'')})});
+  const r=await api('/api/mine_default',{method:'POST',headers:{'Content-Type':'application/json'}});
 
   if(r.status==='ok'){toast('Mined! Height: '+r.height);await refreshWallet()}
 
