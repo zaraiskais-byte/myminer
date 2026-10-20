@@ -7222,7 +7222,7 @@ async function mine(){
 
   if(r.status==='ok'){
 
-    toast('Mined! Height: '+r.height);
+    toast('Mining started - a block can take several minutes');
 
     await refreshWallet();
 
@@ -11338,9 +11338,9 @@ async function mine(){
 
   const r=await api('/api/mine_default',{method:'POST',headers:{'Content-Type':'application/json'}});
 
-  if(r.status==='ok'){toast('Mined! Height: '+r.height);await refreshWallet()}
+  if(r.status==='ok'){toast('Mining started - a block can take several minutes');await refreshWallet()}
 
-  else toast('Failed: '+(r.error||'unknown'));
+  else if(r.status==='busy'){toast('Mining already in progress, please wait');} else toast('Failed: '+(r.error||'unknown'));
 
 }
 
