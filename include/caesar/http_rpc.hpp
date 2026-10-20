@@ -2919,8 +2919,6 @@ class HttpRpcServer {
 
 
     bool is_authenticated(const httplib::Request& req) const {
-            /* CZR-DEV-BYPASS */
-            if (std::getenv("CZR_DEV_NO_AUTH")) return true;
 
         std::lock_guard<std::mutex> lk(auth_mutex_);
 
