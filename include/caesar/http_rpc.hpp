@@ -8935,6 +8935,16 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
 
             }
 
+
+            /* CZR-AUTO-PAYOUT: rate-limited call, at most once per 60s */
+            {
+                static std::atomic<std::int64_t> czr_last_auto_ms{0};
+                const std::int64_t czr_now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+                std::int64_t czr_prev = czr_last_auto_ms.load();
+                if (czr_now_ms - czr_prev >= 60000 && czr_last_auto_ms.compare_exchange_strong(czr_prev, czr_now_ms)) {
+                    try { pool_maybe_auto_payout(); } catch (...) {}
+                }
+            }
             /*
              * POOL LOCK RULE:
              * Never hold g_pool_mutex while calling Node methods or
