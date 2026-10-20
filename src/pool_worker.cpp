@@ -1,3 +1,4 @@
+// Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 // Caesar CZR pool worker client
 #include <arpa/inet.h>
 #include <netinet/in.h>

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 /*
  * C7-2 regression test: slowloris against the handshake path.
  *
