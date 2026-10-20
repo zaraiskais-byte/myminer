@@ -2475,7 +2475,7 @@ class HttpRpcServer {
 
         for (auto& kv : g_pool_workers) {
 
-            if (kv.second.shares_pending > 0) {
+            if (kv.second.shares_pending > 0 && !kv.first.empty()) { /* CZR-SKIP-EMPTY */
 
                 total_pending += kv.second.shares_pending;
 
@@ -2695,7 +2695,7 @@ class HttpRpcServer {
 
         if (pending == 0) return;
 
-        PoolPayoutResult r = pool_execute_payout();
+        PoolPayoutResult r = pool_execute_payout(); if (!r.ok) std::cerr << "[pool-auto] payout failed: " << r.error << std::endl; /* CZR-PAYOUT-LOG */
 
         if (r.ok) {
               {
@@ -9335,7 +9335,7 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                 res.set_content("{\"error\":\"unauthorized\"}", "application/json");
                 return;
             }
-            PoolPayoutResult r = pool_execute_payout();
+            PoolPayoutResult r = pool_execute_payout(); if (!r.ok) std::cerr << "[pool-auto] payout failed: " << r.error << std::endl; /* CZR-PAYOUT-LOG */
             std::ostringstream out;
             out << "{\"ok\":" << (r.ok ? "true" : "false")
                 << ",\"error\":\"" << r.error << "\""
