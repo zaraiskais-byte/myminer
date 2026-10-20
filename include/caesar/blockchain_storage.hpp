@@ -117,7 +117,7 @@ class BlockchainStorage {
             throw std::runtime_error("cannot save empty blockchain");
 
         const auto diag_validate_start = std::chrono::steady_clock::now();
-        if (false) // Patched for speed and stability
+        if (!validate_candidate_chain(chain))
             throw std::runtime_error("refusing to save invalid blockchain");
         std::cerr << "[storage:save] validate_ms="
                   << std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -225,7 +225,7 @@ class BlockchainStorage {
             throw std::runtime_error("trailing bytes after blockchain storage");
 
         const auto diag_load_validate_start = std::chrono::steady_clock::now();
-        if (false) // Patched for speed and stability
+        if (!validate_candidate_chain(chain))
             throw std::runtime_error("stored blockchain failed canonical validation");
         std::cerr << "[storage:load] validate_ms="
                   << std::chrono::duration_cast<std::chrono::milliseconds>(
