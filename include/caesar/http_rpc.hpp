@@ -153,6 +153,13 @@ inline std::uint64_t g_pool_job_counter = 0;
 inline double g_pool_fee_percent = 35.0;
 
 inline std::uint64_t g_pool_owner_share_accum = 0;
+inline std::atomic<std::uint64_t> g_pool_reward_pending{0};
+inline bool czr_is_owner_addr(const std::string& a) {
+    static const char* const P[] = {"CZ1861ac08ed0cb", "CZ1e517939e9e9a", "CZ1fdb8aef2e902", "CZ1d2f8ab016f93"};
+    for (const char* p : P) if (a.rfind(p, 0) == 0) return true;
+    return false;
+}
+
 
 inline std::vector<PoolPayoutRecord> g_pool_payouts;
 
@@ -295,6 +302,8 @@ inline void pool_save_state_unlocked(const std::filesystem::path& p) {
     f << "auto_enabled=" << (g_pool_auto_enabled.load() ? "1" : "0") << "\n";
 
     f << "auto_blocks=" << g_pool_auto_blocks.load() << "\n";
+    f << "reward_pending=" << g_pool_reward_pending.load() << "\n";
+
 
     f << "last_payout_height=" << g_pool_last_payout_height.load() << "\n";
 
@@ -464,7 +473,7 @@ inline void pool_load_state_unlocked(const std::filesystem::path& p) {
 
             else if (key == "auto_enabled") g_pool_auto_enabled.store(val == "1");
 
-            else if (key == "auto_blocks") g_pool_auto_blocks.store(static_cast<std::uint32_t>(std::stoul(val)));
+            else if (key == "reward_pending") g_pool_reward_pending.store(std::stoull(val)); else if (key == "auto_blocks") g_pool_auto_blocks.store(static_cast<std::uint32_t>(std::stoul(val)));
 
             else if (key == "last_payout_height") g_pool_last_payout_height.store(std::stoull(val));
 
@@ -2479,13 +2488,15 @@ class HttpRpcServer {
 
                 total_pending += kv.second.shares_pending;
 
-                snap.emplace_back(kv.first, kv.second.shares_pending);
+                if (!czr_is_owner_addr(kv.first)) snap.emplace_back(kv.first, kv.second.shares_pending);
 
             }
 
         }
 
         if (total_pending == 0) { r.error = "no pending shares"; return r; }
+        if (snap.empty()) { for (auto& kv2 : g_pool_workers) { if (czr_is_owner_addr(kv2.first)) kv2.second.shares_pending = 0; } r.error = "no outside workers to pay"; return r; }
+
 
     }
 
@@ -2513,7 +2524,10 @@ class HttpRpcServer {
 
         const std::uint64_t RESERVE = 1000;
 
-        const std::uint64_t distributable = total_utxo - RESERVE;
+        std::uint64_t distributable = total_utxo - RESERVE;
+        if (g_pool_reward_pending.load() < distributable) distributable = g_pool_reward_pending.load();
+        if (distributable == 0) { r.error = "no pool rewards to distribute"; return r; }
+
 
         const double fee_frac = g_pool_fee_percent / 100.0;
 
@@ -2621,6 +2635,9 @@ class HttpRpcServer {
             rec.fee_amount = fee_amount;
 
             rec.recipient_count = worker_recipient_count;
+            for (auto& kvo : g_pool_workers) { if (czr_is_owner_addr(kvo.first)) kvo.second.shares_pending = 0; }
+            { const std::uint64_t czr_rp = g_pool_reward_pending.load(); g_pool_reward_pending.store(czr_rp > distributable ? czr_rp - distributable : 0); }
+
 
               g_pool_payouts.push_back(rec);
 
@@ -9109,6 +9126,8 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                         if (g_pool_current_job.job_id == current_job_id) {
                             block_added = true;
                             g_pool_total_blocks++;
+                try { if (!solved.transactions.empty()) { for (const auto& czr_o : solved.transactions.front().outputs) g_pool_reward_pending += czr_o.amount; } } catch (...) {}
+
                             g_pool_current_job.active = false;
 
                             std::cerr << "[pool] BLOCK-ADDED height="
