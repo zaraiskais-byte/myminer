@@ -69,28 +69,14 @@ jobs:
           chmod +x ../jniLibs/arm64-v8a/libcaesar_web.so
           file ../jniLibs/arm64-v8a/libcaesar_web.so
 
-      - name: Restore or create release keystore
+      - name: Restore release keystore from secret
         run: |
-          set -e
           mkdir -p android/keystore
-          if [ ! -f android/keystore/caesar-release.keystore ]; then
-            keytool -genkeypair -v \
-              -keystore android/keystore/caesar-release.keystore \
-              -alias caesar -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass caesar123 -keypass caesar123 \
-              -dname "CN=Caesar CZR, OU=Wallet, O=Caesar, L=Tripoli, C=LY"
-          fi
+          echo "${{ secrets.CZR_KEYSTORE_B64 }}" | base64 -d > android/keystore/caesar-release.keystore
           echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/android/keystore/caesar-release.keystore" >> $GITHUB_ENV
-          echo "KEYSTORE_PASSWORD=caesar123" >> $GITHUB_ENV
-          echo "KEY_ALIAS=caesar" >> $GITHUB_ENV
-          echo "KEY_PASSWORD=caesar123" >> $GITHUB_ENV
-
-      - name: Build Release APK
-        run: |
-          set -e
-          cd android
-          echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
-          gradle clean assembleRelease --no-daemon --no-build-cache
+          echo "KEYSTORE_PASSWORD=${{ secrets.CZR_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=${{ secrets.CZR_KEY_PASSWORD }}" >> $GITHUB_ENV
+          echo "KEY_ALIAS=${{ secrets.CZR_KEY_ALIAS }}" >> $GITHUB_ENV
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
