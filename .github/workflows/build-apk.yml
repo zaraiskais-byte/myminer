@@ -1,6 +1,8 @@
 name: Build APK
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 on:
   workflow_dispatch:
@@ -78,11 +80,35 @@ jobs:
           echo "KEY_PASSWORD=${{ secrets.CZR_KEY_PASSWORD }}" >> $GITHUB_ENV
           echo "KEY_ALIAS=${{ secrets.CZR_KEY_ALIAS }}" >> $GITHUB_ENV
 
+      - name: Build release APK
+        run: |
+          set -e
+          cd android
+          gradle assembleRelease --no-daemon --stacktrace
+
+      - name: Verify signature and create checksums
+        run: |
+          set -e
+          cd android/app/build/outputs/apk/release
+          ls -la
+          APKSIGNER=$ANDROID_HOME/build-tools/34.0.0/apksigner
+          for f in *.apk; do "$APKSIGNER" verify --print-certs "$f"; done
+          sha256sum *.apk > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: android/app/build/outputs/apk/release/*.apk
+        continue-on-error: true
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: android/app/build/outputs/apk/release/*.apk
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/apk/release/SHA256SUMS.txt
           if-no-files-found: error
 
       - name: Publish APK to GitHub Releases
@@ -90,7 +116,9 @@ jobs:
         with:
           tag_name: v3.0.${{ github.run_number }}
           name: Caesar CZR v3.0.${{ github.run_number }}
-          files: android/app/build/outputs/apk/release/*.apk
+          files: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/apk/release/SHA256SUMS.txt
           make_latest: true
           token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
