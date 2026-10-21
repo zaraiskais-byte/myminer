@@ -2976,7 +2976,7 @@ class HttpRpcServer {
 
         // Exact-origin match: do not allow arbitrary Tailscale hosts.
 
-        if (origin == "https://tailscale-termux.tail57075d.ts.net") {
+        if (origin == "https://czr-node.taila0a431.ts.net") {
 
             return true;
 
@@ -4382,7 +4382,7 @@ var q2=document.getElementById('qr');
 
 if(q2)q2.src='/api/wallet/qr.svg?address='+encodeURIComponent(a)+'&_t='+Date.now();
 
-var l='https://tailscale-termux.tail57075d.ts.net/?ref='+a;
+var l='https://czr-node.taila0a431.ts.net/?ref='+a;
 
 var c=document.getElementById('circleLink');if(c)c.value=l;
 
@@ -7813,7 +7813,7 @@ function getMyInviteLink(){
 
   const base = location.origin + location.pathname;
 
-  return 'https://tailscale-termux.tail57075d.ts.net' + '/?ref=' + a;
+  return 'https://czr-node.taila0a431.ts.net' + '/?ref=' + a;
 
 }
 
@@ -11966,11 +11966,11 @@ function confirmMnemonic(){
 
     var il = document.getElementById('circleLink');
 
-    if (il && !il.value) il.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr;
+    if (il && !il.value) il.value = 'https://czr-node.taila0a431.ts.net/?ref=' + addr;
 
     var wl = document.getElementById('welcomeLink');
 
-    if (wl && !wl.value) wl.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr;
+    if (wl && !wl.value) wl.value = 'https://czr-node.taila0a431.ts.net/?ref=' + addr;
 
   }
 
