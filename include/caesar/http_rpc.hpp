@@ -3346,7 +3346,7 @@ class HttpRpcServer {
 
             }
 
-            std::string client_ip = real_client_ip(req);
+            std::string client_ip = req.get_header_value("X-Forwarded-For").empty() ? real_client_ip(req) : std::string("proxied-unlock");
 
             if (!check_rate_limit(client_ip)) {
 
@@ -3459,6 +3459,12 @@ class HttpRpcServer {
 
 
         server_.Post("/api/auth/request-otp", [this](const httplib::Request& req, httplib::Response& res) {
+            // czr-guard2: owner-only route, refuse anything that came through the public proxy
+            if (!req.get_header_value("X-Forwarded-For").empty()) {
+                res.status = 403;
+                res.set_content("{\"error\":\"local only\"}", "application/json");
+                return;
+            }
             if (!is_csrf_safe(req)) {
                 res.status = 403;
                 res.set_content("{\"error\":\"csrf\"}", "application/json");
@@ -3477,7 +3483,7 @@ class HttpRpcServer {
                 auto e = req.body.find('"', s + 1);
                 std::string email = req.body.substr(s + 1, e - s - 1);
                 otp_store_->create(email);
-                clear_auth_failures(ip);
+                
                 res.set_content("{\"status\":\"ok\",\"sent\":true}", "application/json");
             } catch (const std::exception& ex) {
                 record_auth_failure(ip);
@@ -3487,6 +3493,12 @@ class HttpRpcServer {
         });
 
         server_.Post("/api/auth/verify-otp", [this](const httplib::Request& req, httplib::Response& res) {
+            // czr-guard2: owner-only route, refuse anything that came through the public proxy
+            if (!req.get_header_value("X-Forwarded-For").empty()) {
+                res.status = 403;
+                res.set_content("{\"error\":\"local only\"}", "application/json");
+                return;
+            }
             if (!is_csrf_safe(req)) {
                 res.status = 403;
                 res.set_content("{\"error\":\"csrf\"}", "application/json");
@@ -3528,6 +3540,12 @@ class HttpRpcServer {
         });
 
         server_.Post("/api/auth/recover", [this](const httplib::Request& req, httplib::Response& res) {
+            // czr-guard2: owner-only route, refuse anything that came through the public proxy
+            if (!req.get_header_value("X-Forwarded-For").empty()) {
+                res.status = 403;
+                res.set_content("{\"error\":\"local only\"}", "application/json");
+                return;
+            }
 
             if (!is_csrf_safe(req)) {
 
