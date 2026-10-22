@@ -2990,6 +2990,18 @@ class HttpRpcServer {
 
 
 
+    // czr-guard: real client address behind the Funnel proxy (the last entry is added by the proxy)
+    static std::string real_client_ip(const httplib::Request& req) {
+        std::string xff = req.get_header_value("X-Forwarded-For");
+        if (!xff.empty()) {
+            auto c = xff.rfind(',');
+            std::string last = (c == std::string::npos) ? xff : xff.substr(c + 1);
+            while (!last.empty() && last.front() == ' ') last.erase(last.begin());
+            if (!last.empty()) return last;
+        }
+        return req.remote_addr.empty() ? "local" : req.remote_addr;
+    }
+
     bool check_rate_limit(const std::string& ip) {
 
         std::lock_guard<std::mutex> lk(auth_failures_mutex_);
@@ -3071,6 +3083,12 @@ class HttpRpcServer {
 
 
         server_.Get("/api/auth/auto-unlock", [this](const httplib::Request& req, httplib::Response& res) {
+            // czr-guard: owner-only route, refuse anything that came through the public proxy
+            if (!req.get_header_value("X-Forwarded-For").empty()) {
+                res.status = 403;
+                res.set_content("{\"error\":\"local only\"}", "application/json");
+                return;
+            }
             std::string ip = req.remote_addr.empty() ? "" : req.remote_addr;
             if (ip == "127.0.0.1" || ip == "::1" || ip == "localhost" || ip.empty()) {
                 std::lock_guard<std::mutex> lk(auth_mutex_);
@@ -3083,6 +3101,12 @@ class HttpRpcServer {
         });
 
         server_.Get("/api/auth/auto-unlock", [this](const httplib::Request& req, httplib::Response& res) {
+            // czr-guard: owner-only route, refuse anything that came through the public proxy
+            if (!req.get_header_value("X-Forwarded-For").empty()) {
+                res.status = 403;
+                res.set_content("{\"error\":\"local only\"}", "application/json");
+                return;
+            }
             std::string ip = req.remote_addr.empty() ? "" : req.remote_addr;
             if (ip == "127.0.0.1" || ip == "::1" || ip == "localhost" || ip.empty()) {
                 std::lock_guard<std::mutex> lk(auth_mutex_);
@@ -3322,7 +3346,7 @@ class HttpRpcServer {
 
             }
 
-            std::string client_ip = req.remote_addr.empty() ? "local" : req.remote_addr;
+            std::string client_ip = real_client_ip(req);
 
             if (!check_rate_limit(client_ip)) {
 
@@ -3440,7 +3464,7 @@ class HttpRpcServer {
                 res.set_content("{\"error\":\"csrf\"}", "application/json");
                 return;
             }
-            std::string ip = req.remote_addr.empty() ? "local" : req.remote_addr;
+            std::string ip = real_client_ip(req);
             if (!check_rate_limit(ip)) {
                 res.status = 429;
                 res.set_content("{\"error\":\"too many attempts\"}", "application/json");
@@ -3468,7 +3492,7 @@ class HttpRpcServer {
                 res.set_content("{\"error\":\"csrf\"}", "application/json");
                 return;
             }
-            std::string ip = req.remote_addr.empty() ? "local" : req.remote_addr;
+            std::string ip = real_client_ip(req);
             if (!check_rate_limit(ip)) {
                 res.status = 429;
                 res.set_content("{\"error\":\"too many attempts\"}", "application/json");
@@ -3515,7 +3539,7 @@ class HttpRpcServer {
 
             }
 
-            std::string client_ip = req.remote_addr.empty() ? "local" : req.remote_addr;
+            std::string client_ip = real_client_ip(req);
 
             if (!check_rate_limit(client_ip)) {
 
@@ -3628,6 +3652,12 @@ class HttpRpcServer {
 
 
         server_.Post("/api/auth/encrypt-wallet", [this](const httplib::Request& req, httplib::Response& res) {
+            // czr-guard: owner-only route, refuse anything that came through the public proxy
+            if (!req.get_header_value("X-Forwarded-For").empty()) {
+                res.status = 403;
+                res.set_content("{\"error\":\"local only\"}", "application/json");
+                return;
+            }
 
             if (!is_csrf_safe(req)) {
 
@@ -3981,6 +4011,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
         server_.Post("/api/wallet/sign", [this](const httplib::Request& req, httplib::Response& res) {
+            // czr-guard: owner-only route, refuse anything that came through the public proxy
+            if (!req.get_header_value("X-Forwarded-For").empty()) {
+                res.status = 403;
+                res.set_content("{\"error\":\"local only\"}", "application/json");
+                return;
+            }
 
             if (!is_csrf_safe(req)) {
 
@@ -4215,6 +4251,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
         server_.Post("/api/auth/change-pin", [this](const httplib::Request& req, httplib::Response& res) {
+            // czr-guard: owner-only route, refuse anything that came through the public proxy
+            if (!req.get_header_value("X-Forwarded-For").empty()) {
+                res.status = 403;
+                res.set_content("{\"error\":\"local only\"}", "application/json");
+                return;
+            }
 
             if (!is_csrf_safe(req)) {
 
