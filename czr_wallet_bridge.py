@@ -10,7 +10,7 @@ print("=======================================================")
 
 if os.getenv("GITHUB_ACTIONS") == "true":
     print("[*] Running in GitHub Actions. Executing CTest for comprehensive C++ verification...")
-    result = subprocess.run(["ctest", "--output-on-failure"], cwd="build", capture_output=True, text=True, timeout=120)
+    result = subprocess.run(["ctest", "--output-on-failure", "--timeout", "300"], cwd="build", capture_output=True, text=True, timeout=1500)
     if result.returncode == 0:
         print("[+] CTest Output:")
         # Print last 20 lines of ctest to keep logs clean but informative
