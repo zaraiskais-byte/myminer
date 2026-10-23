@@ -29,3 +29,23 @@ jobs:
         python3 czr_sentinel.py
         python3 czr_wallet_bridge.py
         echo "[+] CI/CD Verification Pipeline Passed Successfully for Zaraiskais-byte!"
+
+    - name: Set up JDK 17 for Android Build
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Build Android Wallet APK
+      if: hashFiles('android/gradlew') != ''
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleRelease
+
+    - name: Upload APK artifact
+      if: hashFiles('android/app/build/outputs/apk/release/*.apk') != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: caesar-czr-wallet-release
+        path: android/app/build/outputs/apk/release/*.apk
