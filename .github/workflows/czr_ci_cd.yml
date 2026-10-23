@@ -1,0 +1,33 @@
+name: CZR Master CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "app-open-termux-wallet" ]
+  pull_request:
+    branches: [ "main", "app-open-termux-wallet" ]
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/python-v4
+      with:
+        python-version: '3.10'
+
+    - name: Verify Architect & Security Manifest
+      run: |
+        echo "======================================================="
+        echo "  CAESAR CZR - AUTOMATED CI/CD SECURITY & INTEGRITY"
+        echo "  Architect/Owner: Zaraiskais-byte"
+        echo "  Derivation Path: m/44'/7999'/0'/0'/0'"
+        echo "======================================================="
+        python3 czr_sentinel.py
+        python3 czr_p2p_mesh.py &
+        sleep 2
+        python3 czr_wallet_bridge.py
+        echo "[+] CI/CD Verification Pipeline Passed Successfully for Zaraiskais-byte!"
