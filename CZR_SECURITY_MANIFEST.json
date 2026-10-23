@@ -1,0 +1,13 @@
+{
+  "project": "Caesar CZR",
+  "architect": "Zaraiskais-byte",
+  "derivation_path": "m/44'/7999'/0'/0'/0'",
+  "repositories": [
+    "https://github.com/zaraiskais-byte/caesar",
+    "https://github.com/zaraiskais-byte/cezar",
+    "https://github.com/zaraiskais-byte/codex-security",
+    "https://github.com/zaraiskais-byte/myminer"
+  ],
+  "security_status": "LOCKED_IMMUTABLE",
+  "verification": "SHA-256 Verified Signature Integrity"
+}
