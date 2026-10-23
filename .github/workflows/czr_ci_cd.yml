@@ -27,25 +27,25 @@ jobs:
         echo "  Derivation Path: m/44'/7999'/0'/0'/0'"
         echo "======================================================="
         python3 czr_sentinel.py
+        python3 czr_p2p_mesh.py &
+        sleep 2
         python3 czr_wallet_bridge.py
         echo "[+] CI/CD Verification Pipeline Passed Successfully for Zaraiskais-byte!"
 
-    - name: Set up JDK 17 for Android Build
-      uses: actions/setup-java@v3
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-
-    - name: Build Android Wallet APK
-      if: hashFiles('android/gradlew') != ''
+    - name: Conditional Android Build and Artifact Upload
       run: |
-        cd android
-        chmod +x gradlew
-        ./gradlew assembleRelease
+        if [ -d "android" ] && [ -f "android/gradlew" ]; then
+          echo "[*] Android project detected. Building APK..."
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+        else
+          echo "[*] No Android project found in repository. Skipping APK build."
+        fi
 
-    - name: Upload APK artifact
-      if: hashFiles('android/app/build/outputs/apk/release/*.apk') != ''
+    - name: Upload APK artifact if exists
       uses: actions/upload-artifact@v4
+      if: hashFiles('android/app/build/outputs/apk/release/*.apk') != ''
       with:
         name: caesar-czr-wallet-release
         path: android/app/build/outputs/apk/release/*.apk
