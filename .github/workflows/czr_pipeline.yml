@@ -1,4 +1,4 @@
-name: CZR Master CI/CD Pipeline
+name: CZR Pure Verification Pipeline
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ "main", "app-open-termux-wallet" ]
 
 jobs:
-  build-and-verify:
+  verify:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,10 +19,10 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Verify Architect & Security Manifest
+    - name: Run Master Security and Node Verification
       run: |
         echo "======================================================="
-        echo "  CAESAR CZR - AUTOMATED CI/CD SECURITY & INTEGRITY"
+        echo "  CAESAR CZR - PURE VERIFICATION PIPELINE"
         echo "  Architect/Owner: Zaraiskais-byte"
         echo "  Derivation Path: m/44'/7999'/0'/0'/0'"
         echo "======================================================="
@@ -30,12 +30,4 @@ jobs:
         python3 czr_p2p_mesh.py &
         sleep 2
         python3 czr_wallet_bridge.py
-        echo "[+] CI/CD Verification Pipeline Passed Successfully for Zaraiskais-byte!"
-
-    - name: Check for Android APK and Upload if Present
-      run: |
-        if [ -f "android/app/build/outputs/apk/release"*.apk ]; then
-          echo "[+] APK found. Preparing for upload..."
-        else
-          echo "[*] No APK files found. Skipping artifact upload step safely."
-        fi
+        echo "[+] Pipeline executed successfully without errors!"
