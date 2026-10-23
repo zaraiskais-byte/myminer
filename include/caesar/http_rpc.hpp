@@ -2284,6 +2284,56 @@ window.unlock = function(ev){
   var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
+  
+  var ref = getRefFromUrl();
+  if (ref) {
+    var unEl = document.getElementById('usernameInput');
+    var username = unEl ? unEl.value.trim() : '';
+    if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    
+    if (msgEl) msgEl.textContent = 'Registering...';
+    fetch('/api/user/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: username, pin: pin, parent: ref})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.ok) {
+        if (msgEl) { msgEl.textContent = 'Registered! Please unlock.'; msgEl.style.color = '#4caf50'; }
+        setTimeout(function(){ location.reload(); }, 1500);
+      } else if (msgEl) {
+        msgEl.textContent = (d && d.error) ? d.error : 'Registration failed';
+      }
+    }).catch(function(e){
+      if (msgEl) msgEl.textContent = 'Register failed: ' + (e && e.message ? e.message : e);
+    });
+    return false;
+  }
+  
+  var ref = getRefFromUrl();
+  if (ref) {
+    var unEl = document.getElementById('usernameInput');
+    var username = unEl ? unEl.value.trim() : '';
+    if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    
+    if (msgEl) msgEl.textContent = 'Registering...';
+    fetch('/api/user/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: username, pin: pin, parent: ref})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.ok) {
+        if (msgEl) { msgEl.textContent = 'Registered! Please unlock.'; msgEl.style.color = '#4caf50'; }
+        setTimeout(function(){ location.reload(); }, 1500);
+      } else if (msgEl) {
+        msgEl.textContent = (d && d.error) ? d.error : 'Registration failed';
+      }
+    }).catch(function(e){
+      if (msgEl) msgEl.textContent = 'Register failed: ' + (e && e.message ? e.message : e);
+    });
+    return false;
+  }
   fetch('/api/auth/status', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(st){
     var ep = (st && st.has_pin === false) ? '/api/auth/setup' : '/api/auth/unlock';
     return fetch(ep, {
@@ -3987,6 +4037,56 @@ window.unlock = function(ev){
   var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
+  
+  var ref = getRefFromUrl();
+  if (ref) {
+    var unEl = document.getElementById('usernameInput');
+    var username = unEl ? unEl.value.trim() : '';
+    if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    
+    if (msgEl) msgEl.textContent = 'Registering...';
+    fetch('/api/user/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: username, pin: pin, parent: ref})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.ok) {
+        if (msgEl) { msgEl.textContent = 'Registered! Please unlock.'; msgEl.style.color = '#4caf50'; }
+        setTimeout(function(){ location.reload(); }, 1500);
+      } else if (msgEl) {
+        msgEl.textContent = (d && d.error) ? d.error : 'Registration failed';
+      }
+    }).catch(function(e){
+      if (msgEl) msgEl.textContent = 'Register failed: ' + (e && e.message ? e.message : e);
+    });
+    return false;
+  }
+  
+  var ref = getRefFromUrl();
+  if (ref) {
+    var unEl = document.getElementById('usernameInput');
+    var username = unEl ? unEl.value.trim() : '';
+    if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    
+    if (msgEl) msgEl.textContent = 'Registering...';
+    fetch('/api/user/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: username, pin: pin, parent: ref})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.ok) {
+        if (msgEl) { msgEl.textContent = 'Registered! Please unlock.'; msgEl.style.color = '#4caf50'; }
+        setTimeout(function(){ location.reload(); }, 1500);
+      } else if (msgEl) {
+        msgEl.textContent = (d && d.error) ? d.error : 'Registration failed';
+      }
+    }).catch(function(e){
+      if (msgEl) msgEl.textContent = 'Register failed: ' + (e && e.message ? e.message : e);
+    });
+    return false;
+  }
   fetch('/api/auth/status', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(st){
     var ep = (st && st.has_pin === false) ? '/api/auth/setup' : '/api/auth/unlock';
     return fetch(ep, {
@@ -7880,11 +7980,17 @@ function getMyInviteLink(){
 
 
 function getRefFromUrl(){
-
   const p = new URLSearchParams(location.search);
-
-  return p.get('ref') || '';
-
+  const ref = p.get('ref') || '';
+  if (ref) {
+    var un = document.getElementById('usernameInput');
+    if (un) { un.style.display = 'block'; }
+    var t = document.getElementById('pinTitleDyn');
+    if (t) t.textContent = 'Register with Invite';
+    var sub = document.getElementById('pinSubDyn');
+    if (sub) sub.textContent = 'Enter username and 8-digit PIN';
+  }
+  return ref;
 }
 
 
@@ -8184,6 +8290,56 @@ window.unlock = function(ev){
   var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
+  
+  var ref = getRefFromUrl();
+  if (ref) {
+    var unEl = document.getElementById('usernameInput');
+    var username = unEl ? unEl.value.trim() : '';
+    if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    
+    if (msgEl) msgEl.textContent = 'Registering...';
+    fetch('/api/user/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: username, pin: pin, parent: ref})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.ok) {
+        if (msgEl) { msgEl.textContent = 'Registered! Please unlock.'; msgEl.style.color = '#4caf50'; }
+        setTimeout(function(){ location.reload(); }, 1500);
+      } else if (msgEl) {
+        msgEl.textContent = (d && d.error) ? d.error : 'Registration failed';
+      }
+    }).catch(function(e){
+      if (msgEl) msgEl.textContent = 'Register failed: ' + (e && e.message ? e.message : e);
+    });
+    return false;
+  }
+  
+  var ref = getRefFromUrl();
+  if (ref) {
+    var unEl = document.getElementById('usernameInput');
+    var username = unEl ? unEl.value.trim() : '';
+    if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    
+    if (msgEl) msgEl.textContent = 'Registering...';
+    fetch('/api/user/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: username, pin: pin, parent: ref})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.ok) {
+        if (msgEl) { msgEl.textContent = 'Registered! Please unlock.'; msgEl.style.color = '#4caf50'; }
+        setTimeout(function(){ location.reload(); }, 1500);
+      } else if (msgEl) {
+        msgEl.textContent = (d && d.error) ? d.error : 'Registration failed';
+      }
+    }).catch(function(e){
+      if (msgEl) msgEl.textContent = 'Register failed: ' + (e && e.message ? e.message : e);
+    });
+    return false;
+  }
   fetch('/api/auth/status', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(st){
     var ep = (st && st.has_pin === false) ? '/api/auth/setup' : '/api/auth/unlock';
     return fetch(ep, {
@@ -12183,6 +12339,56 @@ window.unlock = function(ev){
   var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
   var pin = pinEl ? (pinEl.value || '').trim() : '';
   if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
+  
+  var ref = getRefFromUrl();
+  if (ref) {
+    var unEl = document.getElementById('usernameInput');
+    var username = unEl ? unEl.value.trim() : '';
+    if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    
+    if (msgEl) msgEl.textContent = 'Registering...';
+    fetch('/api/user/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: username, pin: pin, parent: ref})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.ok) {
+        if (msgEl) { msgEl.textContent = 'Registered! Please unlock.'; msgEl.style.color = '#4caf50'; }
+        setTimeout(function(){ location.reload(); }, 1500);
+      } else if (msgEl) {
+        msgEl.textContent = (d && d.error) ? d.error : 'Registration failed';
+      }
+    }).catch(function(e){
+      if (msgEl) msgEl.textContent = 'Register failed: ' + (e && e.message ? e.message : e);
+    });
+    return false;
+  }
+  
+  var ref = getRefFromUrl();
+  if (ref) {
+    var unEl = document.getElementById('usernameInput');
+    var username = unEl ? unEl.value.trim() : '';
+    if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    
+    if (msgEl) msgEl.textContent = 'Registering...';
+    fetch('/api/user/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: username, pin: pin, parent: ref})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (d && d.ok) {
+        if (msgEl) { msgEl.textContent = 'Registered! Please unlock.'; msgEl.style.color = '#4caf50'; }
+        setTimeout(function(){ location.reload(); }, 1500);
+      } else if (msgEl) {
+        msgEl.textContent = (d && d.error) ? d.error : 'Registration failed';
+      }
+    }).catch(function(e){
+      if (msgEl) msgEl.textContent = 'Register failed: ' + (e && e.message ? e.message : e);
+    });
+    return false;
+  }
   fetch('/api/auth/status', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(st){
     var ep = (st && st.has_pin === false) ? '/api/auth/setup' : '/api/auth/unlock';
     return fetch(ep, {
