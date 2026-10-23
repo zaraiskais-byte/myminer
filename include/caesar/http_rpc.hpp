@@ -12430,6 +12430,61 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+        
+        // Invite Page Route
+        server_.Get("/invite", [](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            res.set_content(R"INVITE(<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join Caesar CZR</title>
+<style>
+body{background:#080b12;color:#eef1f6;font-family:monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;padding:20px}
+.card{background:#181e2c;border:1px solid #f0c040;border-radius:12px;padding:24px;width:100%;max-width:320px;text-align:center}
+input{background:#000;color:#fff;border:1px solid #f0c040;border-radius:8px;padding:12px;width:100%;margin:8px 0;font-size:16px;text-align:center}
+button{background:#f0c040;color:#000;border:none;padding:14px;width:100%;font-size:16px;font-weight:bold;border-radius:8px;margin-top:12px;cursor:pointer}
+.msg{color:#ff5c7a;font-size:13px;margin-top:12px;min-height:20px}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2 style="color:#f0c040;margin-top:0">Join Network</h2>
+  <p style="color:#8892a4;font-size:13px">Enter a username and 8-digit PIN to create your wallet.</p>
+  <input id="username" type="text" placeholder="Username (3+ chars)" maxlength="32">
+  <input id="pin" type="tel" inputmode="numeric" placeholder="8-digit PIN" maxlength="12">
+  <button onclick="register()">CREATE WALLET</button>
+  <div id="msg" class="msg"></div>
+</div>
+<script>
+function getRef(){const p=new URLSearchParams(location.search);return p.get('ref')||'';}
+async function register(){
+  const username=document.getElementById('username').value.trim();
+  const pin=document.getElementById('pin').value.trim();
+  const msg=document.getElementById('msg');
+  const ref=getRef();
+  if(username.length<3){msg.textContent='Username must be 3+ chars';return;}
+  if(pin.length<8){msg.textContent='PIN must be 8+ digits';return;}
+  if(!ref){msg.textContent='Invalid invite link';return;}
+  msg.textContent='Creating wallet...';msg.style.color='#f0c040';
+  try{
+    const r=await fetch('/api/user/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,pin:pin,parent:ref})});
+    const d=await r.json();
+    if(d&&d.ok){
+      msg.style.color='#4dff92';
+      msg.innerHTML='Success!<br>Your address: '+d.address+'<br><br>Save your mnemonic:<br><b style="color:#f0c040;word-break:break-all">'+d.mnemonic+'</b>';
+      document.getElementById('username').style.display='none';
+      document.getElementById('pin').style.display='none';
+      document.querySelector('button').style.display='none';
+    }else{msg.style.color='#ff5c7a';msg.textContent=d.error||'Registration failed';}
+  }catch(e){msg.style.color='#ff5c7a';msg.textContent='Network error: '+e.message;}
+}
+</script>
+</body>
+</html>)INVITE", "text/html");
+        });
+
         // CZR-CATCHALL: serve wallet page for any unknown URL so secret links work.
         server_.Get(R"(^/[A-Za-z0-9_\-]+$)", [](const httplib::Request&, httplib::Response& res) {
             res.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
