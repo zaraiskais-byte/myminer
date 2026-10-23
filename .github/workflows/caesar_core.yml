@@ -18,6 +18,18 @@ jobs:
       with:
         python-version: '3.10'
 
+    - name: Install C++ Build Tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ make
+
+    - name: Build C++ Core Engine
+      run: |
+        echo "[*] Building C++ Core Engine for Ubuntu (x86_64)..."
+        cmake -B build .
+        cmake --build build -j
+        echo "[+] Build complete. Binaries are in the build/ directory."
+
     - name: Run Core Verification
       run: |
         echo "======================================================="
