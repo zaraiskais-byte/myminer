@@ -1,5 +1,10 @@
 #pragma once
 
+#include <mutex>
+#include <string>
+#include <vector>
+#include <filesystem>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <iostream>
 #include <chrono>
@@ -195,7 +200,45 @@ class BlockchainStorage {
         save(chain);
     }
 
+    // czr-load-cache: reuse the fully validated chain while the storage file is unchanged
     std::vector<Block> load() const {
+        static std::mutex cache_mu;
+        static std::string cache_path;
+        static std::vector<Block> cache_chain;
+        static unsigned long long k_ino = 0, k_size = 0, k_sec = 0, k_nsec = 0;
+        static bool cache_ok = false;
+        const std::string p_str = std::filesystem::path(path_).string();
+        auto read_key = [&](unsigned long long& ino, unsigned long long& size,
+                            unsigned long long& sec, unsigned long long& nsec) -> bool {
+            struct stat st;
+            if (::stat(p_str.c_str(), &st) != 0) return false;
+            ino = static_cast<unsigned long long>(st.st_ino);
+            size = static_cast<unsigned long long>(st.st_size);
+            sec = static_cast<unsigned long long>(st.st_mtim.tv_sec);
+            nsec = static_cast<unsigned long long>(st.st_mtim.tv_nsec);
+            return true;
+        };
+        std::lock_guard<std::mutex> cache_lock(cache_mu);
+        unsigned long long a = 0, b = 0, c = 0, d = 0;
+        const bool have_key = read_key(a, b, c, d);
+        if (have_key && cache_ok && cache_path == p_str &&
+            k_ino == a && k_size == b && k_sec == c && k_nsec == d) {
+            return cache_chain;
+        }
+        std::vector<Block> fresh = load_uncached();
+        unsigned long long a2 = 0, b2 = 0, c2 = 0, d2 = 0;
+        if (have_key && read_key(a2, b2, c2, d2) && a == a2 && b == b2 && c == c2 && d == d2) {
+            cache_chain = fresh;
+            cache_path = p_str;
+            k_ino = a; k_size = b; k_sec = c; k_nsec = d;
+            cache_ok = true;
+        } else {
+            cache_ok = false;
+        }
+        return fresh;
+    }
+
+    std::vector<Block> load_uncached() const {
         const auto diag_load_start = std::chrono::steady_clock::now();
         std::ifstream in(path_, std::ios::binary);
 
