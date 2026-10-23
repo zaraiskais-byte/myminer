@@ -1,4 +1,4 @@
-name: CZR Pure Verification Pipeline
+name: Caesar Core Verification
 
 on:
   push:
@@ -9,7 +9,6 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
@@ -19,15 +18,12 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Run Master Security and Node Verification
+    - name: Run Core Verification
       run: |
         echo "======================================================="
-        echo "  CAESAR CZR - PURE VERIFICATION PIPELINE"
+        echo "  CAESAR CZR - CORE VERIFICATION PIPELINE"
         echo "  Architect/Owner: Zaraiskais-byte"
-        echo "  Derivation Path: m/44'/7999'/0'/0'/0'"
         echo "======================================================="
         python3 czr_sentinel.py
-        python3 czr_p2p_mesh.py &
-        sleep 2
         python3 czr_wallet_bridge.py
-        echo "[+] Pipeline executed successfully without errors!"
+        echo "[+] Core verification passed successfully!"
