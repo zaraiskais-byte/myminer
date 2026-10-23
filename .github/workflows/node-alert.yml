@@ -1,0 +1,32 @@
+name: Node Alert
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: Alert type
+        required: true
+        type: choice
+        options:
+          - node-down
+          - worker-down
+          - funnel-down
+          - disk-low
+          - test
+permissions:
+  issues: write
+  contents: read
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open an alert issue (GitHub emails the repository owner)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KIND: ${{ inputs.kind }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          TITLE="Node alert: $KIND"
+          N=$(gh issue list --repo "$REPO" --state open --search "\"$TITLE\" in:title" --json number -q 'length')
+          if [ "$N" != "0" ]; then echo "an open alert already exists"; exit 0; fi
+          gh issue create --repo "$REPO" --title "$TITLE" --body "Reported by the node watchdog at $(date -u +%FT%TZ). Close this issue when it is fixed."

@@ -3192,7 +3192,7 @@ class HttpRpcServer {
 
                 std::string pin = req.body.substr(start + 1, end - start - 1);
 
-                if (pin.size() < 4) throw std::runtime_error("PIN must be 4+ digits");
+                if (pin.size() < 8) throw std::runtime_error("PIN must be 8+ digits");
 
 
 
@@ -3607,9 +3607,9 @@ class HttpRpcServer {
 
 
 
-                if (new_pin.size() < 4) {
+                if (new_pin.size() < 8) {
 
-                    throw std::runtime_error("PIN must be 4+ digits");
+                    throw std::runtime_error("PIN must be 8+ digits");
 
                 }
 
@@ -3703,9 +3703,9 @@ class HttpRpcServer {
 
                 std::string pin = req.body.substr(start + 1, end - start - 1);
 
-                if (pin.size() < 4) {
+                if (pin.size() < 8) {
 
-                    throw std::runtime_error("PIN must be 4+ digits");
+                    throw std::runtime_error("PIN must be 8+ digits");
 
                 }
 
@@ -4314,7 +4314,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (old_pin.size() < 4) throw std::runtime_error("old PIN too short");
 
-                if (new_pin.size() < 4) throw std::runtime_error("new PIN must be 4+ digits");
+                if (new_pin.size() < 8) throw std::runtime_error("new PIN must be 8+ digits");
 
 
 
@@ -6524,7 +6524,7 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 
         <div class="input-row"><input id="oldPin" type="tel" inputmode="numeric" placeholder="current PIN"></div>
 
-        <div class="input-row"><input id="newPin" type="tel" inputmode="numeric" placeholder="new PIN (5+ digits)"></div>
+        <div class="input-row"><input id="newPin" type="tel" inputmode="numeric" placeholder="new PIN (8+ digits)"></div>
 
         <button class="btn primary" style="width:100%;margin-top:4px" onclick="changePin()">Update PIN</button>
 
@@ -7767,7 +7767,7 @@ async function changePin(){
 
   const n=$('newPin').value.trim();
 
-  if(!o||!n||n.length<5){toast('New PIN must be 5+ digits');return}
+  if(!o||!n||n.length<5){toast('New PIN must be 8+ digits');return}
 
   const r=await api('/api/auth/change-pin',{
 
@@ -10931,7 +10931,7 @@ CZR JS CHECKING
 
         <div class="input-row"><input id="oldPin" type="tel" inputmode="numeric" placeholder="current PIN"></div>
 
-        <div class="input-row"><input id="newPin" type="tel" inputmode="numeric" placeholder="new PIN (5+ digits)"></div>
+        <div class="input-row"><input id="newPin" type="tel" inputmode="numeric" placeholder="new PIN (8+ digits)"></div>
 
         <button class="btn primary" style="width:100%;margin-top:4px" onclick="changePin()">Update PIN</button>
 
@@ -11841,7 +11841,7 @@ async function changePin(){
 
   const n=$('newPin').value.trim();
 
-  if(!o||!n||n.length<5){toast('New PIN must be 5+ digits');return}
+  if(!o||!n||n.length<5){toast('New PIN must be 8+ digits');return}
 
   const r=await api('/api/auth/change-pin',{
 
@@ -12436,6 +12436,12 @@ document.addEventListener('DOMContentLoaded', function() {
             std::string username = gs("username");
 
             std::string pin = gs("pin");
+            // czr-pin8: new registrations need an 8+ digit PIN (existing PINs keep working)
+            if (!pin.empty() && pin.size() < 8) {
+                res.status = 400;
+                res.set_content("{\"ok\":false,\"error\":\"PIN must be 8+ digits\"}", "application/json");
+                return;
+            }
 
             std::string parent = gs("parent");
 
@@ -12545,7 +12551,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             }
 
-            if (pin.size() < 4 || pin.size() > 12) {
+            if (pin.size() < 8 || pin.size() > 12) {
 
                 res.status = 400;
 
