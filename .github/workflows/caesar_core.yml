@@ -18,17 +18,21 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install C++ Build Tools
+    - name: Install C++ Build Tools & OpenSSL
       run: |
+        echo "[*] Installing build dependencies for Ubuntu (x86_64)..."
         sudo apt-get update
-        sudo apt-get install -y cmake g++ make
+        sudo apt-get install -y cmake g++ make libssl-dev pkg-config
+        echo "[+] Dependencies installed successfully."
 
     - name: Build C++ Core Engine
       run: |
-        echo "[*] Building C++ Core Engine for Ubuntu (x86_64)..."
+        echo "[*] Configuring CMake..."
         cmake -B build .
+        echo "[*] Building C++ Core Engine..."
         cmake --build build -j
         echo "[+] Build complete. Binaries are in the build/ directory."
+        ls -la build/
 
     - name: Run Core Verification
       run: |
