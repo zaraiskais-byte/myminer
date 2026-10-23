@@ -1,0 +1,29 @@
+name: Caesar Core Verification
+
+on:
+  push:
+    branches: [ "*" ]
+  pull_request:
+    branches: [ "*" ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Run Core Verification
+      run: |
+        echo "======================================================="
+        echo "  CAESAR CZR - CORE VERIFICATION PIPELINE"
+        echo "  Architect/Owner: Zaraiskais-byte"
+        echo "======================================================="
+        python3 czr_sentinel.py
+        python3 czr_wallet_bridge.py
+        echo "[+] Core verification passed successfully!"
