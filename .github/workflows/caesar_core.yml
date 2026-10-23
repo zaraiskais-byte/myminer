@@ -2,9 +2,9 @@ name: Caesar Core Verification
 
 on:
   push:
-    branches: [ "main", "app-open-termux-wallet" ]
+    branches: [ "app-open-termux-wallet" ]
   pull_request:
-    branches: [ "main", "app-open-termux-wallet" ]
+    branches: [ "app-open-termux-wallet" ]
 
 jobs:
   verify:
