@@ -2292,6 +2292,7 @@ window.unlock = function(ev){
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
     if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -2317,6 +2318,7 @@ window.unlock = function(ev){
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
     if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -4045,6 +4047,7 @@ window.unlock = function(ev){
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
     if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -4070,6 +4073,7 @@ window.unlock = function(ev){
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
     if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -8298,6 +8302,7 @@ window.unlock = function(ev){
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
     if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -8323,6 +8328,7 @@ window.unlock = function(ev){
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
     if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -12347,6 +12353,7 @@ window.unlock = function(ev){
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
     if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -12372,6 +12379,7 @@ window.unlock = function(ev){
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
     if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -12477,7 +12485,7 @@ async function register(){
       document.getElementById('username').style.display='none';
       document.getElementById('pin').style.display='none';
       document.querySelector('button').style.display='none';
-    }else{msg.style.color='#ff5c7a';msg.textContent=d.error||'Registration failed';}
+    }else{msg.style.color='#ff5c7a';msg.textContent=(d.error&&d.error.indexOf('already taken')>=0)?'This username is taken. If it is yours, your wallet already exists: use the mnemonic you saved. Otherwise choose another name.':(d.error||'Registration failed');}
   }catch(e){msg.style.color='#ff5c7a';msg.textContent='Network error: '+e.message;}
 }
 </script>
