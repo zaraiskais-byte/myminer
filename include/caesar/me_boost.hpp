@@ -102,4 +102,39 @@ var n=0,w=setInterval(function(){var hero=document.querySelector('.czr-hero');if
 })();
 </script>)BOOST";
 
+inline const char* const kCzrMeTerms = R"TERMS(<script>
+(function(){
+var nl=navigator.language||'en',lc=/^ar/i.test(nl)?'ar':/^fr/i.test(nl)?'fr':'en';
+var T={
+ar:{t:'\u0634\u0631\u0648\u0637 \u0627\u0644\u062a\u0639\u062f\u064a\u0646',fee:'\u0631\u0633\u0648\u0645 \u0627\u0644\u0645\u062c\u0645\u0639',rule:'\u0627\u0644\u0628\u0627\u0642\u064a \u064a\u0648\u0632\u0639 \u062d\u0633\u0628 \u0627\u0644\u0634\u064a\u0631\u0627\u062a',my:'\u0634\u064a\u0631\u0627\u062a\u0643',note:'\u0644\u0627 \u062a\u0648\u062c\u062f \u0648\u0639\u0648\u062f \u0628\u0645\u0628\u0644\u063a \u062b\u0627\u0628\u062a'},
+fr:{t:'Conditions de minage',fee:'Frais du pool',rule:'Le reste est reparti selon les parts',my:'Vos parts',note:'Aucune promesse de montant fixe'},
+en:{t:'Mining terms',fee:'Pool fee',rule:'The rest is split by shares',my:'Your shares',note:'No fixed-amount promises'}};
+var L=T[lc],card=null,addr=null;
+function $(i){return document.getElementById(i);}
+function J(u){return fetch(u,{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
+function fa(o,d){d=d||0;if(!o||d>4)return;if(typeof o==='string')return /^CZ1[0-9a-f]{40,}$/i.test(o)?o:undefined;if(typeof o!=='object')return;for(var k in o){var r=fa(o[k],d+1);if(r)return r;}}
+function mount(anchor){
+  card=document.createElement('div');
+  card.style.cssText='margin:14px 0;border-radius:18px;padding:14px;background:rgba(0,0,0,.35);border:1px solid rgba(240,192,64,.25)';
+  card.innerHTML='<div style="font:700 15px Georgia,serif;color:#f0c040;unicode-bidi:plaintext;margin-bottom:8px">'+L.t+'</div>'
+   +'<div style="display:flex;justify-content:space-between;font-size:14px;color:#cfd6e4"><span>'+L.fee+'</span><b id="czrTFee" style="color:#fff;direction:ltr">--</b></div>'
+   +'<div style="font-size:13px;color:#8892a4;margin:6px 0;unicode-bidi:plaintext">'+L.rule+' (<span id="czrTRest" style="direction:ltr;display:inline-block">--</span>)</div>'
+   +'<div style="display:flex;justify-content:space-between;font-size:14px;color:#cfd6e4"><span>'+L.my+'</span><b id="czrTMy" style="color:#4dff92;direction:ltr">--</b></div>'
+   +'<div style="font-size:12px;color:#8892a4;margin-top:8px;unicode-bidi:plaintext">'+L.note+'</div>';
+  anchor.parentNode.insertBefore(card,anchor.nextSibling);
+  tick();setInterval(tick,10000);
+}
+async function tick(){
+  if(document.hidden||!card)return;
+  var p=await J('/api/pool/stats');
+  if(!addr){var i=await J('/api/me/info');if(i)addr=(typeof i.address==='string')?i.address:fa(i);}
+  if(p&&p.fee_percent!==undefined){var f=Number(p.fee_percent);$('czrTFee').textContent=f+'%';$('czrTRest').textContent=(100-f)+'%';}
+  var s=0;
+  if(p&&Array.isArray(p.workers)&&addr){p.workers.forEach(function(w){if(w.address===addr)s+=Number(w.shares)||0;});}
+  $('czrTMy').textContent=String(s);
+}
+var n=0,w=setInterval(function(){var a=document.querySelector('.czr-live');if(a||++n>160){clearInterval(w);if(a)mount(a);}},250);
+})();
+</script>)TERMS";
+
 } // namespace caesar
