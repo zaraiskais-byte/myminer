@@ -203,7 +203,7 @@ inline const std::string& czr_me_page_html() {
     static const std::string html = [] {
         std::string h = kCzrMePage;
         const auto b = h.rfind("</body>");
-        if (b != std::string::npos) h.insert(b, std::string(kCzrMeTail) + kCzrMeBoost + kCzrMeTerms);
+        if (b != std::string::npos) h.insert(b, std::string(kCzrMeTail) + kCzrMeBoost + kCzrMeTerms + kCzrMeMiner);
         const auto p = h.find("</head>");
         if (p != std::string::npos) h.insert(p, kCzrMeHead);
         return h;
