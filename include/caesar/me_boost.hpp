@@ -39,9 +39,9 @@ inline const char* const kCzrMeBoost = R"BOOST(<style>
 (function(){
 var nl=navigator.language||'en',lc=/^ar/i.test(nl)?'ar':/^fr/i.test(nl)?'fr':'en';
 var T={
-ar:{live:'\u064a\u0639\u0645\u0644 \u0627\u0644\u0622\u0646',idle:'\u0645\u062a\u0648\u0642\u0641',th:'\u062e\u064a\u0648\u0637',ht:'\u0627\u0644\u0627\u0631\u062a\u0641\u0627\u0639',pe:'\u0623\u0642\u0631\u0627\u0646',ag:'\u0645\u0646\u0630 \u0622\u062e\u0631 \u0628\u0644\u0648\u0643',upd:'\u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u062a\u0637\u0628\u064a\u0642'},
-fr:{live:'En marche',idle:'Arrete',th:'Threads',ht:'Hauteur',pe:'Pairs',ag:'Dernier bloc',upd:'Application mise a jour'},
-en:{live:'Mining live',idle:'Idle',th:'Threads',ht:'Height',pe:'Peers',ag:'Last block',upd:'App updated'}};
+ar:{live:'\u064a\u0639\u0645\u0644 \u0627\u0644\u0622\u0646',idle:'\u0645\u062a\u0648\u0642\u0641',th:'\u0639\u0645\u0627\u0644 \u0646\u0634\u0637\u0648\u0646',ht:'\u0627\u0644\u0627\u0631\u062a\u0641\u0627\u0639',pe:'\u0623\u0642\u0631\u0627\u0646',ag:'\u0645\u0646\u0630 \u0622\u062e\u0631 \u0628\u0644\u0648\u0643',upd:'\u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u062a\u0637\u0628\u064a\u0642'},
+fr:{live:'En marche',idle:'Arrete',th:'Workers',ht:'Hauteur',pe:'Pairs',ag:'Dernier bloc',upd:'Application mise a jour'},
+en:{live:'Mining live',idle:'Idle',th:'Workers',ht:'Height',pe:'Peers',ag:'Last block',upd:'App updated'}};
 var L=T[lc];
 function $(i){return document.getElementById(i);}
 function pick(o,re,d){d=d||0;if(!o||typeof o!=='object'||d>3)return;
@@ -78,7 +78,7 @@ async function tick(){
   if(document.hidden||!box)return;
   var n=await J('/api/me/network'),p=await J('/api/pool/stats');
   function g(re){var v=pick(n,re);return v===undefined?pick(p,re):v;}
-  var h=g(RH),pe=g(RP),th=g(RT),hr=g(RR);
+  var h=g(RH),pe=g(RP),th,hr;var ws=p?p.workers:null;if(Array.isArray(ws)){th=0;hr=0;ws.forEach(function(w){if(w.active){th++;hr+=Number(w.hashrate)||0;}});}else{th=g(RT);hr=g(RR);}
   if(h!==undefined){if(lastH!==null&&h!==lastH)lastChg=Date.now();lastH=h;$('czrHt').textContent=h;}
   if(pe!==undefined)$('czrPe').textContent=pe;
   if(th!==undefined)$('czrTh').textContent=th;
