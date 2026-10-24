@@ -12842,6 +12842,7 @@ async function register(){
 
 
 
+            {  // czr-deadlock-fix: do not hold g_pool_mutex across the slow wallet work
             std::lock_guard<std::mutex> lock(g_pool_mutex);
 
             if (!g_pool_state_loaded.exchange(true)) {
@@ -12867,6 +12868,7 @@ async function register(){
                 }
 
             }
+            }  // release g_pool_mutex: registration below re-locks it
 
 
 
@@ -12939,6 +12941,18 @@ async function register(){
 
                     if (!g_pool_state_loaded.exchange(true)) {
                         pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+                    }
+
+                    // Re-check uniqueness now that the lock is held again: the
+                    // first check was released before the slow key derivation.
+                    for (const auto& kv : g_pool_users) {
+                        if (kv.second.username == username) {
+                            std::error_code rm_ec;
+                            std::filesystem::remove(enc_path, rm_ec);
+                            res.set_content("{\"ok\":false,\"error\":\"Username already taken\"}",
+                                            "application/json");
+                            return;
+                        }
                     }
 
                     u.user_number = static_cast<std::uint32_t>(g_pool_next_user_number++);
