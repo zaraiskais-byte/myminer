@@ -218,6 +218,40 @@ struct PoolPayoutResult {
 inline std::atomic<bool>          g_pool_auto_enabled{false};
 
 inline std::atomic<std::uint32_t> g_pool_auto_blocks{10};
+inline std::mutex g_me_mutex;
+struct CzrMeSession { std::string address; long long expires; };
+inline std::unordered_map<std::string, CzrMeSession> g_me_sessions;
+inline std::unordered_map<std::string, std::pair<int, long long>> g_me_fails;
+inline long long g_me_window_start = 0;
+inline int g_me_window_count = 0;
+inline long long czr_me_now() {
+    return std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+}
+inline std::string czr_me_token(const httplib::Request& req) {
+    const std::string cookie = req.get_header_value("Cookie");
+    const std::string key = "caesar_me=";
+    std::size_t pos = 0;
+    while ((pos = cookie.find(key, pos)) != std::string::npos) {
+        if (pos == 0 || cookie[pos - 1] == ' ' || cookie[pos - 1] == ';') {
+            const std::size_t s = pos + key.size();
+            const std::size_t e = cookie.find(';', s);
+            return cookie.substr(s, e == std::string::npos ? std::string::npos : e - s);
+        }
+        pos += key.size();
+    }
+    return "";
+}
+inline std::string czr_me_address(const httplib::Request& req) {
+    const std::string token = czr_me_token(req);
+    if (token.empty()) return "";
+    std::lock_guard<std::mutex> lk(g_me_mutex);
+    auto it = g_me_sessions.find(token);
+    if (it == g_me_sessions.end()) return "";
+    if (it->second.expires < czr_me_now()) { g_me_sessions.erase(it); return ""; }
+    return it->second.address;
+}
+
 
 inline std::atomic<std::uint64_t> g_pool_last_payout_height{0};
 
@@ -12485,12 +12519,212 @@ async function register(){
       document.getElementById('username').style.display='none';
       document.getElementById('pin').style.display='none';
       document.querySelector('button').style.display='none';
+      msg.innerHTML+='<br><br><a href="/me" style="color:#4dff92">Open my wallet</a>';
     }else{msg.style.color='#ff5c7a';msg.textContent=(d.error&&d.error.indexOf('already taken')>=0)?'This username is taken. If it is yours, your wallet already exists: use the mnemonic you saved. Otherwise choose another name.':(d.error||'Registration failed');}
   }catch(e){msg.style.color='#ff5c7a';msg.textContent='Network error: '+e.message;}
 }
 </script>
 </body>
 </html>)INVITE", "text/html");
+        });
+
+        // CZR-ME: read-only wallet view for invited users (own cookie and session store).
+        server_.Post("/api/me/login", [this](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            auto fail = [&](int status, const char* msg) {
+                res.status = status;
+                res.set_content(std::string("{\"ok\":false,\"error\":\"") + msg + "\"}", "application/json");
+            };
+            if (!is_csrf_safe(req)) { fail(403, "csrf"); return; }
+            auto gs = [&](const std::string& key) -> std::string {
+                auto pos = req.body.find("\"" + key + "\"");
+                if (pos == std::string::npos) return "";
+                auto colon = req.body.find(':', pos);
+                if (colon == std::string::npos) return "";
+                auto start = req.body.find('"', colon);
+                if (start == std::string::npos) return "";
+                auto end = req.body.find('"', start + 1);
+                if (end == std::string::npos) return "";
+                return req.body.substr(start + 1, end - start - 1);
+            };
+            const std::string username = gs("username");
+            const std::string pin = gs("pin");
+            if (username.empty() || pin.empty() || username.size() > 64 || pin.size() > 64) {
+                fail(400, "username and pin required"); return;
+            }
+            const long long now = czr_me_now();
+            {
+                std::lock_guard<std::mutex> lk(g_me_mutex);
+                if (now - g_me_window_start >= 60) { g_me_window_start = now; g_me_window_count = 0; }
+                if (++g_me_window_count > 30) { fail(429, "too many attempts, try again in a minute"); return; }
+                auto it = g_me_fails.find(username);
+                if (it != g_me_fails.end() && it->second.first >= 5 && now - it->second.second < 300) {
+                    fail(429, "too many attempts, wait 5 minutes"); return;
+                }
+            }
+            std::string found_addr;
+            {
+                std::lock_guard<std::mutex> lock(g_pool_mutex);
+                if (!g_pool_state_loaded.exchange(true)) {
+                    pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+                }
+                for (const auto& kv : g_pool_users) {
+                    if (kv.second.username == username) { found_addr = kv.second.address; break; }
+                }
+            }
+            bool ok = false;
+            if (!found_addr.empty()) {
+                const std::filesystem::path enc_path =
+                    wallet_path_.parent_path() / "users" / (found_addr + ".enc");
+                if (std::filesystem::exists(enc_path)) {
+                    try {
+                        std::vector<std::uint8_t> plaintext = SecureWalletStorage::decrypt(enc_path, pin);
+                        std::string mnemonic(plaintext.begin(), plaintext.end());
+                        for (auto& c : plaintext) c = 0;
+                        Wallet w = wallet_from_mnemonic(mnemonic);
+                        for (auto& c : mnemonic) c = 0;
+                        ok = (w.address() == found_addr);
+                    } catch (...) { ok = false; }
+                }
+            }
+            std::lock_guard<std::mutex> lk2(g_me_mutex);
+            if (!ok) {
+                if (g_me_fails.size() > 5000) g_me_fails.clear();
+                auto& f = g_me_fails[username];
+                if (now - f.second >= 300) f.first = 0;
+                f.first += 1; f.second = now;
+                fail(401, "Invalid username or PIN");
+                return;
+            }
+            g_me_fails.erase(username);
+            if (g_me_sessions.size() > 5000) {
+                for (auto it = g_me_sessions.begin(); it != g_me_sessions.end();) {
+                    if (it->second.expires < now) it = g_me_sessions.erase(it); else ++it;
+                }
+            }
+            const std::string token = generate_session_token();
+            g_me_sessions[token] = CzrMeSession{found_addr, now + 7 * 24 * 3600};
+            res.set_header("Set-Cookie", "caesar_me=" + token + "; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax");
+            std::string safe_user;
+            for (char c : username)
+                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-') safe_user += c;
+            res.set_content("{\"ok\":true,\"address\":\"" + found_addr + "\",\"username\":\"" + safe_user + "\"}", "application/json");
+        });
+
+        server_.Post("/api/me/logout", [](const httplib::Request& req, httplib::Response& res) {
+            const std::string token = czr_me_token(req);
+            if (!token.empty()) { std::lock_guard<std::mutex> lk(g_me_mutex); g_me_sessions.erase(token); }
+            res.set_header("Set-Cookie", "caesar_me=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
+            res.set_content("{\"ok\":true}", "application/json");
+        });
+
+        server_.Get("/api/me/balance", [this](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            const std::string addr = czr_me_address(req);
+            if (addr.empty()) {
+                res.status = 401;
+                res.set_content("{\"ok\":false,\"error\":\"unauthorized\"}", "application/json");
+                return;
+            }
+            std::uint64_t total = 0;
+            std::unordered_set<OutPoint, OutPointHasher> spent;
+            std::unordered_map<OutPoint, WalletUtxo, OutPointHasher> unspent;
+            auto process = [&](const std::vector<Transaction>& txs) {
+                for (const auto& tx : txs) {
+                    for (const auto& in : tx.inputs)
+                        spent.insert(OutPoint{in.previous_txid, in.output_index});
+                    const Hash256 txid = tx.txid();
+                    for (std::size_t i = 0; i < tx.outputs.size(); ++i) {
+                        if (tx.outputs[i].recipient == addr) {
+                            OutPoint op{txid, static_cast<std::uint32_t>(i)};
+                            unspent[op] = WalletUtxo{txid, static_cast<std::uint32_t>(i), tx.outputs[i].amount};
+                        }
+                    }
+                }
+            };
+            for (const auto& block : node_.chain()) process(block.transactions);
+            process(node_.mempool_transactions());
+            for (auto& e : unspent)
+                if (!spent.contains(e.first)) total += e.second.amount;
+            std::ostringstream out;
+            out << "{\"ok\":true,\"balance\":" << total << ",\"address\":\"" << addr << "\"}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Get("/api/me/history", [this](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            const std::string addr = czr_me_address(req);
+            if (addr.empty()) {
+                res.status = 401;
+                res.set_content("{\"ok\":false,\"error\":\"unauthorized\"}", "application/json");
+                return;
+            }
+            std::ostringstream out;
+            out << "{\"ok\":true,\"transactions\":[";
+            bool first = true;
+            int count = 0;
+            auto chain = node_.chain();
+            for (std::size_t h = chain.size(); h-- > 0 && count < 20;) {
+                for (const auto& tx : chain[h].transactions) {
+                    std::uint64_t got = 0;
+                    bool involves = false;
+                    for (const auto& o : tx.outputs)
+                        if (o.recipient == addr) { involves = true; got += o.amount; }
+                    if (!involves) continue;
+                    if (!first) out << ",";
+                    first = false;
+                    out << "{\"block\":" << h << ",\"txid\":\"" << hash_to_hex(tx.txid()).substr(0, 16)
+                        << "\",\"received\":" << got << "}";
+                    ++count;
+                }
+            }
+            out << "]}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Get("/me", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            res.set_content(R"ME(<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>My Wallet</title><style>
+body{margin:0;background:#0b1020;color:#e8ecf5;font-family:system-ui,sans-serif;padding:24px}
+.c{max-width:420px;margin:0 auto}
+h1{font-size:22px;color:#f0c040}
+input,button{width:100%;box-sizing:border-box;padding:14px;margin:8px 0;border-radius:10px;border:1px solid #3a4468;background:#111830;color:#fff;font-size:16px}
+button{background:#f0c040;color:#111;font-weight:700;border:0}
+#msg{min-height:20px;font-size:14px;color:#ff5c7a}
+.bal{font-size:30px;color:#4dff92;margin:6px 0}
+.sm{font-size:12px;color:#9fb0d8;word-break:break-all}
+.t{font-size:12px;color:#c7d2ee;padding:6px 0;border-bottom:1px solid #222b4d;word-break:break-all}
+</style></head><body><div class="c"><h1>My Wallet</h1>
+<div id="login"><input id="u" placeholder="Username" autocapitalize="none" autocomplete="username"><input id="p" type="password" inputmode="numeric" placeholder="8-digit PIN" autocomplete="current-password"><button id="go">OPEN WALLET</button><div id="msg"></div></div>
+<div id="wallet" style="display:none"><div class="sm">Your address</div><div id="addr" class="sm"></div><div class="sm" style="margin-top:14px">Balance (smallest units)</div><div id="bal" class="bal">0</div><div class="sm">Received transactions</div><div id="txs"></div><button id="out" style="background:#222b4d;color:#fff;margin-top:20px">LOG OUT</button></div>
+</div><script>
+function $(i){return document.getElementById(i);}
+async function api(path,opt){const r=await fetch(path,opt);let d={};try{d=await r.json();}catch(e){}return {s:r.status,d:d};}
+function show(w){$('login').style.display=w?'none':'block';$('wallet').style.display=w?'block':'none';}
+async function load(){
+  const b=await api('/api/me/balance',{cache:'no-store'});
+  if(b.s!==200){show(false);return false;}
+  $('addr').textContent=b.d.address;
+  $('bal').textContent=String(b.d.balance);
+  const h=await api('/api/me/history',{cache:'no-store'});
+  const list=$('txs');list.textContent='';
+  const items=h.d.transactions||[];
+  items.forEach(function(t){const e=document.createElement('div');e.className='t';e.textContent='Block '+t.block+' + '+t.received+' '+t.txid;list.appendChild(e);});
+  if(!items.length){list.textContent='No transactions yet';}
+  show(true);return true;
+}
+$('go').onclick=async function(){
+  const u=$('u').value.trim();
+  const p=$('p').value.replace(/[\u0660-\u0669]/g,function(c){return String(c.charCodeAt(0)-1632);});
+  $('msg').textContent='';
+  if(!u||p.length<8){$('msg').textContent='Enter username and 8-digit PIN';return;}
+  const r=await api('/api/me/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,pin:p})});
+  $('p').value='';
+  if(r.d&&r.d.ok){await load();}else{$('msg').textContent=(r.d&&r.d.error)||'Login failed';}
+};
+$('out').onclick=async function(){await api('/api/me/logout',{method:'POST'});show(false);};
+load();
+</script></body></html>)ME", "text/html");
         });
 
         // CZR-CATCHALL: serve wallet page for any unknown URL so secret links work.
