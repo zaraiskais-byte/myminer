@@ -1,3 +1,4 @@
+// Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 #pragma once
 
 // BIP39 English wordlist (2048 words).

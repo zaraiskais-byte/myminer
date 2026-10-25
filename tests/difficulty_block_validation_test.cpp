@@ -1,3 +1,4 @@
+// Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 #include <cstdint>
 #include <iostream>
 #include <vector>

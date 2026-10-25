@@ -1,3 +1,4 @@
+// Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 /*
  * GetMempool / GetTransaction protocol test.
  *
