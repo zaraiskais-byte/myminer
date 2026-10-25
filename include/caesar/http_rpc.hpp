@@ -2441,7 +2441,7 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
     window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
@@ -2467,7 +2467,7 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
     window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
@@ -3395,7 +3395,7 @@ class HttpRpcServer {
 
                 std::string pin = req.body.substr(start + 1, end - start - 1);
 
-                if (pin.size() < 8) throw std::runtime_error("PIN must be 8+ digits");
+                if (pin.size() < 8) throw std::runtime_error("PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل");
 
 
 
@@ -3812,7 +3812,7 @@ class HttpRpcServer {
 
                 if (new_pin.size() < 8) {
 
-                    throw std::runtime_error("PIN must be 8+ digits");
+                    throw std::runtime_error("PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل");
 
                 }
 
@@ -3908,7 +3908,7 @@ class HttpRpcServer {
 
                 if (pin.size() < 8) {
 
-                    throw std::runtime_error("PIN must be 8+ digits");
+                    throw std::runtime_error("PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل");
 
                 }
 
@@ -4196,7 +4196,7 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
     window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
@@ -4222,7 +4222,7 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
     window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
@@ -4569,7 +4569,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (old_pin.size() < 4) throw std::runtime_error("old PIN too short");
 
-                if (new_pin.size() < 8) throw std::runtime_error("new PIN must be 8+ digits");
+                if (new_pin.size() < 8) throw std::runtime_error("PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل");
 
 
 
@@ -8022,7 +8022,7 @@ async function changePin(){
 
   const n=$('newPin').value.trim();
 
-  if(!o||!n||n.length<5){toast('New PIN must be 8+ digits');return}
+  if(!o||!n||n.length<5){toast('PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل');return}
 
   const r=await api('/api/auth/change-pin',{
 
@@ -8451,7 +8451,7 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
     window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
@@ -8477,7 +8477,7 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
     window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
@@ -12154,7 +12154,7 @@ async function changePin(){
 
   const n=$('newPin').value.trim();
 
-  if(!o||!n||n.length<5){toast('New PIN must be 8+ digits');return}
+  if(!o||!n||n.length<5){toast('PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل');return}
 
   const r=await api('/api/auth/change-pin',{
 
@@ -12502,7 +12502,7 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
     window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
@@ -12528,7 +12528,7 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
     window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
@@ -13341,7 +13341,7 @@ res.set_content(kCzrInvitePage, "text/html");
             // czr-pin8: new registrations need an 8+ digit PIN (existing PINs keep working)
             if (!pin.empty() && pin.size() < 8) {
                 res.status = 400;
-                res.set_content("{\"ok\":false,\"error\":\"PIN must be 8+ digits\"}", "application/json");
+                res.set_content("{\"ok\":false,\"error\":\"PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل\"}", "application/json");
                 return;
             }
 

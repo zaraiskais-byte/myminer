@@ -1,0 +1,11 @@
+address.hpp
+bip39.hpp
+block.hpp
+blockchain_storage.hpp
+consensus.hpp
+crypto.hpp
+me_boost.hpp
+p2p_relay.hpp
+secure_wallet.hpp
+transaction.hpp
+wallet_auth.hpp
