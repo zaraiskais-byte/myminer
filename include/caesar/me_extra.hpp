@@ -234,7 +234,7 @@ inline const char* const kCzrInvitePage = R"INVITE(<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Caesar</title>
+<title>Caesar</title><meta name='description' content='Caesar CZR network - wallet, mining, community. Reseau Caesar CZR.'><meta property='og:type' content='website'><meta property='og:title' content='Caesar CZR'><meta property='og:description' content='Join the Caesar network: wallet, mining and community. Rejoignez le reseau Caesar.'><meta name='twitter:card' content='summary'><meta name='twitter:title' content='Caesar CZR'>
 <style>
 body{background:radial-gradient(120% 60% at 50% 0,#33200f,#080b12 62%);color:#eef1f6;font-family:system-ui,Roboto,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px}
 .card{background:#181e2c;border:1px solid #f0c040;border-radius:16px;padding:24px;width:100%;max-width:340px;text-align:center}

@@ -10,7 +10,7 @@ inline const char* const kCzrMePage = R"ME(<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a0e17">
-<title>Caesar Wallet</title>
+<title>Caesar Wallet</title><meta name='description' content='Caesar CZR network - wallet, mining, community. Reseau Caesar CZR.'><meta property='og:type' content='website'><meta property='og:title' content='Caesar CZR Wallet'><meta property='og:description' content='Join the Caesar network: wallet, mining and community. Rejoignez le reseau Caesar.'><meta name='twitter:card' content='summary'><meta name='twitter:title' content='Caesar CZR Wallet'>
 <style>
 :root{--bg:#0a0e17;--card:#131a2b;--line:#222c47;--gold:#f0c040;--green:#4dff92;--red:#ff5c7a;--mut:#8fa0c8;--txt:#e8ecf5}
 *{box-sizing:border-box}
