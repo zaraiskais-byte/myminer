@@ -1,3 +1,4 @@
+#include <algorithm>
 #pragma once
 
 #include <queue>
@@ -12855,6 +12856,17 @@ res.set_content(kCzrInvitePage, "text/html");
                 if (!g_pool_state_loaded.exchange(true)) {
                     pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
                 }
+                // czr-circle: rebuild children from parent (children in state file are unreliable)
+                {
+                    for (auto& czr_kv : g_pool_users) czr_kv.second.children.clear();
+                    std::vector<std::pair<std::uint32_t, std::string>> czr_ord;
+                    for (const auto& czr_kv : g_pool_users) {
+                        const auto& czr_p = czr_kv.second.parent;
+                        if (!czr_p.empty() && czr_p != czr_kv.first && g_pool_users.count(czr_p)) czr_ord.emplace_back(czr_kv.second.user_number, czr_kv.first);
+                    }
+                    std::sort(czr_ord.begin(), czr_ord.end());
+                    for (const auto& czr_o : czr_ord) g_pool_users[g_pool_users[czr_o.second].parent].children.push_back(czr_o.second);
+                }
                 auto it = g_pool_users.find(s.address);
                 if (it != g_pool_users.end()) {
                     username = it->second.username;
@@ -13856,6 +13868,17 @@ res.set_content(kCzrInvitePage, "text/html");
 
             }
 
+            // czr-circle: rebuild children from parent (children in state file are unreliable)
+            {
+                for (auto& czr_kv : g_pool_users) czr_kv.second.children.clear();
+                std::vector<std::pair<std::uint32_t, std::string>> czr_ord;
+                for (const auto& czr_kv : g_pool_users) {
+                    const auto& czr_p = czr_kv.second.parent;
+                    if (!czr_p.empty() && czr_p != czr_kv.first && g_pool_users.count(czr_p)) czr_ord.emplace_back(czr_kv.second.user_number, czr_kv.first);
+                }
+                std::sort(czr_ord.begin(), czr_ord.end());
+                for (const auto& czr_o : czr_ord) g_pool_users[g_pool_users[czr_o.second].parent].children.push_back(czr_o.second);
+            }
             auto it2 = g_pool_users.find(addr);
 
             if (it2 == g_pool_users.end()) {
@@ -13922,6 +13945,17 @@ res.set_content(kCzrInvitePage, "text/html");
 
             }
 
+            // czr-circle: rebuild children from parent (children in state file are unreliable)
+            {
+                for (auto& czr_kv : g_pool_users) czr_kv.second.children.clear();
+                std::vector<std::pair<std::uint32_t, std::string>> czr_ord;
+                for (const auto& czr_kv : g_pool_users) {
+                    const auto& czr_p = czr_kv.second.parent;
+                    if (!czr_p.empty() && czr_p != czr_kv.first && g_pool_users.count(czr_p)) czr_ord.emplace_back(czr_kv.second.user_number, czr_kv.first);
+                }
+                std::sort(czr_ord.begin(), czr_ord.end());
+                for (const auto& czr_o : czr_ord) g_pool_users[g_pool_users[czr_o.second].parent].children.push_back(czr_o.second);
+            }
             std::vector<std::vector<std::string>> levels(5);
 
             std::vector<std::tuple<std::string, int, std::string>> items;
