@@ -7202,9 +7202,9 @@ async function updateHeroCard(){
 
     const uptimeSec = 0;
 
-    const myBlocks = Math.min(height, Math.floor(uptimeSec / 60));
+    const myBlocks = (typeof stats.blocks_today==='number') ? stats.blocks_today : 0;
 
-    const myShares = totalShares;
+    const myShares = (typeof stats.shares_today==='number') ? stats.shares_today : 0;
 
 
 
@@ -9618,6 +9618,24 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
             {
 
             const std::size_t current_height = node_.height();
+            std::uint64_t czr_blocks_today = 0;
+            {
+                static std::mutex czr_blk_mu;
+                static std::uint64_t czr_bl_cache = 0, czr_bl_time = 0, czr_bl_day = 0;
+                std::lock_guard<std::mutex> czr_lk(czr_blk_mu);
+                const std::uint64_t czr_now = static_cast<std::uint64_t>(std::time(nullptr));
+                const std::uint64_t czr_today = czr_now / 86400;
+                if (czr_bl_day != czr_today || czr_now - czr_bl_time >= 30) {
+                    std::uint64_t czr_n = 0;
+                    const std::vector<Block> czr_chain = node_.chain();
+                    for (std::size_t czr_i = czr_chain.size(); czr_i-- > 0;) {
+                        const std::uint64_t czr_d = czr_chain[czr_i].header.timestamp / 86400;
+                        if (czr_d == czr_today) ++czr_n; else if (czr_d < czr_today) break;
+                    }
+                    czr_bl_cache = czr_n; czr_bl_time = czr_now; czr_bl_day = czr_today;
+                }
+                czr_blocks_today = czr_bl_cache;
+            }
                 std::lock_guard<std::mutex> lock(g_pool_mutex);
 
                 if (!g_pool_state_loaded.exchange(true)) {
@@ -9626,6 +9644,26 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
 
                 }
 
+                std::uint64_t czr_shares_today = 0;
+                {
+                    static std::uint64_t czr_day = 0, czr_base = 0;
+                    static bool czr_loaded = false;
+                    const std::uint64_t czr_today = static_cast<std::uint64_t>(std::time(nullptr)) / 86400;
+                    const std::uint64_t czr_total = static_cast<std::uint64_t>(g_pool_total_shares);
+                    const auto czr_path = wallet_path_.parent_path() / "daily_counters.txt";
+                    if (!czr_loaded) {
+                        czr_loaded = true;
+                        std::ifstream czr_in(czr_path);
+                        std::uint64_t czr_d = 0, czr_b = 0;
+                        if (czr_in >> czr_d >> czr_b) { czr_day = czr_d; czr_base = czr_b; }
+                    }
+                    if (czr_day != czr_today || czr_base > czr_total) {
+                        czr_day = czr_today; czr_base = czr_total;
+                        std::ofstream czr_out(czr_path, std::ios::trunc);
+                        czr_out << czr_day << " " << czr_base << "\n";
+                    }
+                    czr_shares_today = czr_total - czr_base;
+                }
                 std::ostringstream out;
 
                 out << "{\"ok\":true"
@@ -9637,6 +9675,8 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                     << ",\"total_blocks\":" << g_pool_total_blocks
 
                     << ",\"current_height\":" << current_height
+                    << ",\"blocks_today\":" << czr_blocks_today
+                    << ",\"shares_today\":" << czr_shares_today
 
                     << ",\"auto_enabled\":" << (g_pool_auto_enabled.load() ? "true" : "false")
 
