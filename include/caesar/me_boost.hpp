@@ -304,7 +304,7 @@ async function start(){
   try{await fetch('/api/pool/register',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{"address":"'+a+'","worker":"web"}'});}catch(e){}
   var n=parseInt($('czrMnT').value,10)||1;
   var url=URL.createObjectURL(new Blob(['('+W.toString()+')()'],{type:'text/javascript'}));
-  try{for(var i=0;i<n;i++){var w=new Worker(url);w.onmessage=onmsg;ws.push(w);}}
+  try{for(var i=0;i<n;i++){var w=new Worker(url);w.onmessage=onmsg;w.onerror=function(ev){say('worker error: '+((ev&&ev.message)||'blocked'));};ws.push(w);}}
   catch(e){say('worker: '+e);stop();return;}
   run=true;found=0;hs=[];cur=null;ui();
   await fetchJob();
@@ -320,9 +320,14 @@ function mount(anchor){
    +'<div style="display:flex;justify-content:space-between;font-size:14px;color:#cfd6e4;margin-top:4px"><span>'+L.sh+'</span><b id="czrMnS" style="color:#4dff92;direction:ltr">0</b></div>'
    +'<div id="czrMnD" style="font:11px monospace;color:#8892a4;margin-top:8px;direction:ltr;word-break:break-all"></div>';
   anchor.parentNode.insertBefore(c,anchor.nextSibling);
-  $('czrMnB').onclick=function(){if(run)stop();else start();};
+  $('czrMnB').onclick=function(){if(run){try{localStorage.setItem('czr_mn_run','0');}catch(e){}stop();}else start();};
   ui();
 }
+var wl=null;
+function keepAwake(){try{if(navigator.wakeLock&&!wl){navigator.wakeLock.request('screen').then(function(x){wl=x;x.addEventListener('release',function(){wl=null;});}).catch(function(){wl=null;});}}catch(e){}}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&run)keepAwake();});
+setInterval(function(){try{if(run){keepAwake();localStorage.setItem('czr_mn_run','1');}}catch(e){}},5000);
+var rt=setInterval(function(){if(!$('czrMnB'))return;clearInterval(rt);try{if(localStorage.getItem('czr_mn_run')==='1'&&localStorage.getItem('czr_mn_ok')&&!run)start();}catch(e){}},1500);
 var tries=0,wt=setInterval(function(){
   var a=$('czrTFee');
   if(a){clearInterval(wt);mount(a.parentNode.parentNode);}
