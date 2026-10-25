@@ -264,8 +264,14 @@ class CaesarNode {
      * of the read, so callers cannot observe a half-updated mempool.
      */
     std::size_t mempool_size() const {
-        std::lock_guard<std::mutex> lock(mempool_mutex_);
-        return mempool_.size();
+        // Non-blocking: submit_pool_solution holds mempool_mutex_ for the whole
+        // block validation, so return the last known size if the lock is busy.
+        std::unique_lock<std::mutex> lock(mempool_mutex_, std::try_to_lock);
+        if (!lock.owns_lock())
+            return mempool_size_snapshot_.load(std::memory_order_relaxed);
+        const std::size_t n = mempool_.size();
+        mempool_size_snapshot_.store(n, std::memory_order_relaxed);
+        return n;
     }
 
     bool mempool_contains(const Hash256& txid) const {
@@ -708,6 +714,7 @@ void mine_one_block(const std::string& miner_recipient,
     mutable std::vector<Block> chain_cache_;
     mutable bool chain_cache_valid_ = false;
     mutable std::atomic<std::size_t> height_snapshot_{0};
+    mutable std::atomic<std::size_t> mempool_size_snapshot_{0};
 
     P2PServer server_;
     P2PRelay relay_;
