@@ -8538,6 +8538,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+        // more worker threads than blocked chain readers, so /api/status always finds a free thread
+        server_.new_task_queue = [] { return new httplib::ThreadPool(64); };
         server_.Get("/api/status", [this](const httplib::Request&, httplib::Response& res) {
 
             const auto now = std::chrono::steady_clock::now();
