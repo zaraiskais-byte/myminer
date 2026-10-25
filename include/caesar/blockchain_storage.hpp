@@ -103,6 +103,17 @@ inline void fsync_parent_dir(const std::filesystem::path& p) {
 
 } // namespace detail
 
+namespace detail {
+struct LoadCache {
+    std::mutex mu;
+    std::string path;
+    std::vector<Block> chain;
+    unsigned long long ino = 0, size = 0, sec = 0, nsec = 0;
+    bool ok = false;
+};
+inline LoadCache& load_cache() { static LoadCache c; return c; }
+} // namespace detail
+
 class BlockchainStorage {
    public:
     explicit BlockchainStorage(std::filesystem::path path) : path_(std::move(path)) {
@@ -183,6 +194,24 @@ class BlockchainStorage {
         // crash does not leave the chain pointing at the old file.
         const auto diag_dir_start = std::chrono::steady_clock::now();
         detail::fsync_parent_dir(path_);
+        {
+            // chain was fully validated above and is now on disk: prime the load cache
+            auto& lc2 = detail::load_cache();
+            std::lock_guard<std::mutex> lk2(lc2.mu);
+            struct stat st2;
+            const std::string ps2 = std::filesystem::path(path_).string();
+            if (::stat(ps2.c_str(), &st2) == 0) {
+                lc2.chain = chain;
+                lc2.path = ps2;
+                lc2.ino = static_cast<unsigned long long>(st2.st_ino);
+                lc2.size = static_cast<unsigned long long>(st2.st_size);
+                lc2.sec = static_cast<unsigned long long>(st2.st_mtim.tv_sec);
+                lc2.nsec = static_cast<unsigned long long>(st2.st_mtim.tv_nsec);
+                lc2.ok = true;
+            } else {
+                lc2.ok = false;
+            }
+        }
         std::cerr << "[storage:save] fsync_dir_ms="
                   << std::chrono::duration_cast<std::chrono::milliseconds>(
                          std::chrono::steady_clock::now() - diag_dir_start).count()
@@ -202,11 +231,15 @@ class BlockchainStorage {
 
     // czr-load-cache: reuse the fully validated chain while the storage file is unchanged
     std::vector<Block> load() const {
-        static std::mutex cache_mu;
-        static std::string cache_path;
-        static std::vector<Block> cache_chain;
-        static unsigned long long k_ino = 0, k_size = 0, k_sec = 0, k_nsec = 0;
-        static bool cache_ok = false;
+        auto& lc_ = detail::load_cache();
+        std::mutex& cache_mu = lc_.mu;
+        std::string& cache_path = lc_.path;
+        std::vector<Block>& cache_chain = lc_.chain;
+        unsigned long long& k_ino = lc_.ino;
+        unsigned long long& k_size = lc_.size;
+        unsigned long long& k_sec = lc_.sec;
+        unsigned long long& k_nsec = lc_.nsec;
+        bool& cache_ok = lc_.ok;
         const std::string p_str = std::filesystem::path(path_).string();
         auto read_key = [&](unsigned long long& ino, unsigned long long& size,
                             unsigned long long& sec, unsigned long long& nsec) -> bool {
