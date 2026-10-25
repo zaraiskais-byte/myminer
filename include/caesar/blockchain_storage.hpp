@@ -319,7 +319,7 @@ class BlockchainStorage {
         return chain;
     }
 
-    void append(const Block& block) const {
+    void append(const Block& block, bool skip_consensus = false) const {
         std::vector<Block> chain;
 
         /*
@@ -412,10 +412,12 @@ class BlockchainStorage {
              * UTXOs, as long as the header and difficulty were
              * consistent with validate_against_chain().
              */
+            if (!skip_consensus) {
             const UTXOSet previous_utxos = rebuild_utxo_set(chain);
 
             if (!validate_block_consensus(block, chain, previous_utxos)) {
                 throw std::runtime_error("block consensus validation failed");
+            }
             }
         }
 

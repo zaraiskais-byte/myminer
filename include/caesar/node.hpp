@@ -631,7 +631,7 @@ void mine_one_block(const std::string& miner_recipient,
             const auto append_start = std::chrono::steady_clock::now();
             CZR_NODE_TRACE("[submit:9] append begin height="
                       << candidate.header.height);
-            storage_.append(candidate);
+            storage_.append(candidate, true);
             const auto append_ms =
                 std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::steady_clock::now() - append_start).count();
