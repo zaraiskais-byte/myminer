@@ -94,6 +94,7 @@ nav button.on{color:var(--gold)}
   <div class="card">
     <h2>Your circle</h2>
     <div class="sm" id="circleSub"></div>
+    <div id="circleMembers"></div>
     <div class="lvl" id="lvls"></div>
     <div class="sm" style="margin-top:12px">Your invite link</div>
     <div class="row"><input id="inv" readonly><button class="sm2" id="copyInv">Copy</button></div>
@@ -263,6 +264,23 @@ async function loadInfo(){
   const box=$('lvls');box.textContent='';
   lv.forEach(function(n,i){tot+=n;const d=document.createElement('div');d.textContent='Level '+(i+1);const b=document.createElement('b');b.textContent=n;d.appendChild(b);box.appendChild(d);});
   $('circleSub').textContent=(ME.is_founder?'Founder #'+ME.user_number+'. ':'')+(tot?'Your circle has '+tot+' people.':'Invite friends with your link below.');
+  try{
+    var cm=$('circleMembers');
+    if(cm){
+      while(cm.firstChild) cm.removeChild(cm.firstChild);
+      (ME.members||[]).forEach(function(m){
+        var row=document.createElement('div');
+        row.style.cssText='display:flex;justify-content:space-between;gap:8px;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.07)';
+        var nm=document.createElement('b');
+        nm.style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        nm.textContent=m.username||((m.address||'').slice(0,12)+'...');
+        var lv=document.createElement('span');
+        lv.style.cssText='font-size:12px;opacity:.8;white-space:nowrap';
+        lv.textContent='Level '+m.level;
+        row.appendChild(nm); row.appendChild(lv); cm.appendChild(row);
+      });
+    }
+  }catch(e){}
   return true;
 }
 async function loadNet(){

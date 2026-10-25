@@ -6466,6 +6466,7 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 
 
 
+        <div id="circleMembers" style="margin:10px 0 14px 0"></div>
         <div class="circle-invite">
 
           <label>Your invite link</label>
@@ -8210,6 +8211,34 @@ async function loadCircle(){
       $('treeL4').textContent = tree.level4 || 0;
 
       $('treeTotal').textContent = tree.total || 0;
+      try{
+        var czrCm=$('circleMembers');
+        if(czrCm){
+          var czrAct={};
+          try{
+            var czrPs=await api('/api/pool/stats');
+            ((czrPs&&czrPs.workers)||[]).forEach(function(w){ if(w&&w.address&&w.active) czrAct[w.address]=true; });
+          }catch(e2){}
+          while(czrCm.firstChild) czrCm.removeChild(czrCm.firstChild);
+          (tree.members||[]).forEach(function(m){
+            var row=document.createElement('div');
+            row.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.07)';
+            var left=document.createElement('span');
+            left.style.cssText='display:flex;align-items:center;gap:8px;min-width:0';
+            var dot=document.createElement('i');
+            dot.style.cssText='width:9px;height:9px;border-radius:50%;flex:none;background:'+(czrAct[m.address]?'#4dff92':'#5b6472');
+            var nm=document.createElement('b');
+            nm.style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+            nm.textContent=m.username||((m.address||'').slice(0,12)+'...');
+            left.appendChild(dot); left.appendChild(nm);
+            var lv=document.createElement('span');
+            lv.style.cssText='font-size:12px;opacity:.8;white-space:nowrap';
+            lv.textContent='Level '+m.level+(czrAct[m.address]?' - online':'');
+            row.appendChild(left); row.appendChild(lv);
+            czrCm.appendChild(row);
+          });
+        }
+      }catch(e3){}
 
     }
 
@@ -12891,6 +12920,7 @@ res.set_content(kCzrInvitePage, "text/html");
             bool is_founder = false;
             std::uint64_t joined_at = 0;
             std::size_t level[4] = {0, 0, 0, 0};
+            std::vector<std::tuple<std::string, std::string, int>> czr_mem;
             {
                 std::lock_guard<std::mutex> lock(g_pool_mutex);
                 if (!g_pool_state_loaded.exchange(true)) {
@@ -12922,13 +12952,21 @@ res.set_content(kCzrInvitePage, "text/html");
                             auto uit = g_pool_users.find(a);
                             if (uit == g_pool_users.end()) continue;
                             for (const auto& c : uit->second.children) {
-                                if (seen.insert(c).second) { next.push_back(c); ++level[d]; }
+                                if (seen.insert(c).second) { next.push_back(c); ++level[d]; if (czr_mem.size() < 200) czr_mem.emplace_back(g_pool_users.count(c) ? g_pool_users[c].username : std::string(), c, d + 1); }
                             }
                         }
                         frontier.swap(next);
                     }
                 }
             }
+            std::ostringstream czr_ms;
+            czr_ms << "[";
+            for (std::size_t czr_k = 0; czr_k < czr_mem.size(); ++czr_k) {
+                if (czr_k) czr_ms << ",";
+                czr_ms << "{\"username\":\"" << czr_json_escape(std::get<0>(czr_mem[czr_k])) << "\",\"address\":\"" << std::get<1>(czr_mem[czr_k]) << "\",\"level\":" << std::get<2>(czr_mem[czr_k]) << "}";
+            }
+            czr_ms << "]";
+            const std::string czr_mem_json = czr_ms.str();
             std::ostringstream out;
             out << "{\"ok\":true,\"address\":\"" << s.address << "\""
                 << ",\"public_key\":\"" << czr_json_escape(s.public_key) << "\""
@@ -12937,7 +12975,7 @@ res.set_content(kCzrInvitePage, "text/html");
                 << ",\"is_founder\":" << (is_founder ? "true" : "false")
                 << ",\"has_parent\":" << (parent.empty() ? "false" : "true")
                 << ",\"joined_at\":" << joined_at
-                << ",\"levels\":[" << level[0] << "," << level[1] << "," << level[2] << "," << level[3] << "]"
+                << ",\"members\":" << czr_mem_json << ",\"levels\":[" << level[0] << "," << level[1] << "," << level[2] << "," << level[3] << "]"
                 << "}";
             res.set_content(out.str(), "application/json");
         });
@@ -14051,8 +14089,9 @@ res.set_content(kCzrInvitePage, "text/html");
                 int lvl = std::get<1>(t);
 
                 const auto& par = std::get<2>(t);
+                const std::string czr_nm = g_pool_users.count(a) ? g_pool_users[a].username : std::string();
 
-                out << "{\"address\":\"" << a << "\",\"level\":" << lvl
+                out << "{\"username\":\"" << czr_json_escape(czr_nm) << "\",\"address\":\"" << a << "\",\"level\":" << lvl
 
                     << ",\"parent\":\"" << par << "\"}";
 
