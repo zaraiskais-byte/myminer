@@ -309,6 +309,67 @@ inline std::string czr_json_escape(const std::string& v) {
     return out;
 }
 
+// CZR-NAME-FIX: usernames may be Arabic / French / English; PIN digits may be Arabic-Indic or Persian.
+inline std::string czr_trim(const std::string& v) {
+    std::size_t a = 0, b = v.size();
+    while (a < b && (v[a] == ' ' || v[a] == '\t' || v[a] == '\r' || v[a] == '\n')) ++a;
+    while (b > a && (v[b-1] == ' ' || v[b-1] == '\t' || v[b-1] == '\r' || v[b-1] == '\n')) --b;
+    return v.substr(a, b - a);
+}
+inline std::string czr_norm_digits(const std::string& v) {
+    std::string out;
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        const unsigned char c = static_cast<unsigned char>(v[i]);
+        if (c == 0xD9 && i + 1 < v.size()) {
+            const unsigned char d = static_cast<unsigned char>(v[i+1]);
+            if (d >= 0xA0 && d <= 0xA9) { out += static_cast<char>('0' + (d - 0xA0)); ++i; continue; }
+        } else if (c == 0xDB && i + 1 < v.size()) {
+            const unsigned char d = static_cast<unsigned char>(v[i+1]);
+            if (d >= 0xB0 && d <= 0xB9) { out += static_cast<char>('0' + (d - 0xB0)); ++i; continue; }
+        }
+        out += v[i];
+    }
+    return out;
+}
+// returns 0 ok, 1 bad length, 2 bad characters
+inline int czr_check_username(const std::string& u) {
+    std::size_t n = 0;
+    bool prev_space = false;
+    if (u.empty() || u.size() > 96) return 1;
+    for (std::size_t i = 0; i < u.size();) {
+        const unsigned char c = static_cast<unsigned char>(u[i]);
+        unsigned cp = 0; std::size_t len = 1;
+        if (c < 0x80) cp = c;
+        else if ((c & 0xE0) == 0xC0) { len = 2; cp = c & 0x1F; }
+        else if ((c & 0xF0) == 0xE0) { len = 3; cp = c & 0x0F; }
+        else return 2;
+        if (i + len > u.size()) return 2;
+        for (std::size_t k = 1; k < len; ++k) {
+            const unsigned char d = static_cast<unsigned char>(u[i+k]);
+            if ((d & 0xC0) != 0x80) return 2;
+            cp = (cp << 6) | (d & 0x3F);
+        }
+        if ((len == 2 && cp < 0x80) || (len == 3 && cp < 0x800)) return 2;
+        bool ok = false, sp = false;
+        if (cp < 0x80) {
+            ok = std::isalnum(static_cast<int>(cp)) || cp == '_' || cp == '-' || cp == '.';
+            if (cp == ' ') { ok = true; sp = true; }
+        } else if (cp >= 0xC0 && cp <= 0xFF && cp != 0xD7 && cp != 0xF7) ok = true;
+        else if (cp == 0x152 || cp == 0x153 || cp == 0x178) ok = true;
+        else if (cp >= 0x621 && cp <= 0x64A) ok = true;
+        else if (cp == 0x640 || (cp >= 0x660 && cp <= 0x669)) ok = true;
+        else if (cp >= 0x671 && cp <= 0x6D3) ok = true;
+        else if (cp >= 0x6F0 && cp <= 0x6F9) ok = true;
+        else if (cp == 0x2019) ok = true;
+        if (!ok) return 2;
+        if (sp && (prev_space || n == 0)) return 2;
+        prev_space = sp;
+        ++n; i += len;
+    }
+    if (prev_space || n < 3 || n > 32) return (prev_space ? 2 : 1);
+    return 0;
+}
+
 inline std::atomic<std::uint64_t> g_pool_last_payout_height{0};
 
 
@@ -12555,8 +12616,8 @@ res.set_content(kCzrInvitePage, "text/html");
                 if (end == std::string::npos) return "";
                 return req.body.substr(start + 1, end - start - 1);
             };
-            const std::string username = gs("username");
-            const std::string pin = gs("pin");
+            const std::string username = czr_trim(gs("username"));
+            const std::string pin = czr_norm_digits(czr_trim(gs("pin")));
             if (username.empty() || pin.empty() || username.size() > 64 || pin.size() > 64) {
                 fail(400, "username and pin required"); return;
             }
@@ -12615,10 +12676,7 @@ res.set_content(kCzrInvitePage, "text/html");
             const std::string token = generate_session_token();
             g_me_sessions[token] = CzrMeSession{found_addr, now + 7 * 24 * 3600, login_pub};
             res.set_header("Set-Cookie", "caesar_me=" + token + "; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax");
-            std::string safe_user;
-            for (char c : username)
-                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-') safe_user += c;
-            res.set_content("{\"ok\":true,\"address\":\"" + found_addr + "\",\"username\":\"" + safe_user + "\"}", "application/json");
+            res.set_content("{\"ok\":true,\"address\":\"" + found_addr + "\",\"username\":\"" + czr_json_escape(username) + "\"}", "application/json");
         });
 
         server_.Post("/api/me/logout", [](const httplib::Request& req, httplib::Response& res) {
@@ -12697,7 +12755,7 @@ res.set_content(kCzrInvitePage, "text/html");
             res.set_header("X-Frame-Options", "DENY");
             res.set_header("Referrer-Policy", "no-referrer");
             res.set_header("Content-Security-Policy",
-                           "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+                           "default-src 'self'; script-src 'unsafe-inline'; worker-src blob:; style-src 'unsafe-inline'; "
                            "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'");
             res.set_content(czr_me_page_html(), "text/html");
         });
@@ -13279,6 +13337,7 @@ res.set_content(kCzrInvitePage, "text/html");
             std::string username = gs("username");
 
             std::string pin = gs("pin");
+            username = czr_trim(username); pin = czr_norm_digits(czr_trim(pin));
             // czr-pin8: new registrations need an 8+ digit PIN (existing PINs keep working)
             if (!pin.empty() && pin.size() < 8) {
                 res.status = 400;
@@ -13382,48 +13441,24 @@ res.set_content(kCzrInvitePage, "text/html");
 
             // NEW PATH: create real wallet with mnemonic
 
-            if (username.size() < 3 || username.size() > 32) {
-
-                res.status = 400;
-
-                res.set_content("{\"ok\":false,\"error\":\"Username must be 3-32 characters\"}",
-
-                                "application/json");
-
-                return;
-
-            }
-
-            if (pin.size() < 8 || pin.size() > 12) {
-
-                res.status = 400;
-
-                res.set_content("{\"ok\":false,\"error\":\"PIN must be 4-12 digits\"}",
-
-                                "application/json");
-
-                return;
-
-            }
-
-            for (char c : username) {
-
-                if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-')) {
-
+            {
+                const int nc = czr_check_username(username);
+                if (nc == 1) {
                     res.status = 400;
-
-                    res.set_content("{\"ok\":false,\"error\":\"Username: only letters, digits, _ and -\"}",
-
-                                    "application/json");
-
+                    res.set_content("{\"ok\":false,\"error\":\"الاسم من 3 إلى 32 حرفًا / Nom: 3 à 32 caractères / Name: 3-32 characters\"}", "application/json");
                     return;
-
                 }
-
+                if (nc == 2) {
+                    res.status = 400;
+                    res.set_content("{\"ok\":false,\"error\":\"الاسم: حروف عربية أو فرنسية أو إنجليزية وأرقام فقط / Nom: lettres arabes, françaises ou anglaises et chiffres / Name: Arabic, French or English letters and digits\"}", "application/json");
+                    return;
+                }
+                if (pin.size() < 8 || pin.size() > 12) {
+                    res.status = 400;
+                    res.set_content("{\"ok\":false,\"error\":\"الرمز من 8 إلى 12 رقمًا / PIN: 8 à 12 chiffres / PIN must be 8-12 digits\"}", "application/json");
+                    return;
+                }
             }
-
-
-
             {  // czr-deadlock-fix: do not hold g_pool_mutex across the slow wallet work
             std::lock_guard<std::mutex> lock(g_pool_mutex);
 
@@ -13621,6 +13656,7 @@ res.set_content(kCzrInvitePage, "text/html");
             std::string username = gs("username");
 
             std::string pin = gs("pin");
+            username = czr_trim(username); pin = czr_norm_digits(czr_trim(pin));
 
 
 
