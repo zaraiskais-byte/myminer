@@ -128,12 +128,17 @@ class BlockchainStorage {
     }
 
     void save(const std::vector<Block>& chain) const {
+        save_impl(chain, true);
+    }
+
+    // full_validate=false is used only by append(): stored chain and new block are already validated
+    void save_impl(const std::vector<Block>& chain, bool full_validate) const {
         const auto diag_save_start = std::chrono::steady_clock::now();
         if (chain.empty())
             throw std::runtime_error("cannot save empty blockchain");
 
         const auto diag_validate_start = std::chrono::steady_clock::now();
-        if (!validate_candidate_chain(chain))
+        if (full_validate && !validate_candidate_chain(chain))
             throw std::runtime_error("refusing to save invalid blockchain");
         std::cerr << "[storage:save] validate_ms="
                   << std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -415,7 +420,7 @@ class BlockchainStorage {
         }
 
         chain.push_back(block);
-        save(chain);
+        save_impl(chain, false);
     }
 
    private:
