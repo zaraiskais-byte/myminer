@@ -6704,37 +6704,93 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
         <section class="tab" id="tab-pay">
       <div class="card">
         <h2>Pay</h2>
-        <div class="input-row"><input id="payNote" placeholder="account name (optional)" autocomplete="off"></div>
-        <div class="input-row"><input id="payAddr" placeholder="paste CZ1... address or link" autocomplete="off"></div>
-        <div class="input-row"><input id="payAmt" placeholder="amount in CZR (5 or 0.25)" inputmode="decimal" autocomplete="off"></div>
-        <button class="btn primary" style="width:100%;margin-top:4px" onclick="paySend()">Send</button>
+        <div class="input-row"><input id="payNote" placeholder="name (optional)" autocomplete="off"></div>
+        <div class="input-row"><input id="payAddr" placeholder="paste CZ1... address or scan QR" autocomplete="off"></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="btn" style="flex:1" onclick="payScan()">Scan QR</button>
+          <button class="btn" style="flex:1" onclick="document.getElementById('payFile').click()">From image</button>
+          <input id="payFile" type="file" accept="image/*" style="display:none" onchange="payFromImage(this)">
+        </div>
+        <div id="payCam"></div>
+        <div class="input-row"><input id="payAmt" placeholder="amount in CZR (10 or 0.25)" inputmode="decimal" autocomplete="off"></div>
+        <button class="btn primary" style="width:100%;margin-top:4px" onclick="payReview()">Review</button>
+        <div id="payConfirm"></div>
       </div>
-      <div class="card"><h2>Sent</h2><div id="payLog"></div></div>
+      <div class="card"><h2>Payments</h2><div id="payLog"></div></div>
       <script>
-      function payAtomic(s){s=String(s).trim().replace(',','.');if(!/^[0-9]+(\.[0-9]{1,8})?$/.test(s))return '';var p=s.split('.');var f=((p[1]||'')+'00000000').slice(0,8);return (p[0]+f).replace(/^0+/,'');}
-      function payGet(){var a=[];try{a=JSON.parse(localStorage.getItem('czr_pay_log')||'[]')}catch(e){}return a;}
-      function payRender(){var box=document.getElementById('payLog');if(!box)return;box.textContent='';var a=payGet();if(!a.length){box.textContent='No payments yet';return}
-        a.slice().reverse().forEach(function(x){var d=document.createElement('div');d.style.cssText='padding:8px 0;border-bottom:1px solid #222;font-size:12px;word-break:break-all';d.textContent=x.t+' | '+(x.n||'-')+' | '+x.a.slice(0,14)+'... | '+x.c+' CZR | '+x.x;box.appendChild(d)})}
-      async function paySend(){
-        var raw=document.getElementById('payAddr').value.trim();
-        var m=raw.match(/CZ1[0-9a-fA-F]{16,}/);
-        if(!m){toast('No CZ1 address found');return}
-        var addr=m[0];
-        var amtTxt=document.getElementById('payAmt').value.trim();
-        var atomic=payAtomic(amtTxt);
-        if(!atomic){toast('Bad amount');return}
-        toast('Sending...');
-        var r=await api('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipient:addr,amount:atomic})});
-        if(r&&r.status==='ok'){
-          var a=payGet();a.push({t:new Date().toISOString().slice(0,16).replace('T',' '),n:document.getElementById('payNote').value.trim().slice(0,40),a:addr,c:amtTxt,x:String(r.txid||'').slice(0,16)});
-          try{localStorage.setItem('czr_pay_log',JSON.stringify(a.slice(-50)))}catch(e){}
-          toast('Sent! txid: '+String(r.txid||'').slice(0,16)+'...');
-          document.getElementById('payAddr').value='';document.getElementById('payAmt').value='';document.getElementById('payNote').value='';
-          payRender();
-          if(typeof refreshWallet==='function'){await refreshWallet()}
-        } else { toast('Failed: '+((r&&r.error)||'unknown')); }
+      var payPending=null, payBusy=false;
+      function payAtomic(s){s=String(s).trim().replace(",",".");if(!/^[0-9]+(\.[0-9]{1,8})?$/.test(s))return "";var p=s.split(".");var f=((p[1]||"")+"00000000").slice(0,8);return (p[0]+f).replace(/^0+/,"");}
+      function payLoad(){var a=[];try{a=JSON.parse(localStorage.getItem("czr_pay_q")||"[]")}catch(e){}return a;}
+      function paySave(a){var keep=a.filter(function(x){return x.s==="queued"||x.s==="sending"||x.s==="check"});var rest=a.filter(function(x){return !(x.s==="queued"||x.s==="sending"||x.s==="check")}).slice(-40);try{localStorage.setItem("czr_pay_q",JSON.stringify(rest.concat(keep).sort(function(x,y){return x.i<y.i?-1:1})))}catch(e){}}
+      function payFill(txt){var m=String(txt).match(/CZ1[0-9a-fA-F]{16,}/);document.getElementById("payAddr").value=m?m[0]:String(txt);toast(m?"Address read":"No CZ1 address in that code");}
+      async function payDetect(src){if(!("BarcodeDetector" in window)){toast("Scan not supported here - paste the address");return ""}var d=new BarcodeDetector({formats:["qr_code"]});var c=await d.detect(src);return c.length?c[0].rawValue:"";}
+      async function payFromImage(inp){var f=inp.files&&inp.files[0];if(!f)return;try{var bmp=await createImageBitmap(f);var v=await payDetect(bmp);if(v)payFill(v);else toast("No QR found in image")}catch(e){toast("Could not read image")}inp.value="";}
+      async function payScan(){
+        if(!("BarcodeDetector" in window)||!navigator.mediaDevices){toast("Camera scan not supported - use From image or paste");return}
+        var box=document.getElementById("payCam");var v=document.createElement("video");v.setAttribute("playsinline","");v.style.cssText="width:100%;border-radius:12px";
+        var st;try{st=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})}catch(e){toast("Camera blocked");return}
+        box.textContent="";box.appendChild(v);v.srcObject=st;await v.play();
+        var stop=false;var b=document.createElement("button");b.className="btn";b.textContent="Close camera";b.style.cssText="width:100%;margin:6px 0";b.onclick=function(){stop=true};box.appendChild(b);
+        var d=new BarcodeDetector({formats:["qr_code"]});
+        while(!stop){try{var c=await d.detect(v);if(c.length){payFill(c[0].rawValue);break}}catch(e){}await new Promise(function(r){setTimeout(r,300)})}
+        st.getTracks().forEach(function(t){t.stop()});box.textContent="";
       }
-      payRender();
+      function payReview(){
+        var raw=document.getElementById("payAddr").value.trim();
+        var m=raw.match(/CZ1[0-9a-fA-F]{16,}/);
+        if(!m){toast(raw.toLowerCase().indexOf("tiktok")>=0?"That is a TikTok link, not a wallet address. Ask for the CZ1 address":"No CZ1 address found");return}
+        var amtTxt=document.getElementById("payAmt").value.trim();var at=payAtomic(amtTxt);
+        if(!at){toast("Bad amount");return}
+        payPending={n:document.getElementById("payNote").value.trim().slice(0,40),a:m[0],c:amtTxt,at:at};
+        var box=document.getElementById("payConfirm");box.textContent="";
+        box.style.cssText="margin-top:10px;padding:12px;border:1px solid #f0c040;border-radius:10px";
+        function line(t,css){var d=document.createElement("div");d.style.cssText=css||"margin-bottom:6px";d.textContent=t;box.appendChild(d)}
+        line("Confirm payment","font-weight:bold;margin-bottom:8px");
+        line("To: "+(payPending.n||"-"));
+        line(payPending.a,"font-family:monospace;font-size:12px;word-break:break-all;margin-bottom:6px");
+        line("Amount: "+payPending.c+" CZR","font-weight:bold;margin-bottom:10px");
+        var row=document.createElement("div");row.style.cssText="display:flex;gap:8px";
+        var ok=document.createElement("button");ok.className="btn primary";ok.style.flex="1";ok.textContent="Confirm and send";ok.onclick=payConfirm;
+        var no=document.createElement("button");no.className="btn";no.style.flex="1";no.textContent="Cancel";no.onclick=function(){payPending=null;box.textContent="";box.style.cssText=""};
+        row.appendChild(ok);row.appendChild(no);box.appendChild(row);
+      }
+      async function payConfirm(){
+        if(!payPending)return;var it={i:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:new Date().toISOString().slice(0,16).replace("T"," "),n:payPending.n,a:payPending.a,c:payPending.c,at:payPending.at,s:"queued",x:""};
+        payPending=null;var box=document.getElementById("payConfirm");box.textContent="";box.style.cssText="";
+        document.getElementById("payAddr").value="";document.getElementById("payAmt").value="";document.getElementById("payNote").value="";
+        var a=payLoad();a.push(it);paySave(a);payRender();
+        if(!payBusy){payBusy=true;await payTry(it.i);payBusy=false}
+      }
+      async function payTry(id){
+        var a=payLoad();var it=a.filter(function(x){return x.i===id})[0];if(!it||it.s!=="queued")return;
+        it.s="sending";it.x="sending...";paySave(a);payRender();
+        var r=null;try{r=await api("/api/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:it.a,amount:it.at})})}catch(e){r=null}
+        a=payLoad();it=a.filter(function(x){return x.i===id})[0];if(!it)return;
+        if(r&&r.status==="ok"){it.s="sent";it.x=String(r.txid||"").slice(0,16);toast("Sent! txid: "+it.x+"...")}
+        else if(r&&r.error&&/insufficient/i.test(String(r.error))){it.s="queued";it.x="waiting for balance"}
+        else if(r&&r.error){it.s="failed";it.x=String(r.error).slice(0,60);toast("Failed: "+it.x)}
+        else{it.s="check";it.x="no reply - check your balance before retrying"}
+        paySave(a);payRender();
+        if(it.s==="sent"&&typeof refreshWallet==="function"){try{await refreshWallet()}catch(e){}}
+      }
+      function payCancel(id){var a=payLoad();a.forEach(function(x){if(x.i===id&&x.s==="queued")x.s="cancelled"});paySave(a);payRender();}
+      function payRender(){
+        var box=document.getElementById("payLog");if(!box)return;box.textContent="";var a=payLoad();
+        if(!a.length){box.textContent="No payments yet";return}
+        var col={sent:"#4ade80",queued:"#f0c040",sending:"#f0c040",failed:"#f87171",check:"#fb923c",cancelled:"#888"};
+        a.slice().reverse().forEach(function(x){
+          var d=document.createElement("div");d.style.cssText="padding:8px 0;border-bottom:1px solid #222;font-size:12px;word-break:break-all";
+          var h=document.createElement("div");h.textContent=x.t+" | "+(x.n||"-")+" | "+x.c+" CZR";d.appendChild(h);
+          var ad=document.createElement("div");ad.style.cssText="font-family:monospace;color:#999";ad.textContent=x.a.slice(0,16)+"..."+x.a.slice(-6);d.appendChild(ad);
+          var st=document.createElement("div");st.style.color=col[x.s]||"#fff";st.textContent=x.s+(x.x?" - "+x.x:"");d.appendChild(st);
+          if(x.s==="queued"){var b=document.createElement("button");b.className="btn";b.style.cssText="margin-top:6px;padding:6px 12px";b.textContent="Cancel";b.onclick=function(){payCancel(x.i)};d.appendChild(b)}
+          box.appendChild(d)});
+      }
+      async function payTick(){
+        if(payBusy)return;var a=payLoad();var q=a.filter(function(x){return x.s==="queued"})[0];if(!q)return;
+        payBusy=true;try{await payTry(q.i)}catch(e){}payBusy=false;
+      }
+      (function(){var a=payLoad();a.forEach(function(x){if(x.s==="sending"){x.s="check";x.x="interrupted - check your balance before retrying"}});paySave(a);payRender();setInterval(payTick,30000);})();
       </script>
     </section>
 
@@ -11304,37 +11360,93 @@ CZR JS CHECKING
         <section class="tab" id="tab-pay">
       <div class="card">
         <h2>Pay</h2>
-        <div class="input-row"><input id="payNote" placeholder="account name (optional)" autocomplete="off"></div>
-        <div class="input-row"><input id="payAddr" placeholder="paste CZ1... address or link" autocomplete="off"></div>
-        <div class="input-row"><input id="payAmt" placeholder="amount in CZR (5 or 0.25)" inputmode="decimal" autocomplete="off"></div>
-        <button class="btn primary" style="width:100%;margin-top:4px" onclick="paySend()">Send</button>
+        <div class="input-row"><input id="payNote" placeholder="name (optional)" autocomplete="off"></div>
+        <div class="input-row"><input id="payAddr" placeholder="paste CZ1... address or scan QR" autocomplete="off"></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="btn" style="flex:1" onclick="payScan()">Scan QR</button>
+          <button class="btn" style="flex:1" onclick="document.getElementById('payFile').click()">From image</button>
+          <input id="payFile" type="file" accept="image/*" style="display:none" onchange="payFromImage(this)">
+        </div>
+        <div id="payCam"></div>
+        <div class="input-row"><input id="payAmt" placeholder="amount in CZR (10 or 0.25)" inputmode="decimal" autocomplete="off"></div>
+        <button class="btn primary" style="width:100%;margin-top:4px" onclick="payReview()">Review</button>
+        <div id="payConfirm"></div>
       </div>
-      <div class="card"><h2>Sent</h2><div id="payLog"></div></div>
+      <div class="card"><h2>Payments</h2><div id="payLog"></div></div>
       <script>
-      function payAtomic(s){s=String(s).trim().replace(',','.');if(!/^[0-9]+(\.[0-9]{1,8})?$/.test(s))return '';var p=s.split('.');var f=((p[1]||'')+'00000000').slice(0,8);return (p[0]+f).replace(/^0+/,'');}
-      function payGet(){var a=[];try{a=JSON.parse(localStorage.getItem('czr_pay_log')||'[]')}catch(e){}return a;}
-      function payRender(){var box=document.getElementById('payLog');if(!box)return;box.textContent='';var a=payGet();if(!a.length){box.textContent='No payments yet';return}
-        a.slice().reverse().forEach(function(x){var d=document.createElement('div');d.style.cssText='padding:8px 0;border-bottom:1px solid #222;font-size:12px;word-break:break-all';d.textContent=x.t+' | '+(x.n||'-')+' | '+x.a.slice(0,14)+'... | '+x.c+' CZR | '+x.x;box.appendChild(d)})}
-      async function paySend(){
-        var raw=document.getElementById('payAddr').value.trim();
-        var m=raw.match(/CZ1[0-9a-fA-F]{16,}/);
-        if(!m){toast('No CZ1 address found');return}
-        var addr=m[0];
-        var amtTxt=document.getElementById('payAmt').value.trim();
-        var atomic=payAtomic(amtTxt);
-        if(!atomic){toast('Bad amount');return}
-        toast('Sending...');
-        var r=await api('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipient:addr,amount:atomic})});
-        if(r&&r.status==='ok'){
-          var a=payGet();a.push({t:new Date().toISOString().slice(0,16).replace('T',' '),n:document.getElementById('payNote').value.trim().slice(0,40),a:addr,c:amtTxt,x:String(r.txid||'').slice(0,16)});
-          try{localStorage.setItem('czr_pay_log',JSON.stringify(a.slice(-50)))}catch(e){}
-          toast('Sent! txid: '+String(r.txid||'').slice(0,16)+'...');
-          document.getElementById('payAddr').value='';document.getElementById('payAmt').value='';document.getElementById('payNote').value='';
-          payRender();
-          if(typeof refreshWallet==='function'){await refreshWallet()}
-        } else { toast('Failed: '+((r&&r.error)||'unknown')); }
+      var payPending=null, payBusy=false;
+      function payAtomic(s){s=String(s).trim().replace(",",".");if(!/^[0-9]+(\.[0-9]{1,8})?$/.test(s))return "";var p=s.split(".");var f=((p[1]||"")+"00000000").slice(0,8);return (p[0]+f).replace(/^0+/,"");}
+      function payLoad(){var a=[];try{a=JSON.parse(localStorage.getItem("czr_pay_q")||"[]")}catch(e){}return a;}
+      function paySave(a){var keep=a.filter(function(x){return x.s==="queued"||x.s==="sending"||x.s==="check"});var rest=a.filter(function(x){return !(x.s==="queued"||x.s==="sending"||x.s==="check")}).slice(-40);try{localStorage.setItem("czr_pay_q",JSON.stringify(rest.concat(keep).sort(function(x,y){return x.i<y.i?-1:1})))}catch(e){}}
+      function payFill(txt){var m=String(txt).match(/CZ1[0-9a-fA-F]{16,}/);document.getElementById("payAddr").value=m?m[0]:String(txt);toast(m?"Address read":"No CZ1 address in that code");}
+      async function payDetect(src){if(!("BarcodeDetector" in window)){toast("Scan not supported here - paste the address");return ""}var d=new BarcodeDetector({formats:["qr_code"]});var c=await d.detect(src);return c.length?c[0].rawValue:"";}
+      async function payFromImage(inp){var f=inp.files&&inp.files[0];if(!f)return;try{var bmp=await createImageBitmap(f);var v=await payDetect(bmp);if(v)payFill(v);else toast("No QR found in image")}catch(e){toast("Could not read image")}inp.value="";}
+      async function payScan(){
+        if(!("BarcodeDetector" in window)||!navigator.mediaDevices){toast("Camera scan not supported - use From image or paste");return}
+        var box=document.getElementById("payCam");var v=document.createElement("video");v.setAttribute("playsinline","");v.style.cssText="width:100%;border-radius:12px";
+        var st;try{st=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})}catch(e){toast("Camera blocked");return}
+        box.textContent="";box.appendChild(v);v.srcObject=st;await v.play();
+        var stop=false;var b=document.createElement("button");b.className="btn";b.textContent="Close camera";b.style.cssText="width:100%;margin:6px 0";b.onclick=function(){stop=true};box.appendChild(b);
+        var d=new BarcodeDetector({formats:["qr_code"]});
+        while(!stop){try{var c=await d.detect(v);if(c.length){payFill(c[0].rawValue);break}}catch(e){}await new Promise(function(r){setTimeout(r,300)})}
+        st.getTracks().forEach(function(t){t.stop()});box.textContent="";
       }
-      payRender();
+      function payReview(){
+        var raw=document.getElementById("payAddr").value.trim();
+        var m=raw.match(/CZ1[0-9a-fA-F]{16,}/);
+        if(!m){toast(raw.toLowerCase().indexOf("tiktok")>=0?"That is a TikTok link, not a wallet address. Ask for the CZ1 address":"No CZ1 address found");return}
+        var amtTxt=document.getElementById("payAmt").value.trim();var at=payAtomic(amtTxt);
+        if(!at){toast("Bad amount");return}
+        payPending={n:document.getElementById("payNote").value.trim().slice(0,40),a:m[0],c:amtTxt,at:at};
+        var box=document.getElementById("payConfirm");box.textContent="";
+        box.style.cssText="margin-top:10px;padding:12px;border:1px solid #f0c040;border-radius:10px";
+        function line(t,css){var d=document.createElement("div");d.style.cssText=css||"margin-bottom:6px";d.textContent=t;box.appendChild(d)}
+        line("Confirm payment","font-weight:bold;margin-bottom:8px");
+        line("To: "+(payPending.n||"-"));
+        line(payPending.a,"font-family:monospace;font-size:12px;word-break:break-all;margin-bottom:6px");
+        line("Amount: "+payPending.c+" CZR","font-weight:bold;margin-bottom:10px");
+        var row=document.createElement("div");row.style.cssText="display:flex;gap:8px";
+        var ok=document.createElement("button");ok.className="btn primary";ok.style.flex="1";ok.textContent="Confirm and send";ok.onclick=payConfirm;
+        var no=document.createElement("button");no.className="btn";no.style.flex="1";no.textContent="Cancel";no.onclick=function(){payPending=null;box.textContent="";box.style.cssText=""};
+        row.appendChild(ok);row.appendChild(no);box.appendChild(row);
+      }
+      async function payConfirm(){
+        if(!payPending)return;var it={i:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:new Date().toISOString().slice(0,16).replace("T"," "),n:payPending.n,a:payPending.a,c:payPending.c,at:payPending.at,s:"queued",x:""};
+        payPending=null;var box=document.getElementById("payConfirm");box.textContent="";box.style.cssText="";
+        document.getElementById("payAddr").value="";document.getElementById("payAmt").value="";document.getElementById("payNote").value="";
+        var a=payLoad();a.push(it);paySave(a);payRender();
+        if(!payBusy){payBusy=true;await payTry(it.i);payBusy=false}
+      }
+      async function payTry(id){
+        var a=payLoad();var it=a.filter(function(x){return x.i===id})[0];if(!it||it.s!=="queued")return;
+        it.s="sending";it.x="sending...";paySave(a);payRender();
+        var r=null;try{r=await api("/api/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:it.a,amount:it.at})})}catch(e){r=null}
+        a=payLoad();it=a.filter(function(x){return x.i===id})[0];if(!it)return;
+        if(r&&r.status==="ok"){it.s="sent";it.x=String(r.txid||"").slice(0,16);toast("Sent! txid: "+it.x+"...")}
+        else if(r&&r.error&&/insufficient/i.test(String(r.error))){it.s="queued";it.x="waiting for balance"}
+        else if(r&&r.error){it.s="failed";it.x=String(r.error).slice(0,60);toast("Failed: "+it.x)}
+        else{it.s="check";it.x="no reply - check your balance before retrying"}
+        paySave(a);payRender();
+        if(it.s==="sent"&&typeof refreshWallet==="function"){try{await refreshWallet()}catch(e){}}
+      }
+      function payCancel(id){var a=payLoad();a.forEach(function(x){if(x.i===id&&x.s==="queued")x.s="cancelled"});paySave(a);payRender();}
+      function payRender(){
+        var box=document.getElementById("payLog");if(!box)return;box.textContent="";var a=payLoad();
+        if(!a.length){box.textContent="No payments yet";return}
+        var col={sent:"#4ade80",queued:"#f0c040",sending:"#f0c040",failed:"#f87171",check:"#fb923c",cancelled:"#888"};
+        a.slice().reverse().forEach(function(x){
+          var d=document.createElement("div");d.style.cssText="padding:8px 0;border-bottom:1px solid #222;font-size:12px;word-break:break-all";
+          var h=document.createElement("div");h.textContent=x.t+" | "+(x.n||"-")+" | "+x.c+" CZR";d.appendChild(h);
+          var ad=document.createElement("div");ad.style.cssText="font-family:monospace;color:#999";ad.textContent=x.a.slice(0,16)+"..."+x.a.slice(-6);d.appendChild(ad);
+          var st=document.createElement("div");st.style.color=col[x.s]||"#fff";st.textContent=x.s+(x.x?" - "+x.x:"");d.appendChild(st);
+          if(x.s==="queued"){var b=document.createElement("button");b.className="btn";b.style.cssText="margin-top:6px;padding:6px 12px";b.textContent="Cancel";b.onclick=function(){payCancel(x.i)};d.appendChild(b)}
+          box.appendChild(d)});
+      }
+      async function payTick(){
+        if(payBusy)return;var a=payLoad();var q=a.filter(function(x){return x.s==="queued"})[0];if(!q)return;
+        payBusy=true;try{await payTry(q.i)}catch(e){}payBusy=false;
+      }
+      (function(){var a=payLoad();a.forEach(function(x){if(x.s==="sending"){x.s="check";x.x="interrupted - check your balance before retrying"}});paySave(a);payRender();setInterval(payTick,30000);})();
       </script>
     </section>
 

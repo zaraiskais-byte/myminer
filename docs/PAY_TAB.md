@@ -4,3 +4,9 @@ Fifth tab in the wallet. Paste a CZ1 address (or a link that contains one), opti
 - The server still validates the address, balance and session (auth + csrf).
 - Social account links do not contain wallet addresses. Platform balances (for example TikTok) cannot receive CZR.
 - A local log of the last 50 payments is kept in the browser (localStorage key czr_pay_log).
+
+## v2 (queue)
+- Field 1 name, field 2 CZ1 address or QR (camera or image), field 3 amount in CZR, then Review and Confirm.
+- If the server answers insufficient balance, the payment waits in a local queue and is retried every 30 s while the page is open.
+- Payments are saved before sending. Interrupted or unanswered sends become "check" and are never retried automatically.
+- TikTok links and QR codes contain no wallet address; use the QR from the Receive card of the CZR wallet.
