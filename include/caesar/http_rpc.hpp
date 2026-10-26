@@ -6705,7 +6705,8 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
       <div class="card">
         <h2>Pay</h2>
         <div class="input-row"><input id="payNote" placeholder="name (optional)" autocomplete="off"></div>
-        <div class="input-row"><input id="payAddr" placeholder="paste CZ1... address or scan QR" autocomplete="off"></div>
+        <div class="input-row"><input id="payLink" placeholder="profile link or QR (TikTok etc.) - record only" autocomplete="off"></div>
+        <div class="input-row"><input id="payAddr" placeholder="wallet address CZ1... (paste or scan)" autocomplete="off"></div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
           <button class="btn" style="flex:1" onclick="payScan()">Scan QR</button>
           <button class="btn" style="flex:1" onclick="document.getElementById('payFile').click()">From image</button>
@@ -6722,7 +6723,7 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
       function payAtomic(s){s=String(s).trim().replace(",",".");if(!/^[0-9]+(\.[0-9]{1,8})?$/.test(s))return "";var p=s.split(".");var f=((p[1]||"")+"00000000").slice(0,8);return (p[0]+f).replace(/^0+/,"");}
       function payLoad(){var a=[];try{a=JSON.parse(localStorage.getItem("czr_pay_q")||"[]")}catch(e){}return a;}
       function paySave(a){var keep=a.filter(function(x){return x.s==="queued"||x.s==="sending"||x.s==="check"});var rest=a.filter(function(x){return !(x.s==="queued"||x.s==="sending"||x.s==="check")}).slice(-40);try{localStorage.setItem("czr_pay_q",JSON.stringify(rest.concat(keep).sort(function(x,y){return x.i<y.i?-1:1})))}catch(e){}}
-      function payFill(txt){var m=String(txt).match(/CZ1[0-9a-fA-F]{16,}/);document.getElementById("payAddr").value=m?m[0]:String(txt);toast(m?"Address read":"No CZ1 address in that code");}
+      function payFill(txt){var t=String(txt);var m=t.match(/CZ1[0-9a-fA-F]{16,}/);if(m){document.getElementById("payAddr").value=m[0];toast("Wallet address read");return}if(/^https?:\/\//i.test(t.trim())){document.getElementById("payLink").value=t.trim().slice(0,200);toast("Profile link saved. Now add the CZ1 wallet address");return}document.getElementById("payAddr").value=t;toast("No CZ1 address in that code");}
       async function payDetect(src){if(!("BarcodeDetector" in window)){toast("Scan not supported here - paste the address");return ""}var d=new BarcodeDetector({formats:["qr_code"]});var c=await d.detect(src);return c.length?c[0].rawValue:"";}
       async function payFromImage(inp){var f=inp.files&&inp.files[0];if(!f)return;try{var bmp=await createImageBitmap(f);var v=await payDetect(bmp);if(v)payFill(v);else toast("No QR found in image")}catch(e){toast("Could not read image")}inp.value="";}
       async function payScan(){
@@ -6741,12 +6742,12 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
         if(!m){toast(raw.toLowerCase().indexOf("tiktok")>=0?"That is a TikTok link, not a wallet address. Ask for the CZ1 address":"No CZ1 address found");return}
         var amtTxt=document.getElementById("payAmt").value.trim();var at=payAtomic(amtTxt);
         if(!at){toast("Bad amount");return}
-        payPending={n:document.getElementById("payNote").value.trim().slice(0,40),a:m[0],c:amtTxt,at:at};
+        payPending={n:document.getElementById("payNote").value.trim().slice(0,40),l:document.getElementById("payLink").value.trim().slice(0,200),a:m[0],c:amtTxt,at:at};
         var box=document.getElementById("payConfirm");box.textContent="";
         box.style.cssText="margin-top:10px;padding:12px;border:1px solid #f0c040;border-radius:10px";
         function line(t,css){var d=document.createElement("div");d.style.cssText=css||"margin-bottom:6px";d.textContent=t;box.appendChild(d)}
         line("Confirm payment","font-weight:bold;margin-bottom:8px");
-        line("To: "+(payPending.n||"-"));
+        line("To: "+(payPending.n||"-"));if(payPending.l){line("Profile: "+payPending.l.slice(0,60),"font-size:12px;color:#999;word-break:break-all;margin-bottom:6px")}
         line(payPending.a,"font-family:monospace;font-size:12px;word-break:break-all;margin-bottom:6px");
         line("Amount: "+payPending.c+" CZR","font-weight:bold;margin-bottom:10px");
         var row=document.createElement("div");row.style.cssText="display:flex;gap:8px";
@@ -6755,9 +6756,9 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
         row.appendChild(ok);row.appendChild(no);box.appendChild(row);
       }
       async function payConfirm(){
-        if(!payPending)return;var it={i:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:new Date().toISOString().slice(0,16).replace("T"," "),n:payPending.n,a:payPending.a,c:payPending.c,at:payPending.at,s:"queued",x:""};
+        if(!payPending)return;var it={i:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:new Date().toISOString().slice(0,16).replace("T"," "),n:payPending.n,l:payPending.l||"",a:payPending.a,c:payPending.c,at:payPending.at,s:"queued",x:""};
         payPending=null;var box=document.getElementById("payConfirm");box.textContent="";box.style.cssText="";
-        document.getElementById("payAddr").value="";document.getElementById("payAmt").value="";document.getElementById("payNote").value="";
+        document.getElementById("payAddr").value="";document.getElementById("payAmt").value="";document.getElementById("payNote").value="";document.getElementById("payLink").value="";
         var a=payLoad();a.push(it);paySave(a);payRender();
         if(!payBusy){payBusy=true;await payTry(it.i);payBusy=false}
       }
@@ -6782,7 +6783,7 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
           var d=document.createElement("div");d.style.cssText="padding:8px 0;border-bottom:1px solid #222;font-size:12px;word-break:break-all";
           var h=document.createElement("div");h.textContent=x.t+" | "+(x.n||"-")+" | "+x.c+" CZR";d.appendChild(h);
           var ad=document.createElement("div");ad.style.cssText="font-family:monospace;color:#999";ad.textContent=x.a.slice(0,16)+"..."+x.a.slice(-6);d.appendChild(ad);
-          var st=document.createElement("div");st.style.color=col[x.s]||"#fff";st.textContent=x.s+(x.x?" - "+x.x:"");d.appendChild(st);
+          if(x.l){var lk=document.createElement("div");lk.style.cssText="font-size:11px;color:#888;word-break:break-all";lk.textContent="profile: "+String(x.l).slice(0,60);d.appendChild(lk)}var st=document.createElement("div");st.style.color=col[x.s]||"#fff";st.textContent=x.s+(x.x?" - "+x.x:"");d.appendChild(st);
           if(x.s==="queued"){var b=document.createElement("button");b.className="btn";b.style.cssText="margin-top:6px;padding:6px 12px";b.textContent="Cancel";b.onclick=function(){payCancel(x.i)};d.appendChild(b)}
           box.appendChild(d)});
       }
@@ -11361,7 +11362,8 @@ CZR JS CHECKING
       <div class="card">
         <h2>Pay</h2>
         <div class="input-row"><input id="payNote" placeholder="name (optional)" autocomplete="off"></div>
-        <div class="input-row"><input id="payAddr" placeholder="paste CZ1... address or scan QR" autocomplete="off"></div>
+        <div class="input-row"><input id="payLink" placeholder="profile link or QR (TikTok etc.) - record only" autocomplete="off"></div>
+        <div class="input-row"><input id="payAddr" placeholder="wallet address CZ1... (paste or scan)" autocomplete="off"></div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
           <button class="btn" style="flex:1" onclick="payScan()">Scan QR</button>
           <button class="btn" style="flex:1" onclick="document.getElementById('payFile').click()">From image</button>
@@ -11378,7 +11380,7 @@ CZR JS CHECKING
       function payAtomic(s){s=String(s).trim().replace(",",".");if(!/^[0-9]+(\.[0-9]{1,8})?$/.test(s))return "";var p=s.split(".");var f=((p[1]||"")+"00000000").slice(0,8);return (p[0]+f).replace(/^0+/,"");}
       function payLoad(){var a=[];try{a=JSON.parse(localStorage.getItem("czr_pay_q")||"[]")}catch(e){}return a;}
       function paySave(a){var keep=a.filter(function(x){return x.s==="queued"||x.s==="sending"||x.s==="check"});var rest=a.filter(function(x){return !(x.s==="queued"||x.s==="sending"||x.s==="check")}).slice(-40);try{localStorage.setItem("czr_pay_q",JSON.stringify(rest.concat(keep).sort(function(x,y){return x.i<y.i?-1:1})))}catch(e){}}
-      function payFill(txt){var m=String(txt).match(/CZ1[0-9a-fA-F]{16,}/);document.getElementById("payAddr").value=m?m[0]:String(txt);toast(m?"Address read":"No CZ1 address in that code");}
+      function payFill(txt){var t=String(txt);var m=t.match(/CZ1[0-9a-fA-F]{16,}/);if(m){document.getElementById("payAddr").value=m[0];toast("Wallet address read");return}if(/^https?:\/\//i.test(t.trim())){document.getElementById("payLink").value=t.trim().slice(0,200);toast("Profile link saved. Now add the CZ1 wallet address");return}document.getElementById("payAddr").value=t;toast("No CZ1 address in that code");}
       async function payDetect(src){if(!("BarcodeDetector" in window)){toast("Scan not supported here - paste the address");return ""}var d=new BarcodeDetector({formats:["qr_code"]});var c=await d.detect(src);return c.length?c[0].rawValue:"";}
       async function payFromImage(inp){var f=inp.files&&inp.files[0];if(!f)return;try{var bmp=await createImageBitmap(f);var v=await payDetect(bmp);if(v)payFill(v);else toast("No QR found in image")}catch(e){toast("Could not read image")}inp.value="";}
       async function payScan(){
@@ -11397,12 +11399,12 @@ CZR JS CHECKING
         if(!m){toast(raw.toLowerCase().indexOf("tiktok")>=0?"That is a TikTok link, not a wallet address. Ask for the CZ1 address":"No CZ1 address found");return}
         var amtTxt=document.getElementById("payAmt").value.trim();var at=payAtomic(amtTxt);
         if(!at){toast("Bad amount");return}
-        payPending={n:document.getElementById("payNote").value.trim().slice(0,40),a:m[0],c:amtTxt,at:at};
+        payPending={n:document.getElementById("payNote").value.trim().slice(0,40),l:document.getElementById("payLink").value.trim().slice(0,200),a:m[0],c:amtTxt,at:at};
         var box=document.getElementById("payConfirm");box.textContent="";
         box.style.cssText="margin-top:10px;padding:12px;border:1px solid #f0c040;border-radius:10px";
         function line(t,css){var d=document.createElement("div");d.style.cssText=css||"margin-bottom:6px";d.textContent=t;box.appendChild(d)}
         line("Confirm payment","font-weight:bold;margin-bottom:8px");
-        line("To: "+(payPending.n||"-"));
+        line("To: "+(payPending.n||"-"));if(payPending.l){line("Profile: "+payPending.l.slice(0,60),"font-size:12px;color:#999;word-break:break-all;margin-bottom:6px")}
         line(payPending.a,"font-family:monospace;font-size:12px;word-break:break-all;margin-bottom:6px");
         line("Amount: "+payPending.c+" CZR","font-weight:bold;margin-bottom:10px");
         var row=document.createElement("div");row.style.cssText="display:flex;gap:8px";
@@ -11411,9 +11413,9 @@ CZR JS CHECKING
         row.appendChild(ok);row.appendChild(no);box.appendChild(row);
       }
       async function payConfirm(){
-        if(!payPending)return;var it={i:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:new Date().toISOString().slice(0,16).replace("T"," "),n:payPending.n,a:payPending.a,c:payPending.c,at:payPending.at,s:"queued",x:""};
+        if(!payPending)return;var it={i:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:new Date().toISOString().slice(0,16).replace("T"," "),n:payPending.n,l:payPending.l||"",a:payPending.a,c:payPending.c,at:payPending.at,s:"queued",x:""};
         payPending=null;var box=document.getElementById("payConfirm");box.textContent="";box.style.cssText="";
-        document.getElementById("payAddr").value="";document.getElementById("payAmt").value="";document.getElementById("payNote").value="";
+        document.getElementById("payAddr").value="";document.getElementById("payAmt").value="";document.getElementById("payNote").value="";document.getElementById("payLink").value="";
         var a=payLoad();a.push(it);paySave(a);payRender();
         if(!payBusy){payBusy=true;await payTry(it.i);payBusy=false}
       }
@@ -11438,7 +11440,7 @@ CZR JS CHECKING
           var d=document.createElement("div");d.style.cssText="padding:8px 0;border-bottom:1px solid #222;font-size:12px;word-break:break-all";
           var h=document.createElement("div");h.textContent=x.t+" | "+(x.n||"-")+" | "+x.c+" CZR";d.appendChild(h);
           var ad=document.createElement("div");ad.style.cssText="font-family:monospace;color:#999";ad.textContent=x.a.slice(0,16)+"..."+x.a.slice(-6);d.appendChild(ad);
-          var st=document.createElement("div");st.style.color=col[x.s]||"#fff";st.textContent=x.s+(x.x?" - "+x.x:"");d.appendChild(st);
+          if(x.l){var lk=document.createElement("div");lk.style.cssText="font-size:11px;color:#888;word-break:break-all";lk.textContent="profile: "+String(x.l).slice(0,60);d.appendChild(lk)}var st=document.createElement("div");st.style.color=col[x.s]||"#fff";st.textContent=x.s+(x.x?" - "+x.x:"");d.appendChild(st);
           if(x.s==="queued"){var b=document.createElement("button");b.className="btn";b.style.cssText="margin-top:6px;padding:6px 12px";b.textContent="Cancel";b.onclick=function(){payCancel(x.i)};d.appendChild(b)}
           box.appendChild(d)});
       }
