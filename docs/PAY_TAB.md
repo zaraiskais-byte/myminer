@@ -15,3 +15,7 @@ Fifth tab in the wallet. Paste a CZ1 address (or a link that contains one), opti
 - 1 name, 2 profile link or QR (TikTok etc., record only, never a destination), 3 wallet address CZ1 (paste, scan or image), 4 amount in CZR.
 - A scanned QR that holds a web link goes to field 2; a CZ1 address goes to field 3.
 - The profile link is shown in the confirm box and in the payments list. Money only goes to the CZ1 address.
+
+## v3.1
+- The fifth tab is labelled TikTok with a music-note icon. Tab id and send logic are unchanged (data-tab="pay").
+- Present only in the main wallet page; sending still needs the unlocked PIN session.

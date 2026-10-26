@@ -6703,7 +6703,7 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 
         <section class="tab" id="tab-pay">
       <div class="card">
-        <h2>Pay</h2>
+        <h2>TikTok</h2>
         <div class="input-row"><input id="payNote" placeholder="name (optional)" autocomplete="off"></div>
         <div class="input-row"><input id="payLink" placeholder="profile link or QR (TikTok etc.) - record only" autocomplete="off"></div>
         <div class="input-row"><input id="payAddr" placeholder="wallet address CZ1... (paste or scan)" autocomplete="off"></div>
@@ -6984,8 +6984,8 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
     </button>
 
       <button data-tab="pay" onclick="switchTab('pay',this)">
-      <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-      Pay
+      <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      TikTok
     </button>
   </nav>
 
@@ -11360,7 +11360,7 @@ CZR JS CHECKING
 
         <section class="tab" id="tab-pay">
       <div class="card">
-        <h2>Pay</h2>
+        <h2>TikTok</h2>
         <div class="input-row"><input id="payNote" placeholder="name (optional)" autocomplete="off"></div>
         <div class="input-row"><input id="payLink" placeholder="profile link or QR (TikTok etc.) - record only" autocomplete="off"></div>
         <div class="input-row"><input id="payAddr" placeholder="wallet address CZ1... (paste or scan)" autocomplete="off"></div>
@@ -11587,8 +11587,8 @@ CZR JS CHECKING
     </button>
 
       <button data-tab="pay" onclick="switchTab('pay',this)">
-      <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-      Pay
+      <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      TikTok
     </button>
   </nav>
 
