@@ -1,5 +1,9 @@
 #pragma once
 
+#include <chrono>
+#include <fstream>
+#include <cstdlib>
+#include <string>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -280,6 +284,10 @@ class CaesarNode {
     }
 
     MempoolValidationResult accept_transaction(const Transaction& tx) {
+        const auto czr_a0 = std::chrono::steady_clock::now();
+        auto czr_el = [&]() -> long long { return (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - czr_a0).count(); };
+        auto czr_wr = [](const std::string& m) { try { const char* h = std::getenv("HOME"); std::ofstream f(std::string(h ? h : ".") + "/czr-send.log", std::ios::app); f << "[accept] " << m << "\n"; } catch (...) {} };
+        long long czr_l1 = 0, czr_l2 = 0, czr_l3 = 0;
         if (!running_)
             throw std::runtime_error("cannot accept transaction while node is stopped");
 
@@ -287,13 +295,16 @@ class CaesarNode {
 
         {
             std::lock_guard<std::mutex> chain_lock(*chain_mutex_);
+            czr_l1 = czr_el();
 
             const auto current_chain = storage_.load();
+            czr_l2 = czr_el();
 
             if (current_chain.empty())
                 throw std::runtime_error("cannot accept transaction on empty blockchain");
 
             const UTXOSet utxos = rebuild_utxo_set(current_chain);
+            czr_l3 = czr_el();
 
             if (is_coinbase_transaction(tx)) {
                 result = {MempoolRejectReason::InvalidTransaction};
@@ -310,7 +321,7 @@ class CaesarNode {
          * the transaction and all chain/mempool locks are released.
          */
         if (result.accepted())
-            relay_.announce_transaction(tx);
+            { const long long czr_l4 = czr_el(); relay_.announce_transaction(tx); czr_wr("accept lock_ms=" + std::to_string(czr_l1) + " load_ms=" + std::to_string(czr_l2 - czr_l1) + " rebuild_ms=" + std::to_string(czr_l3 - czr_l2) + " mempool_ms=" + std::to_string(czr_l4 - czr_l3) + " relay_ms=" + std::to_string(czr_el() - czr_l4)); }
 
         return result;
     }

@@ -24,3 +24,7 @@ Fifth tab in the wallet. Paste a CZ1 address (or a link that contains one), opti
 - Confirm opens a 6-digit code (POST /api/send/prepare). The code is typed back, then /api/send checks it: 5 min, 3 attempts, bound to recipient and amount, consumed after a successful send.
 - A request timeout is now shown as "check" (the transfer may have gone out), never "failed".
 - Stage timings are appended to ~/czr-send.log (utxos_ms, submit_ms).
+
+## v5 (send timeout + accept timing)
+- The Pay page waits up to 120 s for /api/send (was 30 s), so a slow but successful send shows "sent".
+- accept_transaction() appends lock_ms, load_ms, rebuild_ms, mempool_ms and relay_ms to ~/czr-send.log, to find where a send spends its time.

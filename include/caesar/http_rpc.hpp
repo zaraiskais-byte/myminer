@@ -6794,7 +6794,7 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
       async function payTry(id){
         var a=payLoad();var it=a.filter(function(x){return x.i===id})[0];if(!it||it.s!=="queued")return;
         it.s="sending";it.x="sending...";paySave(a);payRender();
-        var r=null;try{r=await api("/api/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:it.a,amount:it.at,code:it.code||""})})}catch(e){r=null}
+        var r=null;try{r=await api("/api/send",{timeout:120000,method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:it.a,amount:it.at,code:it.code||""})})}catch(e){r=null}
         a=payLoad();it=a.filter(function(x){return x.i===id})[0];if(!it)return;
         if(r&&r.status==="ok"){it.s="sent";it.x=String(r.txid||"").slice(0,16);toast("Sent! txid: "+it.x+"...")}
         else if(r&&r.error&&/insufficient/i.test(String(r.error))){it.s="queued";it.x="waiting for balance"}
@@ -7140,7 +7140,7 @@ async function api(path,opts){
 
   const ac=new AbortController();
 
-  const timer=setTimeout(()=>ac.abort(), 30000);
+  const timer=setTimeout(()=>ac.abort(), (opts&&opts.timeout)||30000);
 
   o.signal=ac.signal;
 
@@ -11472,7 +11472,7 @@ CZR JS CHECKING
       async function payTry(id){
         var a=payLoad();var it=a.filter(function(x){return x.i===id})[0];if(!it||it.s!=="queued")return;
         it.s="sending";it.x="sending...";paySave(a);payRender();
-        var r=null;try{r=await api("/api/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:it.a,amount:it.at,code:it.code||""})})}catch(e){r=null}
+        var r=null;try{r=await api("/api/send",{timeout:120000,method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:it.a,amount:it.at,code:it.code||""})})}catch(e){r=null}
         a=payLoad();it=a.filter(function(x){return x.i===id})[0];if(!it)return;
         if(r&&r.status==="ok"){it.s="sent";it.x=String(r.txid||"").slice(0,16);toast("Sent! txid: "+it.x+"...")}
         else if(r&&r.error&&/insufficient/i.test(String(r.error))){it.s="queued";it.x="waiting for balance"}
@@ -11726,7 +11726,7 @@ async function api(path,opts){
 
   const ac=new AbortController();
 
-  const timer=setTimeout(()=>ac.abort(), 30000);
+  const timer=setTimeout(()=>ac.abort(), (opts&&opts.timeout)||30000);
 
   o.signal=ac.signal;
 
