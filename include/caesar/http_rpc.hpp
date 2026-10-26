@@ -1,3 +1,7 @@
+#include <random>
+#include <chrono>
+#include <fstream>
+#include <cstdlib>
 #include <algorithm>
 #pragma once
 
@@ -221,6 +225,11 @@ inline std::atomic<bool>          g_pool_auto_enabled{false};
 
 inline std::atomic<std::uint32_t> g_pool_auto_blocks{10};
 inline std::mutex g_me_mutex;
+inline std::mutex g_sendcode_mutex;
+struct SendCodeEntry { std::string recipient; std::string amount; std::string code; std::int64_t expires = 0; int attempts = 0; };
+inline SendCodeEntry g_sendcode;
+inline std::int64_t czr_now_s() { return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
+inline void czr_send_log(const std::string& m) { try { const char* h = std::getenv("HOME"); std::ofstream f(std::string(h ? h : ".") + "/czr-send.log", std::ios::app); f << czr_now_s() << " [send] " << m << "\n"; } catch (...) {} }
 struct CzrMeSession { std::string address; long long expires = 0; std::string public_key; };
 inline std::unordered_map<std::string, CzrMeSession> g_me_sessions;
 inline std::unordered_map<std::string, std::pair<int, long long>> g_me_fails;
@@ -6751,24 +6760,45 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
         line(payPending.a,"font-family:monospace;font-size:12px;word-break:break-all;margin-bottom:6px");
         line("Amount: "+payPending.c+" CZR","font-weight:bold;margin-bottom:10px");
         var row=document.createElement("div");row.style.cssText="display:flex;gap:8px";
-        var ok=document.createElement("button");ok.className="btn primary";ok.style.flex="1";ok.textContent="Confirm and send";ok.onclick=payConfirm;
+        var ok=document.createElement("button");ok.className="btn primary";ok.style.flex="1";ok.textContent="Confirm and send";ok.onclick=payAskCode;
         var no=document.createElement("button");no.className="btn";no.style.flex="1";no.textContent="Cancel";no.onclick=function(){payPending=null;box.textContent="";box.style.cssText=""};
         row.appendChild(ok);row.appendChild(no);box.appendChild(row);
       }
       async function payConfirm(){
-        if(!payPending)return;var it={i:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:new Date().toISOString().slice(0,16).replace("T"," "),n:payPending.n,l:payPending.l||"",a:payPending.a,c:payPending.c,at:payPending.at,s:"queued",x:""};
+        if(!payPending)return;var it={i:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:new Date().toISOString().slice(0,16).replace("T"," "),n:payPending.n,l:payPending.l||"",a:payPending.a,c:payPending.c,at:payPending.at,code:payPending.code||"",s:"queued",x:""};
         payPending=null;var box=document.getElementById("payConfirm");box.textContent="";box.style.cssText="";
         document.getElementById("payAddr").value="";document.getElementById("payAmt").value="";document.getElementById("payNote").value="";document.getElementById("payLink").value="";
         var a=payLoad();a.push(it);paySave(a);payRender();
         if(!payBusy){payBusy=true;await payTry(it.i);payBusy=false}
       }
+      async function payAskCode(){
+        if(!payPending)return;
+        var pr=await api("/api/send/prepare",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:payPending.a,amount:payPending.at})});
+        if(!pr||pr.status!=="ok"||!pr.code){toast("Failed: "+((pr&&pr.error)||"no reply"));return}
+        var box=document.getElementById("payConfirm");box.textContent="";
+        var t=document.createElement("div");t.style.cssText="font-weight:700;margin-bottom:6px";t.textContent="Confirmation code";box.appendChild(t);
+        var c=document.createElement("div");c.style.cssText="font-size:28px;letter-spacing:6px;font-family:monospace;color:#f0c040;margin:6px 0";c.textContent=pr.code;box.appendChild(c);
+        var n=document.createElement("div");n.style.cssText="font-size:12px;color:#999;margin-bottom:8px";n.textContent="Send this code to the TikTok account, then type it below. Valid 5 minutes.";box.appendChild(n);
+        var inp=document.createElement("input");inp.id="payCode";inp.setAttribute("inputmode","numeric");inp.maxLength=6;inp.placeholder="enter the 6-digit code";inp.autocomplete="off";inp.style.cssText="width:100%;box-sizing:border-box;margin-bottom:8px;background:#000;color:#fff;border:1px solid #333;border-radius:12px;padding:12px;font-size:16px";box.appendChild(inp);
+        var row=document.createElement("div");row.style.cssText="display:flex;gap:8px";
+        var go=document.createElement("button");go.className="btn primary";go.style.flex="1";go.textContent="Send";go.onclick=payCodeGo;row.appendChild(go);
+        var cn=document.createElement("button");cn.className="btn";cn.style.flex="1";cn.textContent="Cancel";cn.onclick=function(){payPending=null;box.textContent="";box.style.cssText=""};row.appendChild(cn);
+        box.appendChild(row);
+      }
+      async function payCodeGo(){
+        if(!payPending)return;
+        var v=(document.getElementById("payCode").value||"").trim();
+        if(!/^[0-9]{6}$/.test(v)){toast("Enter the 6-digit code");return}
+        payPending.code=v;await payConfirm();
+      }
       async function payTry(id){
         var a=payLoad();var it=a.filter(function(x){return x.i===id})[0];if(!it||it.s!=="queued")return;
         it.s="sending";it.x="sending...";paySave(a);payRender();
-        var r=null;try{r=await api("/api/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:it.a,amount:it.at})})}catch(e){r=null}
+        var r=null;try{r=await api("/api/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:it.a,amount:it.at,code:it.code||""})})}catch(e){r=null}
         a=payLoad();it=a.filter(function(x){return x.i===id})[0];if(!it)return;
         if(r&&r.status==="ok"){it.s="sent";it.x=String(r.txid||"").slice(0,16);toast("Sent! txid: "+it.x+"...")}
         else if(r&&r.error&&/insufficient/i.test(String(r.error))){it.s="queued";it.x="waiting for balance"}
+        else if(r&&r._aborted){it.s="check";it.x="no reply - check your balance before retrying"}
         else if(r&&r.error){it.s="failed";it.x=String(r.error).slice(0,60);toast("Failed: "+it.x)}
         else{it.s="check";it.x="no reply - check your balance before retrying"}
         paySave(a);payRender();
@@ -11408,24 +11438,45 @@ CZR JS CHECKING
         line(payPending.a,"font-family:monospace;font-size:12px;word-break:break-all;margin-bottom:6px");
         line("Amount: "+payPending.c+" CZR","font-weight:bold;margin-bottom:10px");
         var row=document.createElement("div");row.style.cssText="display:flex;gap:8px";
-        var ok=document.createElement("button");ok.className="btn primary";ok.style.flex="1";ok.textContent="Confirm and send";ok.onclick=payConfirm;
+        var ok=document.createElement("button");ok.className="btn primary";ok.style.flex="1";ok.textContent="Confirm and send";ok.onclick=payAskCode;
         var no=document.createElement("button");no.className="btn";no.style.flex="1";no.textContent="Cancel";no.onclick=function(){payPending=null;box.textContent="";box.style.cssText=""};
         row.appendChild(ok);row.appendChild(no);box.appendChild(row);
       }
       async function payConfirm(){
-        if(!payPending)return;var it={i:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:new Date().toISOString().slice(0,16).replace("T"," "),n:payPending.n,l:payPending.l||"",a:payPending.a,c:payPending.c,at:payPending.at,s:"queued",x:""};
+        if(!payPending)return;var it={i:Date.now()+"-"+Math.random().toString(36).slice(2,6),t:new Date().toISOString().slice(0,16).replace("T"," "),n:payPending.n,l:payPending.l||"",a:payPending.a,c:payPending.c,at:payPending.at,code:payPending.code||"",s:"queued",x:""};
         payPending=null;var box=document.getElementById("payConfirm");box.textContent="";box.style.cssText="";
         document.getElementById("payAddr").value="";document.getElementById("payAmt").value="";document.getElementById("payNote").value="";document.getElementById("payLink").value="";
         var a=payLoad();a.push(it);paySave(a);payRender();
         if(!payBusy){payBusy=true;await payTry(it.i);payBusy=false}
       }
+      async function payAskCode(){
+        if(!payPending)return;
+        var pr=await api("/api/send/prepare",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:payPending.a,amount:payPending.at})});
+        if(!pr||pr.status!=="ok"||!pr.code){toast("Failed: "+((pr&&pr.error)||"no reply"));return}
+        var box=document.getElementById("payConfirm");box.textContent="";
+        var t=document.createElement("div");t.style.cssText="font-weight:700;margin-bottom:6px";t.textContent="Confirmation code";box.appendChild(t);
+        var c=document.createElement("div");c.style.cssText="font-size:28px;letter-spacing:6px;font-family:monospace;color:#f0c040;margin:6px 0";c.textContent=pr.code;box.appendChild(c);
+        var n=document.createElement("div");n.style.cssText="font-size:12px;color:#999;margin-bottom:8px";n.textContent="Send this code to the TikTok account, then type it below. Valid 5 minutes.";box.appendChild(n);
+        var inp=document.createElement("input");inp.id="payCode";inp.setAttribute("inputmode","numeric");inp.maxLength=6;inp.placeholder="enter the 6-digit code";inp.autocomplete="off";inp.style.cssText="width:100%;box-sizing:border-box;margin-bottom:8px;background:#000;color:#fff;border:1px solid #333;border-radius:12px;padding:12px;font-size:16px";box.appendChild(inp);
+        var row=document.createElement("div");row.style.cssText="display:flex;gap:8px";
+        var go=document.createElement("button");go.className="btn primary";go.style.flex="1";go.textContent="Send";go.onclick=payCodeGo;row.appendChild(go);
+        var cn=document.createElement("button");cn.className="btn";cn.style.flex="1";cn.textContent="Cancel";cn.onclick=function(){payPending=null;box.textContent="";box.style.cssText=""};row.appendChild(cn);
+        box.appendChild(row);
+      }
+      async function payCodeGo(){
+        if(!payPending)return;
+        var v=(document.getElementById("payCode").value||"").trim();
+        if(!/^[0-9]{6}$/.test(v)){toast("Enter the 6-digit code");return}
+        payPending.code=v;await payConfirm();
+      }
       async function payTry(id){
         var a=payLoad();var it=a.filter(function(x){return x.i===id})[0];if(!it||it.s!=="queued")return;
         it.s="sending";it.x="sending...";paySave(a);payRender();
-        var r=null;try{r=await api("/api/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:it.a,amount:it.at})})}catch(e){r=null}
+        var r=null;try{r=await api("/api/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({recipient:it.a,amount:it.at,code:it.code||""})})}catch(e){r=null}
         a=payLoad();it=a.filter(function(x){return x.i===id})[0];if(!it)return;
         if(r&&r.status==="ok"){it.s="sent";it.x=String(r.txid||"").slice(0,16);toast("Sent! txid: "+it.x+"...")}
         else if(r&&r.error&&/insufficient/i.test(String(r.error))){it.s="queued";it.x="waiting for balance"}
+        else if(r&&r._aborted){it.s="check";it.x="no reply - check your balance before retrying"}
         else if(r&&r.error){it.s="failed";it.x=String(r.error).slice(0,60);toast("Failed: "+it.x)}
         else{it.s="check";it.x="no reply - check your balance before retrying"}
         paySave(a);payRender();
@@ -14341,6 +14392,53 @@ res.set_content(kCzrInvitePage, "text/html");
 
 
 
+        server_.Post("/api/send/prepare", [this](const httplib::Request& req, httplib::Response& res) {
+            if (!is_authenticated(req)) { res.status = 401; res.set_content("{\"error\":\"unauthorized\"}", "application/json"); return; }
+            if (!is_csrf_safe(req)) { res.status = 403; res.set_content("{\"error\":\"csrf\"}", "application/json"); return; }
+            try {
+                if (!wallet_) throw std::runtime_error("wallet unavailable");
+                auto get_field = [&](const std::string& key) -> std::string {
+                    auto pos = req.body.find("\"" + key + "\"");
+                    if (pos == std::string::npos) return "";
+                    auto colon = req.body.find(':', pos);
+                    if (colon == std::string::npos) return "";
+                    auto start = req.body.find_first_of("\"0123456789", colon);
+                    if (start == std::string::npos) return "";
+                    if (req.body[start] == '"') {
+                        auto end = req.body.find('"', start + 1);
+                        if (end == std::string::npos) return "";
+                        return req.body.substr(start + 1, end - start - 1);
+                    }
+                    auto end = req.body.find_first_of(",}", start);
+                    if (end == std::string::npos) return "";
+                    return req.body.substr(start, end - start);
+                };
+                std::string recipient = get_field("recipient");
+                std::string amount_s = get_field("amount");
+                if (recipient.empty() || amount_s.empty()) throw std::runtime_error("missing recipient or amount");
+                std::uint64_t amount = std::stoull(amount_s);
+                if (amount == 0) throw std::runtime_error("amount must be > 0");
+                if (!is_valid_address(recipient)) throw std::runtime_error("invalid recipient address");
+                std::random_device rd;
+                std::mt19937 gen(rd());
+                std::uniform_int_distribution<int> dist(100000, 999999);
+                std::string code = std::to_string(dist(gen));
+                {
+                    std::lock_guard<std::mutex> lk(g_sendcode_mutex);
+                    g_sendcode.recipient = recipient;
+                    g_sendcode.amount = amount_s;
+                    g_sendcode.code = code;
+                    g_sendcode.expires = czr_now_s() + 300;
+                    g_sendcode.attempts = 0;
+                }
+                czr_send_log("prepare ok");
+                res.set_content("{\"status\":\"ok\",\"code\":\"" + code + "\",\"expires\":300}", "application/json");
+            } catch (const std::exception& e) {
+                res.status = 400;
+                res.set_content(std::string("{\"error\":\"") + e.what() + "\"}", "application/json");
+            }
+        });
+
         server_.Post("/api/send", [this](const httplib::Request& req, httplib::Response& res) {
 
             if (!is_authenticated(req)) {
@@ -14425,7 +14523,24 @@ res.set_content(kCzrInvitePage, "text/html");
 
 
 
+                bool czr_code_used = false;
+                if (req.body.find("\"code\"") != std::string::npos) {
+                    const std::string czr_code = get_field("code");
+                    std::lock_guard<std::mutex> czr_lk(g_sendcode_mutex);
+                    if (g_sendcode.code.empty() || czr_now_s() > g_sendcode.expires)
+                        throw std::runtime_error("code expired - press Review again");
+                    if (g_sendcode.recipient != recipient || g_sendcode.amount != amount_s)
+                        throw std::runtime_error("code does not match this payment");
+                    if (czr_code != g_sendcode.code) {
+                        if (++g_sendcode.attempts >= 3) g_sendcode = SendCodeEntry{};
+                        throw std::runtime_error("wrong code");
+                    }
+                    czr_code_used = true;
+                }
+                const auto czr_t0 = std::chrono::steady_clock::now();
+                czr_send_log("start amount=" + amount_s);
                 auto utxos = collect_my_utxos();
+                czr_send_log("utxos_ms=" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - czr_t0).count()) + " count=" + std::to_string(utxos.size()));
 
 
 
@@ -14509,7 +14624,11 @@ res.set_content(kCzrInvitePage, "text/html");
 
 
 
-                if (!node_.submit_transaction(tx))
+                const auto czr_t1 = std::chrono::steady_clock::now();
+                const bool czr_sub_ok = node_.submit_transaction(tx);
+                czr_send_log("submit_ms=" + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - czr_t1).count()) + " ok=" + std::to_string(czr_sub_ok ? 1 : 0));
+                if (czr_sub_ok && czr_code_used) { std::lock_guard<std::mutex> czr_lk2(g_sendcode_mutex); g_sendcode = SendCodeEntry{}; }
+                if (!czr_sub_ok)
 
                     throw std::runtime_error("mempool rejected transaction");
 

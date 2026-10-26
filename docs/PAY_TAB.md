@@ -19,3 +19,8 @@ Fifth tab in the wallet. Paste a CZ1 address (or a link that contains one), opti
 ## v3.1
 - The fifth tab is labelled TikTok with a music-note icon. Tab id and send logic are unchanged (data-tab="pay").
 - Present only in the main wallet page; sending still needs the unlocked PIN session.
+
+## v4 (confirmation code + send log)
+- Confirm opens a 6-digit code (POST /api/send/prepare). The code is typed back, then /api/send checks it: 5 min, 3 attempts, bound to recipient and amount, consumed after a successful send.
+- A request timeout is now shown as "check" (the transfer may have gone out), never "failed".
+- Stage timings are appended to ~/czr-send.log (utxos_ms, submit_ms).
