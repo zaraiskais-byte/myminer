@@ -28,3 +28,9 @@ Fifth tab in the wallet. Paste a CZ1 address (or a link that contains one), opti
 ## v5 (send timeout + accept timing)
 - The Pay page waits up to 120 s for /api/send (was 30 s), so a slow but successful send shows "sent".
 - accept_transaction() appends lock_ms, load_ms, rebuild_ms, mempool_ms and relay_ms to ~/czr-send.log, to find where a send spends its time.
+
+## v6 (UTXO cache for transaction admission)
+- accept_transaction() keeps the UTXO set in memory, keyed by the chain tip hash.
+- Same tip: reused as is. New blocks (up to 64): applied incrementally. Anything else: full rebuild as before.
+- Block building and block validation still use rebuild_utxo_set(), so consensus is unchanged.
+- ~/czr-send.log now shows path=hit, path=incr or path=full.

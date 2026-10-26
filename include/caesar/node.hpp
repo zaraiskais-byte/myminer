@@ -288,6 +288,7 @@ class CaesarNode {
         auto czr_el = [&]() -> long long { return (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - czr_a0).count(); };
         auto czr_wr = [](const std::string& m) { try { const char* h = std::getenv("HOME"); std::ofstream f(std::string(h ? h : ".") + "/czr-send.log", std::ios::app); f << "[accept] " << m << "\n"; } catch (...) {} };
         long long czr_l1 = 0, czr_l2 = 0, czr_l3 = 0;
+        const char* czr_path = "full";
         if (!running_)
             throw std::runtime_error("cannot accept transaction while node is stopped");
 
@@ -303,7 +304,37 @@ class CaesarNode {
             if (current_chain.empty())
                 throw std::runtime_error("cannot accept transaction on empty blockchain");
 
-            const UTXOSet utxos = rebuild_utxo_set(current_chain);
+            const Hash256 czr_tip = current_chain.back().hash();
+            if (utxo_cache_valid_ && !(utxo_cache_tip_ != czr_tip)) {
+                czr_path = "hit";
+            } else {
+                bool czr_done = false;
+                if (utxo_cache_valid_) {
+                    const std::size_t czr_n = current_chain.size();
+                    const std::size_t czr_lo = czr_n > 65 ? czr_n - 65 : 0;
+                    for (std::size_t czr_i = czr_n - 1; czr_i-- > czr_lo;) {
+                        if (current_chain[czr_i].hash() != utxo_cache_tip_)
+                            continue;
+                        try {
+                            UTXOSet czr_t = utxo_cache_;
+                            for (std::size_t czr_j = czr_i + 1; czr_j < czr_n; ++czr_j)
+                                czr_t = apply_block_transactions(current_chain[czr_j], czr_t);
+                            utxo_cache_ = std::move(czr_t);
+                            czr_done = true;
+                        } catch (...) {
+                            czr_done = false;
+                        }
+                        break;
+                    }
+                }
+                if (czr_done)
+                    czr_path = "incr";
+                else
+                    utxo_cache_ = rebuild_utxo_set(current_chain);
+                utxo_cache_tip_ = czr_tip;
+                utxo_cache_valid_ = true;
+            }
+            const UTXOSet& utxos = utxo_cache_;
             czr_l3 = czr_el();
 
             if (is_coinbase_transaction(tx)) {
@@ -321,7 +352,7 @@ class CaesarNode {
          * the transaction and all chain/mempool locks are released.
          */
         if (result.accepted())
-            { const long long czr_l4 = czr_el(); relay_.announce_transaction(tx); czr_wr("accept lock_ms=" + std::to_string(czr_l1) + " load_ms=" + std::to_string(czr_l2 - czr_l1) + " rebuild_ms=" + std::to_string(czr_l3 - czr_l2) + " mempool_ms=" + std::to_string(czr_l4 - czr_l3) + " relay_ms=" + std::to_string(czr_el() - czr_l4)); }
+            { const long long czr_l4 = czr_el(); relay_.announce_transaction(tx); czr_wr("accept path=" + std::string(czr_path) + " lock_ms=" + std::to_string(czr_l1) + " load_ms=" + std::to_string(czr_l2 - czr_l1) + " rebuild_ms=" + std::to_string(czr_l3 - czr_l2) + " mempool_ms=" + std::to_string(czr_l4 - czr_l3) + " relay_ms=" + std::to_string(czr_el() - czr_l4)); }
 
         return result;
     }
@@ -724,6 +755,9 @@ void mine_one_block(const std::string& miner_recipient,
 
     mutable std::vector<Block> chain_cache_;
     mutable bool chain_cache_valid_ = false;
+    mutable UTXOSet utxo_cache_;
+    mutable Hash256 utxo_cache_tip_{};
+    mutable bool utxo_cache_valid_ = false;
     mutable std::atomic<std::size_t> height_snapshot_{0};
     mutable std::atomic<std::size_t> mempool_size_snapshot_{0};
 
