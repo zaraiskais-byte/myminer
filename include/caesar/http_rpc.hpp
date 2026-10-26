@@ -6701,6 +6701,43 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 
     <!-- ============ TAB: MORE ============ -->
 
+        <section class="tab" id="tab-pay">
+      <div class="card">
+        <h2>Pay</h2>
+        <div class="input-row"><input id="payNote" placeholder="account name (optional)" autocomplete="off"></div>
+        <div class="input-row"><input id="payAddr" placeholder="paste CZ1... address or link" autocomplete="off"></div>
+        <div class="input-row"><input id="payAmt" placeholder="amount in CZR (5 or 0.25)" inputmode="decimal" autocomplete="off"></div>
+        <button class="btn primary" style="width:100%;margin-top:4px" onclick="paySend()">Send</button>
+      </div>
+      <div class="card"><h2>Sent</h2><div id="payLog"></div></div>
+      <script>
+      function payAtomic(s){s=String(s).trim().replace(',','.');if(!/^[0-9]+(\.[0-9]{1,8})?$/.test(s))return '';var p=s.split('.');var f=((p[1]||'')+'00000000').slice(0,8);return (p[0]+f).replace(/^0+/,'');}
+      function payGet(){var a=[];try{a=JSON.parse(localStorage.getItem('czr_pay_log')||'[]')}catch(e){}return a;}
+      function payRender(){var box=document.getElementById('payLog');if(!box)return;box.textContent='';var a=payGet();if(!a.length){box.textContent='No payments yet';return}
+        a.slice().reverse().forEach(function(x){var d=document.createElement('div');d.style.cssText='padding:8px 0;border-bottom:1px solid #222;font-size:12px;word-break:break-all';d.textContent=x.t+' | '+(x.n||'-')+' | '+x.a.slice(0,14)+'... | '+x.c+' CZR | '+x.x;box.appendChild(d)})}
+      async function paySend(){
+        var raw=document.getElementById('payAddr').value.trim();
+        var m=raw.match(/CZ1[0-9a-fA-F]{16,}/);
+        if(!m){toast('No CZ1 address found');return}
+        var addr=m[0];
+        var amtTxt=document.getElementById('payAmt').value.trim();
+        var atomic=payAtomic(amtTxt);
+        if(!atomic){toast('Bad amount');return}
+        toast('Sending...');
+        var r=await api('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipient:addr,amount:atomic})});
+        if(r&&r.status==='ok'){
+          var a=payGet();a.push({t:new Date().toISOString().slice(0,16).replace('T',' '),n:document.getElementById('payNote').value.trim().slice(0,40),a:addr,c:amtTxt,x:String(r.txid||'').slice(0,16)});
+          try{localStorage.setItem('czr_pay_log',JSON.stringify(a.slice(-50)))}catch(e){}
+          toast('Sent! txid: '+String(r.txid||'').slice(0,16)+'...');
+          document.getElementById('payAddr').value='';document.getElementById('payAmt').value='';document.getElementById('payNote').value='';
+          payRender();
+          if(typeof refreshWallet==='function'){await refreshWallet()}
+        } else { toast('Failed: '+((r&&r.error)||'unknown')); }
+      }
+      payRender();
+      </script>
+    </section>
+
     <section class="tab" id="tab-more">
 
 
@@ -6889,6 +6926,10 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 
     </button>
 
+      <button data-tab="pay" onclick="switchTab('pay',this)">
+      <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      Pay
+    </button>
   </nav>
 
 </div>
@@ -11260,6 +11301,43 @@ CZR JS CHECKING
 
     <!-- ============ TAB: MORE ============ -->
 
+        <section class="tab" id="tab-pay">
+      <div class="card">
+        <h2>Pay</h2>
+        <div class="input-row"><input id="payNote" placeholder="account name (optional)" autocomplete="off"></div>
+        <div class="input-row"><input id="payAddr" placeholder="paste CZ1... address or link" autocomplete="off"></div>
+        <div class="input-row"><input id="payAmt" placeholder="amount in CZR (5 or 0.25)" inputmode="decimal" autocomplete="off"></div>
+        <button class="btn primary" style="width:100%;margin-top:4px" onclick="paySend()">Send</button>
+      </div>
+      <div class="card"><h2>Sent</h2><div id="payLog"></div></div>
+      <script>
+      function payAtomic(s){s=String(s).trim().replace(',','.');if(!/^[0-9]+(\.[0-9]{1,8})?$/.test(s))return '';var p=s.split('.');var f=((p[1]||'')+'00000000').slice(0,8);return (p[0]+f).replace(/^0+/,'');}
+      function payGet(){var a=[];try{a=JSON.parse(localStorage.getItem('czr_pay_log')||'[]')}catch(e){}return a;}
+      function payRender(){var box=document.getElementById('payLog');if(!box)return;box.textContent='';var a=payGet();if(!a.length){box.textContent='No payments yet';return}
+        a.slice().reverse().forEach(function(x){var d=document.createElement('div');d.style.cssText='padding:8px 0;border-bottom:1px solid #222;font-size:12px;word-break:break-all';d.textContent=x.t+' | '+(x.n||'-')+' | '+x.a.slice(0,14)+'... | '+x.c+' CZR | '+x.x;box.appendChild(d)})}
+      async function paySend(){
+        var raw=document.getElementById('payAddr').value.trim();
+        var m=raw.match(/CZ1[0-9a-fA-F]{16,}/);
+        if(!m){toast('No CZ1 address found');return}
+        var addr=m[0];
+        var amtTxt=document.getElementById('payAmt').value.trim();
+        var atomic=payAtomic(amtTxt);
+        if(!atomic){toast('Bad amount');return}
+        toast('Sending...');
+        var r=await api('/api/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({recipient:addr,amount:atomic})});
+        if(r&&r.status==='ok'){
+          var a=payGet();a.push({t:new Date().toISOString().slice(0,16).replace('T',' '),n:document.getElementById('payNote').value.trim().slice(0,40),a:addr,c:amtTxt,x:String(r.txid||'').slice(0,16)});
+          try{localStorage.setItem('czr_pay_log',JSON.stringify(a.slice(-50)))}catch(e){}
+          toast('Sent! txid: '+String(r.txid||'').slice(0,16)+'...');
+          document.getElementById('payAddr').value='';document.getElementById('payAmt').value='';document.getElementById('payNote').value='';
+          payRender();
+          if(typeof refreshWallet==='function'){await refreshWallet()}
+        } else { toast('Failed: '+((r&&r.error)||'unknown')); }
+      }
+      payRender();
+      </script>
+    </section>
+
     <section class="tab" id="tab-more">
 
       <div class="card">
@@ -11394,6 +11472,10 @@ CZR JS CHECKING
 
     </button>
 
+      <button data-tab="pay" onclick="switchTab('pay',this)">
+      <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      Pay
+    </button>
   </nav>
 
 </div>
