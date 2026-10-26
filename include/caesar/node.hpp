@@ -1,5 +1,6 @@
 #pragma once
 
+#include <thread>
 #include <chrono>
 #include <fstream>
 #include <cstdlib>
@@ -109,6 +110,7 @@ class CaesarNode {
     CaesarNode& operator=(const CaesarNode&) = delete;
 
     void start() {
+        std::thread([this]() { czr_prewarm_cache(); }).detach();
         std::lock_guard<std::mutex> lock(lifecycle_mutex_);
 
         if (running_)
@@ -281,6 +283,37 @@ class CaesarNode {
     bool mempool_contains(const Hash256& txid) const {
         std::lock_guard<std::mutex> lock(mempool_mutex_);
         return mempool_.contains(txid);
+    }
+
+    void czr_prewarm_cache() {
+        try {
+            for (int czr_k = 0; czr_k < 240 && !running_; ++czr_k)
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            if (!running_)
+                return;
+            const auto czr_p0 = std::chrono::steady_clock::now();
+            auto czr_chain = [&]() {
+                std::lock_guard<std::mutex> czr_lk(*chain_mutex_);
+                return storage_.load();
+            }();
+            if (czr_chain.empty())
+                return;
+            const Hash256 czr_tip = czr_chain.back().hash();
+            UTXOSet czr_set = rebuild_utxo_set(czr_chain);
+            {
+                std::lock_guard<std::mutex> czr_lk(*chain_mutex_);
+                if (!utxo_cache_valid_) {
+                    utxo_cache_ = std::move(czr_set);
+                    utxo_cache_tip_ = czr_tip;
+                    utxo_cache_valid_ = true;
+                }
+            }
+            const long long czr_ms = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - czr_p0).count();
+            const char* czr_h = std::getenv("HOME");
+            std::ofstream czr_f(std::string(czr_h ? czr_h : ".") + "/czr-send.log", std::ios::app);
+            czr_f << "[prewarm] ready ms=" << czr_ms << "\n";
+        } catch (...) {
+        }
     }
 
     MempoolValidationResult accept_transaction(const Transaction& tx) {
