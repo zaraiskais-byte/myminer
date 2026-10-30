@@ -169,6 +169,15 @@ constexpr std::uint32_t CZR_MIN_DIFFICULTY = 8;
 constexpr std::uint32_t CZR_INITIAL_MINING_DIFFICULTY = 12;
 constexpr std::uint32_t CZR_MAX_DIFFICULTY = 256;
 
+/*
+ * Easy-mining fork. From block height CZR_EASY_FORK_HEIGHT the next
+ * CZR_DIFFICULTY_WINDOW blocks use CZR_EASY_FORK_DIFFICULTY, then the normal
+ * median-based adjustment continues. Blocks below the fork height are
+ * unchanged, so the existing chain stays valid.
+ */
+constexpr std::uint64_t CZR_EASY_FORK_HEIGHT = 19;
+constexpr std::uint32_t CZR_EASY_FORK_DIFFICULTY = 13;
+
 inline std::uint64_t difficulty_median_interval(std::vector<std::uint64_t> intervals) {
     if (intervals.size() != CZR_DIFFICULTY_WINDOW)
         return 0;
