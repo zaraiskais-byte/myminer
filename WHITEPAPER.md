@@ -70,7 +70,7 @@ Native pool with:
 - HTTP worker protocol
 - Persistent share accounting
 - Manual + auto payouts
-- 2% operator fee
+- 35% operator fee
 
 ## 6. Network
 
