@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="utf-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Caesar CZR - Block Explorer</title>
+
+<style>
+
+body { font-family: monospace; background: #0f1115; color: #e8e8e8; margin: 0; padding: 20px; }
+
+h1 { color: #f0c040; }
+
+.top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+
+button, a.btn { background: #f0c040; color: #000; border: none; padding: 10px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; text-decoration: none; font-family: monospace; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+th { color: #f0c040; text-align: left; padding: 8px; border-bottom: 1px solid #333; }
+
+td { padding: 8px; border-bottom: 1px solid #1a1a1a; }
+
+tr:hover { background: #1a1a1a; }
+
+.hash { font-size: 11px; color: #5fdc7a; word-break: break-all; }
+
+#info { color: #5fdc7a; margin-bottom: 15px; }
+
+</style>
+
+</head>
+
+<body>
+
+<div class="top">
+
+  <h1>Caesar CZR Explorer</h1>
+
+  <div>
+
+    <a class="btn" href="/">Wallet</a>
+
+    <button onclick="load()">Refresh</button>
+
+  </div>
+
+</div>
+
+<div id="info">Loading...</div>
+
+<table>
+
+  <thead>
+
+    <tr><th>Height</th><th>Hash</th><th>Time</th><th>Diff</th><th>Nonce</th><th>Txs</th></tr>
+
+  </thead>
+
+  <tbody id="rows"></tbody>
+
+</table>
+
+<script>
+
+async function load() {
+
+  try {
+
+    const r = await fetch('/api/blocks?limit=100', {cache:'no-store'});
+
+    const d = await r.json();
+
+    document.getElementById('info').textContent =
+
+      'Height: ' + d.height + ' | Total: ' + d.count + ' blocks';
+
+    const rows = document.getElementById('rows');
+
+    rows.innerHTML = '';
+
+    d.blocks.slice().reverse().forEach(b => {
+
+      const tr = document.createElement('tr');
+
+      const when = new Date(b.timestamp * 1000).toISOString().replace('T',' ').substring(0,19);
+
+      tr.innerHTML =
+
+        '<td>' + b.height + '</td>' +
+
+        '<td class="hash">' + b.hash.substring(0,32) + '...</td>' +
+
+        '<td>' + when + '</td>' +
+
+        '<td>' + b.difficulty + '</td>' +
+
+        '<td>' + b.nonce + '</td>' +
+
+        '<td>' + b.txs + '</td>';
+
+      rows.appendChild(tr);
+
+    });
+
+  } catch (e) {
+
+    document.getElementById('info').textContent = 'Error: ' + e.message;
+
+  }
+
+}
+
+load();
+
+setInterval(load, 10000);
+
+</script>
+
+
+<script>
+/* CZR_UNLOCK_FINAL_FIX */
+window.unlock = function(ev){
+  if (ev && ev.preventDefault) ev.preventDefault();
+  /* CZR_PIN_ID_FIX */
+  var pinEl = document.getElementById('pin') || document.getElementById('pinInput');
+  var msgEl = document.getElementById('msg') || document.getElementById('lockMsg');
+  var pin = pinEl ? (pinEl.value || '').trim() : '';
+  if (!pin) { if (msgEl) msgEl.textContent = 'Enter PIN'; return false; }
+  fetch('/api/auth/status', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(st){
+    var ep = (st && st.has_pin === false) ? '/api/auth/setup' : '/api/auth/unlock';
+    return fetch(ep, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pin: pin})
+    });
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d && (d.status === 'ok' || d.unlocked === true)) {
+      if (msgEl) msgEl.textContent = '';
+      var ls = document.getElementById('lockScreen') || document.getElementById('lock');
+      if (ls) ls.style.display = 'none';
+      var ap = document.getElementById('app'); if (ap) ap.style.display = 'flex';
+      if (typeof refreshStatus === 'function') { try { refreshStatus(); } catch(e){} }
+    } else if (msgEl) {
+      msgEl.textContent = (d && d.error) ? d.error : 'Invalid PIN';
+    }
+  }).catch(function(e){
+    if (msgEl) msgEl.textContent = 'Unlock failed: ' + (e && e.message ? e.message : e);
+  });
+  return false;
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+  var btn = document.getElementById('unlockBtn');
+  if (btn) {
+    btn.addEventListener('click', window.unlock);
+  }
+});
+</script>
+
+</body>
+
+</html>
