@@ -21,7 +21,7 @@ class SecureWalletStorage {
     static constexpr std::size_t SALT_LEN = 16;
     static constexpr std::size_t IV_LEN = 12;
     static constexpr std::size_t TAG_LEN = 16;
-    static constexpr int PBKDF2_ITER = 100000;
+    static constexpr int PBKDF2_ITER = 600000;
 
     static std::vector<std::uint8_t> derive_key(const std::string& pin,
                                                   const std::vector<std::uint8_t>& salt) {

@@ -146,7 +146,7 @@ All files live in the `--data` directory:
 
 - `blockchain.dat` — the chain
 - `wallet.pem` — encrypted Ed25519 key
-- `pin.hash` — PIN hash (PBKDF2, 100k)
+- `pin.hash` — PIN hash (PBKDF2, 600k)
 - `pool_state.txt` — full pool + user state
 
 ## Documentation
