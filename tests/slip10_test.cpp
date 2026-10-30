@@ -1,3 +1,4 @@
+// Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 #include <caesar/slip10.hpp>
 
 #include <array>

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 #include <caesar/wallet_hd.hpp>
 #include <caesar/signature.hpp>
 

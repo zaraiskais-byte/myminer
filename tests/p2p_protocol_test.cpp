@@ -1,3 +1,4 @@
+// Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 #include <caesar/p2p_protocol.hpp>
 #include <cassert>
 #include <string>

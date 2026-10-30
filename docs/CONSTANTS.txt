@@ -1,0 +1,14 @@
+constexpr std::size_t CZR_DIFFICULTY_WINDOW = 11;
+constexpr std::size_t CZR_POW_MEMORY_WORDS = 65536;
+constexpr std::uint32_t CZR_INITIAL_MINING_DIFFICULTY = 12;
+constexpr std::uint32_t CZR_MAX_DIFFICULTY = 256;
+constexpr std::uint32_t CZR_MIN_DIFFICULTY = 8;
+constexpr std::uint32_t CZR_POW_ROUNDS = 4;
+constexpr std::uint32_t CZR_POW_VERSION = 2;
+constexpr std::uint64_t CZR_ATOMIC_UNITS = 100000000ULL;
+constexpr std::uint64_t CZR_HALVING_INTERVAL = 210000ULL;
+constexpr std::uint64_t CZR_INITIAL_SUBSIDY = 50ULL * CZR_ATOMIC_UNITS;
+constexpr std::uint64_t CZR_MAX_SUPPLY = 21000000ULL * CZR_ATOMIC_UNITS;
+constexpr std::uint64_t CZR_TARGET_BLOCK_TIME = 120;
+inline constexpr std::size_t CZR_MEDIAN_TIME_WINDOW = 11;
+inline constexpr std::uint64_t CZR_MAX_FUTURE_DRIFT = 2 * 60 * 60;

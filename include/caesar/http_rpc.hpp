@@ -1,5 +1,7 @@
+// Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 #pragma once
 
+#include <unordered_set>
 #include <queue>
 
 #include <functional>
@@ -71,6 +73,7 @@
 #include <caesar/utxo.hpp>
 
 #include <caesar/witness.hpp>
+#include <caesar/me_extra.hpp>
 
 
 
@@ -218,6 +221,156 @@ struct PoolPayoutResult {
 inline std::atomic<bool>          g_pool_auto_enabled{false};
 
 inline std::atomic<std::uint32_t> g_pool_auto_blocks{10};
+inline std::mutex g_me_mutex;
+struct CzrMeSession { std::string address; long long expires = 0; std::string public_key; };
+inline std::unordered_map<std::string, CzrMeSession> g_me_sessions;
+inline std::unordered_map<std::string, std::pair<int, long long>> g_me_fails;
+inline long long g_me_window_start = 0;
+inline int g_me_window_count = 0;
+inline long long czr_me_now() {
+    return std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+}
+inline std::string czr_me_token(const httplib::Request& req) {
+    const std::string cookie = req.get_header_value("Cookie");
+    const std::string key = "caesar_me=";
+    std::size_t pos = 0;
+    while ((pos = cookie.find(key, pos)) != std::string::npos) {
+        if (pos == 0 || cookie[pos - 1] == ' ' || cookie[pos - 1] == ';') {
+            const std::size_t s = pos + key.size();
+            const std::size_t e = cookie.find(';', s);
+            return cookie.substr(s, e == std::string::npos ? std::string::npos : e - s);
+        }
+        pos += key.size();
+    }
+    return "";
+}
+inline std::string czr_me_address(const httplib::Request& req) {
+    const std::string token = czr_me_token(req);
+    if (token.empty()) return "";
+    std::lock_guard<std::mutex> lk(g_me_mutex);
+    auto it = g_me_sessions.find(token);
+    if (it == g_me_sessions.end()) return "";
+    if (it->second.expires < czr_me_now()) { g_me_sessions.erase(it); return ""; }
+    return it->second.address;
+}
+
+inline bool czr_me_session(const httplib::Request& req, CzrMeSession& out) {
+    const std::string token = czr_me_token(req);
+    if (token.empty()) return false;
+    std::lock_guard<std::mutex> lk(g_me_mutex);
+    auto it = g_me_sessions.find(token);
+    if (it == g_me_sessions.end()) return false;
+    if (it->second.expires < czr_me_now()) { g_me_sessions.erase(it); return false; }
+    out = it->second;
+    return true;
+}
+// Reads one JSON string/number field. Understands \" \\ \n \t \r escapes.
+inline std::string czr_json_get(const std::string& body, const std::string& key) {
+    const std::string pat = "\"" + key + "\"";
+    std::size_t p = body.find(pat);
+    if (p == std::string::npos) return "";
+    p = body.find(':', p + pat.size());
+    if (p == std::string::npos) return "";
+    ++p;
+    while (p < body.size() && (body[p] == ' ' || body[p] == '\t' || body[p] == '\n' || body[p] == '\r')) ++p;
+    if (p >= body.size()) return "";
+    std::string out;
+    if (body[p] == '"') {
+        for (++p; p < body.size(); ++p) {
+            const char c = body[p];
+            if (c == '"') return out;
+            if (c == '\\' && p + 1 < body.size()) {
+                const char n = body[++p];
+                if (n == 'n') out += '\n';
+                else if (n == 't') out += '\t';
+                else if (n == 'r') out += '\r';
+                else out += n;
+            } else {
+                out += c;
+            }
+        }
+        return "";
+    }
+    while (p < body.size() && body[p] != ',' && body[p] != '}' && body[p] != ' ' &&
+           body[p] != '\n' && body[p] != '\r') out += body[p++];
+    return out;
+}
+inline std::string czr_json_escape(const std::string& v) {
+    std::string out;
+    out.reserve(v.size() + 8);
+    for (const unsigned char c : v) {
+        if (c == '"') out += "\\\"";
+        else if (c == '\\') out += "\\\\";
+        else if (c == '\n') out += "\\n";
+        else if (c == '\r') out += "\\r";
+        else if (c == '\t') out += "\\t";
+        else if (c < 0x20) out += ' ';
+        else out += static_cast<char>(c);
+    }
+    return out;
+}
+
+// CZR-NAME-FIX: usernames may be Arabic / French / English; PIN digits may be Arabic-Indic or Persian.
+inline std::string czr_trim(const std::string& v) {
+    std::size_t a = 0, b = v.size();
+    while (a < b && (v[a] == ' ' || v[a] == '\t' || v[a] == '\r' || v[a] == '\n')) ++a;
+    while (b > a && (v[b-1] == ' ' || v[b-1] == '\t' || v[b-1] == '\r' || v[b-1] == '\n')) --b;
+    return v.substr(a, b - a);
+}
+inline std::string czr_norm_digits(const std::string& v) {
+    std::string out;
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        const unsigned char c = static_cast<unsigned char>(v[i]);
+        if (c == 0xD9 && i + 1 < v.size()) {
+            const unsigned char d = static_cast<unsigned char>(v[i+1]);
+            if (d >= 0xA0 && d <= 0xA9) { out += static_cast<char>('0' + (d - 0xA0)); ++i; continue; }
+        } else if (c == 0xDB && i + 1 < v.size()) {
+            const unsigned char d = static_cast<unsigned char>(v[i+1]);
+            if (d >= 0xB0 && d <= 0xB9) { out += static_cast<char>('0' + (d - 0xB0)); ++i; continue; }
+        }
+        out += v[i];
+    }
+    return out;
+}
+// returns 0 ok, 1 bad length, 2 bad characters
+inline int czr_check_username(const std::string& u) {
+    std::size_t n = 0;
+    bool prev_space = false;
+    if (u.empty() || u.size() > 96) return 1;
+    for (std::size_t i = 0; i < u.size();) {
+        const unsigned char c = static_cast<unsigned char>(u[i]);
+        unsigned cp = 0; std::size_t len = 1;
+        if (c < 0x80) cp = c;
+        else if ((c & 0xE0) == 0xC0) { len = 2; cp = c & 0x1F; }
+        else if ((c & 0xF0) == 0xE0) { len = 3; cp = c & 0x0F; }
+        else return 2;
+        if (i + len > u.size()) return 2;
+        for (std::size_t k = 1; k < len; ++k) {
+            const unsigned char d = static_cast<unsigned char>(u[i+k]);
+            if ((d & 0xC0) != 0x80) return 2;
+            cp = (cp << 6) | (d & 0x3F);
+        }
+        if ((len == 2 && cp < 0x80) || (len == 3 && cp < 0x800)) return 2;
+        bool ok = false, sp = false;
+        if (cp < 0x80) {
+            ok = std::isalnum(static_cast<int>(cp)) || cp == '_' || cp == '-' || cp == '.';
+            if (cp == ' ') { ok = true; sp = true; }
+        } else if (cp >= 0xC0 && cp <= 0xFF && cp != 0xD7 && cp != 0xF7) ok = true;
+        else if (cp == 0x152 || cp == 0x153 || cp == 0x178) ok = true;
+        else if (cp >= 0x621 && cp <= 0x64A) ok = true;
+        else if (cp == 0x640 || (cp >= 0x660 && cp <= 0x669)) ok = true;
+        else if (cp >= 0x671 && cp <= 0x6D3) ok = true;
+        else if (cp >= 0x6F0 && cp <= 0x6F9) ok = true;
+        else if (cp == 0x2019) ok = true;
+        if (!ok) return 2;
+        if (sp && (prev_space || n == 0)) return 2;
+        prev_space = sp;
+        ++n; i += len;
+    }
+    if (prev_space || n < 3 || n > 32) return (prev_space ? 2 : 1);
+    return 0;
+}
 
 inline std::atomic<std::uint64_t> g_pool_last_payout_height{0};
 
@@ -2290,8 +2443,9 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -2315,8 +2469,9 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -3242,7 +3397,7 @@ class HttpRpcServer {
 
                 std::string pin = req.body.substr(start + 1, end - start - 1);
 
-                if (pin.size() < 8) throw std::runtime_error("PIN must be 8+ digits");
+                if (pin.size() < 8) throw std::runtime_error("PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل");
 
 
 
@@ -3659,7 +3814,7 @@ class HttpRpcServer {
 
                 if (new_pin.size() < 8) {
 
-                    throw std::runtime_error("PIN must be 8+ digits");
+                    throw std::runtime_error("PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل");
 
                 }
 
@@ -3755,7 +3910,7 @@ class HttpRpcServer {
 
                 if (pin.size() < 8) {
 
-                    throw std::runtime_error("PIN must be 8+ digits");
+                    throw std::runtime_error("PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل");
 
                 }
 
@@ -4043,8 +4198,9 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -4068,8 +4224,9 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -4414,7 +4571,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (old_pin.size() < 4) throw std::runtime_error("old PIN too short");
 
-                if (new_pin.size() < 8) throw std::runtime_error("new PIN must be 8+ digits");
+                if (new_pin.size() < 8) throw std::runtime_error("PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل");
 
 
 
@@ -7867,7 +8024,7 @@ async function changePin(){
 
   const n=$('newPin').value.trim();
 
-  if(!o||!n||n.length<5){toast('New PIN must be 8+ digits');return}
+  if(!o||!n||n.length<5){toast('PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل');return}
 
   const r=await api('/api/auth/change-pin',{
 
@@ -8296,8 +8453,9 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -8321,8 +8479,9 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -9182,6 +9341,12 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
              * performing pool_state disk I/O.
              */
 
+            if (addr.empty() || addr.rfind("CZ", 0) != 0) {
+                res.status = 400;
+                res.set_content("{\"ok\":false,\"error\":\"valid address required\"}",
+                                "application/json");
+                return;
+            }
             std::string job_header_hex;
             Block solved;
             std::size_t job_height = 0;
@@ -9269,6 +9434,22 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                     return;
                 }
 
+                {
+                    static std::uint64_t dup_seen_job = 0;
+                    static std::unordered_set<std::string> dup_seen;
+                    if (dup_seen_job != current_job_id) {
+                        dup_seen.clear();
+                        dup_seen_job = current_job_id;
+                    }
+                    const std::string dup_key = addr + ":" + std::to_string(nonce);
+                    if (!dup_seen.insert(dup_key).second) {
+                        std::cerr << "[pool] duplicate share rejected nonce=" << nonce << std::endl;
+                        res.set_content(
+                            "{\"ok\":true,\"credited\":false,\"duplicate\":true}",
+                            "application/json");
+                        return;
+                    }
+                }
                 auto& worker_info = g_pool_workers[addr];
                 if (worker_info.address.empty())
                     worker_info.address = addr;
@@ -9299,6 +9480,9 @@ server_.Get("/api/wallet", [this](const httplib::Request& req, httplib::Response
                     g_pool_owner_share_accum++;
 
                     if (g_pool_owner_share_accum >= 4) {
+                        g_pool_workers[pool_owner].address = pool_owner;
+                        if (g_pool_workers[pool_owner].worker_name.empty())
+                            g_pool_workers[pool_owner].worker_name = "pool-owner";
                         g_pool_workers[pool_owner].shares++;
                         g_pool_workers[pool_owner].shares_pending++;
                         g_pool_workers[pool_owner].last_seen =
@@ -11997,7 +12181,7 @@ async function changePin(){
 
   const n=$('newPin').value.trim();
 
-  if(!o||!n||n.length<5){toast('New PIN must be 8+ digits');return}
+  if(!o||!n||n.length<5){toast('PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل');return}
 
   const r=await api('/api/auth/change-pin',{
 
@@ -12345,8 +12529,9 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -12370,8 +12555,9 @@ window.unlock = function(ev){
     var unEl = document.getElementById('usernameInput');
     var username = unEl ? unEl.value.trim() : '';
     if (!username) { if (msgEl) msgEl.textContent = 'Username required'; return false; }
-    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN must be 8+ digits'; return false; }
+    if (pin.length < 8) { if (msgEl) msgEl.textContent = 'PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل'; return false; }
     
+    window.location.replace('/invite?ref='+encodeURIComponent(ref)); return false;
     if (msgEl) msgEl.textContent = 'Registering...';
     fetch('/api/user/register', {
       method: 'POST',
@@ -12434,57 +12620,538 @@ document.addEventListener('DOMContentLoaded', function() {
         // Invite Page Route
         server_.Get("/invite", [](const httplib::Request& req, httplib::Response& res) {
             res.set_header("Cache-Control", "no-store");
-            res.set_content(R"INVITE(<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Join Caesar CZR</title>
-<style>
-body{background:#080b12;color:#eef1f6;font-family:monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;padding:20px}
-.card{background:#181e2c;border:1px solid #f0c040;border-radius:12px;padding:24px;width:100%;max-width:320px;text-align:center}
-input{background:#000;color:#fff;border:1px solid #f0c040;border-radius:8px;padding:12px;width:100%;margin:8px 0;font-size:16px;text-align:center}
-button{background:#f0c040;color:#000;border:none;padding:14px;width:100%;font-size:16px;font-weight:bold;border-radius:8px;margin-top:12px;cursor:pointer}
-.msg{color:#ff5c7a;font-size:13px;margin-top:12px;min-height:20px}
-</style>
-</head>
-<body>
-<div class="card">
-  <h2 style="color:#f0c040;margin-top:0">Join Network</h2>
-  <p style="color:#8892a4;font-size:13px">Enter a username and 8-digit PIN to create your wallet.</p>
-  <input id="username" type="text" placeholder="Username (3+ chars)" maxlength="32">
-  <input id="pin" type="tel" inputmode="numeric" placeholder="8-digit PIN" maxlength="12">
-  <button onclick="register()">CREATE WALLET</button>
-  <div id="msg" class="msg"></div>
-</div>
-<script>
-function getRef(){const p=new URLSearchParams(location.search);return p.get('ref')||'';}
-async function register(){
-  const username=document.getElementById('username').value.trim();
-  const pin=document.getElementById('pin').value.trim();
-  const msg=document.getElementById('msg');
-  const ref=getRef();
-  if(username.length<3){msg.textContent='Username must be 3+ chars';return;}
-  if(pin.length<8){msg.textContent='PIN must be 8+ digits';return;}
-  if(!ref){msg.textContent='Invalid invite link';return;}
-  msg.textContent='Creating wallet...';msg.style.color='#f0c040';
-  try{
-    const r=await fetch('/api/user/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:username,pin:pin,parent:ref})});
-    const d=await r.json();
-    if(d&&d.ok){
-      msg.style.color='#4dff92';
-      msg.innerHTML='Success!<br>Your address: '+d.address+'<br><br>Save your mnemonic:<br><b style="color:#f0c040;word-break:break-all">'+d.mnemonic+'</b>';
-      document.getElementById('username').style.display='none';
-      document.getElementById('pin').style.display='none';
-      document.querySelector('button').style.display='none';
-    }else{msg.style.color='#ff5c7a';msg.textContent=d.error||'Registration failed';}
-  }catch(e){msg.style.color='#ff5c7a';msg.textContent='Network error: '+e.message;}
-}
-</script>
-</body>
-</html>)INVITE", "text/html");
+res.set_content(kCzrInvitePage, "text/html");
         });
 
+        czr_register_extra(server_);
+        // CZR-ME: read-only wallet view for invited users (own cookie and session store).
+        server_.Post("/api/me/login", [this](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            auto fail = [&](int status, const char* msg) {
+                res.status = status;
+                res.set_content(std::string("{\"ok\":false,\"error\":\"") + msg + "\"}", "application/json");
+            };
+            if (!is_csrf_safe(req)) { fail(403, "csrf"); return; }
+            auto gs = [&](const std::string& key) -> std::string {
+                auto pos = req.body.find("\"" + key + "\"");
+                if (pos == std::string::npos) return "";
+                auto colon = req.body.find(':', pos);
+                if (colon == std::string::npos) return "";
+                auto start = req.body.find('"', colon);
+                if (start == std::string::npos) return "";
+                auto end = req.body.find('"', start + 1);
+                if (end == std::string::npos) return "";
+                return req.body.substr(start + 1, end - start - 1);
+            };
+            const std::string username = czr_trim(gs("username"));
+            const std::string pin = czr_norm_digits(czr_trim(gs("pin")));
+            if (username.empty() || pin.empty() || username.size() > 64 || pin.size() > 64) {
+                fail(400, "username and pin required"); return;
+            }
+            const long long now = czr_me_now();
+            {
+                std::lock_guard<std::mutex> lk(g_me_mutex);
+                if (now - g_me_window_start >= 60) { g_me_window_start = now; g_me_window_count = 0; }
+                if (++g_me_window_count > 30) { fail(429, "too many attempts, try again in a minute"); return; }
+                auto it = g_me_fails.find(username);
+                if (it != g_me_fails.end() && it->second.first >= 5 && now - it->second.second < 300) {
+                    fail(429, "too many attempts, wait 5 minutes"); return;
+                }
+            }
+            std::string found_addr;
+            {
+                std::lock_guard<std::mutex> lock(g_pool_mutex);
+                if (!g_pool_state_loaded.exchange(true)) {
+                    pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+                }
+                for (const auto& kv : g_pool_users) {
+                    if (kv.second.username == username) { found_addr = kv.second.address; break; }
+                }
+            }
+            bool ok = false;
+            std::string login_pub;
+            if (!found_addr.empty()) {
+                const std::filesystem::path enc_path =
+                    wallet_path_.parent_path() / "users" / (found_addr + ".enc");
+                if (std::filesystem::exists(enc_path)) {
+                    try {
+                        std::vector<std::uint8_t> plaintext = SecureWalletStorage::decrypt(enc_path, pin);
+                        std::string mnemonic(plaintext.begin(), plaintext.end());
+                        for (auto& c : plaintext) c = 0;
+                        Wallet w = wallet_from_mnemonic(mnemonic);
+                        for (auto& c : mnemonic) c = 0;
+                        ok = (w.address() == found_addr);
+                        if (ok) login_pub = w.public_key();
+                    } catch (...) { ok = false; }
+                }
+            }
+            std::lock_guard<std::mutex> lk2(g_me_mutex);
+            if (!ok) {
+                if (g_me_fails.size() > 5000) g_me_fails.clear();
+                auto& f = g_me_fails[username];
+                if (now - f.second >= 300) f.first = 0;
+                f.first += 1; f.second = now;
+                fail(401, "Invalid username or PIN");
+                return;
+            }
+            g_me_fails.erase(username);
+            if (g_me_sessions.size() > 5000) {
+                for (auto it = g_me_sessions.begin(); it != g_me_sessions.end();) {
+                    if (it->second.expires < now) it = g_me_sessions.erase(it); else ++it;
+                }
+            }
+            const std::string token = generate_session_token();
+            g_me_sessions[token] = CzrMeSession{found_addr, now + 7 * 24 * 3600, login_pub};
+            res.set_header("Set-Cookie", "caesar_me=" + token + "; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax");
+            res.set_content("{\"ok\":true,\"address\":\"" + found_addr + "\",\"username\":\"" + czr_json_escape(username) + "\"}", "application/json");
+        });
+
+        server_.Post("/api/me/logout", [](const httplib::Request& req, httplib::Response& res) {
+            const std::string token = czr_me_token(req);
+            if (!token.empty()) { std::lock_guard<std::mutex> lk(g_me_mutex); g_me_sessions.erase(token); }
+            res.set_header("Set-Cookie", "caesar_me=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
+            res.set_content("{\"ok\":true}", "application/json");
+        });
+
+        server_.Get("/api/me/balance", [this](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            const std::string addr = czr_me_address(req);
+            if (addr.empty()) {
+                res.status = 401;
+                res.set_content("{\"ok\":false,\"error\":\"unauthorized\"}", "application/json");
+                return;
+            }
+            std::uint64_t total = 0;
+            std::unordered_set<OutPoint, OutPointHasher> spent;
+            std::unordered_map<OutPoint, WalletUtxo, OutPointHasher> unspent;
+            auto process = [&](const std::vector<Transaction>& txs) {
+                for (const auto& tx : txs) {
+                    for (const auto& in : tx.inputs)
+                        spent.insert(OutPoint{in.previous_txid, in.output_index});
+                    const Hash256 txid = tx.txid();
+                    for (std::size_t i = 0; i < tx.outputs.size(); ++i) {
+                        if (tx.outputs[i].recipient == addr) {
+                            OutPoint op{txid, static_cast<std::uint32_t>(i)};
+                            unspent[op] = WalletUtxo{txid, static_cast<std::uint32_t>(i), tx.outputs[i].amount};
+                        }
+                    }
+                }
+            };
+            for (const auto& block : node_.chain()) process(block.transactions);
+            process(node_.mempool_transactions());
+            for (auto& e : unspent)
+                if (!spent.contains(e.first)) total += e.second.amount;
+            std::ostringstream out;
+            out << "{\"ok\":true,\"balance\":" << total << ",\"address\":\"" << addr << "\"}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Get("/api/me/history", [this](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            const std::string addr = czr_me_address(req);
+            if (addr.empty()) {
+                res.status = 401;
+                res.set_content("{\"ok\":false,\"error\":\"unauthorized\"}", "application/json");
+                return;
+            }
+            std::ostringstream out;
+            out << "{\"ok\":true,\"transactions\":[";
+            bool first = true;
+            int count = 0;
+            auto chain = node_.chain();
+            for (std::size_t h = chain.size(); h-- > 0 && count < 20;) {
+                for (const auto& tx : chain[h].transactions) {
+                    std::uint64_t got = 0;
+                    bool involves = false;
+                    for (const auto& o : tx.outputs)
+                        if (o.recipient == addr) { involves = true; got += o.amount; }
+                    if (!involves) continue;
+                    if (!first) out << ",";
+                    first = false;
+                    out << "{\"block\":" << h << ",\"txid\":\"" << hash_to_hex(tx.txid()).substr(0, 16)
+                        << "\",\"received\":" << got << "}";
+                    ++count;
+                }
+            }
+            out << "]}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        server_.Get("/me", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            res.set_header("X-Frame-Options", "DENY");
+            res.set_header("Referrer-Policy", "no-referrer");
+            res.set_header("Content-Security-Policy",
+                           "default-src 'self'; script-src 'unsafe-inline'; worker-src blob:; style-src 'unsafe-inline'; "
+                           "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'");
+            res.set_content(czr_me_page_html(), "text/html");
+        });
+
+        // CZR-ME-FULL: full wallet services for invited users. Every route here works on the
+        // session's OWN wallet (decrypted from users/<addr>.enc with the user's PIN) and never
+        // touches the owner's wallet_ object, balance or owner-only routes.
+        {
+        auto me_unauth = [](httplib::Response& res) {
+            res.status = 401;
+            res.set_content("{\"ok\":false,\"error\":\"unauthorized\"}", "application/json");
+        };
+        auto me_err = [](httplib::Response& res, int status, const std::string& msg) {
+            res.status = status;
+            res.set_content("{\"ok\":false,\"error\":\"" + czr_json_escape(msg) + "\"}", "application/json");
+        };
+        auto me_utxos = [this](const std::string& addr) {
+            std::vector<WalletUtxo> result;
+            std::unordered_set<OutPoint, OutPointHasher> spent;
+            std::unordered_map<OutPoint, WalletUtxo, OutPointHasher> unspent;
+            auto process = [&](const std::vector<Transaction>& txs) {
+                for (const auto& tx : txs) {
+                    for (const auto& in : tx.inputs)
+                        spent.insert(OutPoint{in.previous_txid, in.output_index});
+                    const Hash256 txid = tx.txid();
+                    for (std::size_t i = 0; i < tx.outputs.size(); ++i) {
+                        if (tx.outputs[i].recipient == addr) {
+                            OutPoint op{txid, static_cast<std::uint32_t>(i)};
+                            unspent[op] = WalletUtxo{txid, static_cast<std::uint32_t>(i), tx.outputs[i].amount};
+                        }
+                    }
+                }
+            };
+            for (const auto& block : node_.chain()) process(block.transactions);
+            process(node_.mempool_transactions());
+            for (auto& e : unspent)
+                if (!spent.contains(e.first)) result.push_back(e.second);
+            return result;
+        };
+        // Decrypts the user's wallet with the PIN. 5 wrong PINs lock this account's PIN checks for 5 minutes.
+        auto me_unlock = [this](const std::string& addr, const std::string& pin, std::string& err,
+                                std::string* mnemonic_out) -> std::unique_ptr<Wallet> {
+            const long long now = czr_me_now();
+            const std::string fkey = "pin:" + addr;
+            {
+                std::lock_guard<std::mutex> lk(g_me_mutex);
+                auto it = g_me_fails.find(fkey);
+                if (it != g_me_fails.end() && it->second.first >= 5 && now - it->second.second < 300) {
+                    err = "Too many wrong PINs, wait 5 minutes";
+                    return nullptr;
+                }
+            }
+            std::unique_ptr<Wallet> result;
+            try {
+                const std::filesystem::path enc_path =
+                    wallet_path_.parent_path() / "users" / (addr + ".enc");
+                std::vector<std::uint8_t> plaintext = SecureWalletStorage::decrypt(enc_path, pin);
+                std::string mnemonic(plaintext.begin(), plaintext.end());
+                for (auto& c : plaintext) c = 0;
+                auto cand = std::make_unique<Wallet>(wallet_from_mnemonic(mnemonic));
+                if (cand->address() == addr) {
+                    result = std::move(cand);
+                    if (mnemonic_out) *mnemonic_out = mnemonic;
+                }
+                for (auto& c : mnemonic) c = 0;
+            } catch (...) {
+                result.reset();
+            }
+            std::lock_guard<std::mutex> lk(g_me_mutex);
+            if (!result) {
+                if (g_me_fails.size() > 5000) g_me_fails.clear();
+                auto& f = g_me_fails[fkey];
+                if (now - f.second >= 300) f.first = 0;
+                f.first += 1;
+                f.second = now;
+                err = "Wrong PIN";
+                return nullptr;
+            }
+            g_me_fails.erase(fkey);
+            return result;
+        };
+
+        // Profile + circle (invite tree) of the logged-in user.
+        server_.Get("/api/me/info", [this, me_unauth](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            CzrMeSession s;
+            if (!czr_me_session(req, s)) { me_unauth(res); return; }
+            std::string username, parent;
+            std::uint32_t user_number = 0;
+            bool is_founder = false;
+            std::uint64_t joined_at = 0;
+            std::size_t level[4] = {0, 0, 0, 0};
+            {
+                std::lock_guard<std::mutex> lock(g_pool_mutex);
+                if (!g_pool_state_loaded.exchange(true)) {
+                    pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+                }
+                auto it = g_pool_users.find(s.address);
+                if (it != g_pool_users.end()) {
+                    username = it->second.username;
+                    parent = it->second.parent;
+                    user_number = it->second.user_number;
+                    is_founder = it->second.is_founder;
+                    joined_at = it->second.joined_at;
+                    std::unordered_set<std::string> seen{s.address};
+                    std::vector<std::string> frontier{s.address};
+                    for (int d = 0; d < 4; ++d) {
+                        std::vector<std::string> next;
+                        for (const auto& a : frontier) {
+                            auto uit = g_pool_users.find(a);
+                            if (uit == g_pool_users.end()) continue;
+                            for (const auto& c : uit->second.children) {
+                                if (seen.insert(c).second) { next.push_back(c); ++level[d]; }
+                            }
+                        }
+                        frontier.swap(next);
+                    }
+                }
+            }
+            std::ostringstream out;
+            out << "{\"ok\":true,\"address\":\"" << s.address << "\""
+                << ",\"public_key\":\"" << czr_json_escape(s.public_key) << "\""
+                << ",\"username\":\"" << czr_json_escape(username) << "\""
+                << ",\"user_number\":" << user_number
+                << ",\"is_founder\":" << (is_founder ? "true" : "false")
+                << ",\"has_parent\":" << (parent.empty() ? "false" : "true")
+                << ",\"joined_at\":" << joined_at
+                << ",\"levels\":[" << level[0] << "," << level[1] << "," << level[2] << "," << level[3] << "]"
+                << "}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        // Received AND sent transactions of the logged-in user (confirmed + pending).
+        server_.Get("/api/me/txs", [this, me_unauth](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            const std::string addr = czr_me_address(req);
+            if (addr.empty()) { me_unauth(res); return; }
+            struct Row { std::uint64_t height; std::string txid; bool sent; std::uint64_t amount; std::string peer; bool pending; };
+            std::vector<Row> rows;
+            std::unordered_map<OutPoint, std::uint64_t, OutPointHasher> own;
+            auto scan = [&](const std::vector<Transaction>& txs, std::uint64_t h, bool pending) {
+                for (const auto& tx : txs) {
+                    std::uint64_t from_me = 0;
+                    for (const auto& in : tx.inputs) {
+                        auto it = own.find(OutPoint{in.previous_txid, in.output_index});
+                        if (it != own.end()) from_me += it->second;
+                    }
+                    const Hash256 txid = tx.txid();
+                    std::uint64_t to_me = 0, to_others = 0;
+                    std::string other;
+                    for (std::size_t i = 0; i < tx.outputs.size(); ++i) {
+                        if (tx.outputs[i].recipient == addr) {
+                            to_me += tx.outputs[i].amount;
+                            own[OutPoint{txid, static_cast<std::uint32_t>(i)}] = tx.outputs[i].amount;
+                        } else {
+                            to_others += tx.outputs[i].amount;
+                            if (other.empty()) other = tx.outputs[i].recipient;
+                        }
+                    }
+                    if (from_me > 0) {
+                        if (to_others > 0) rows.push_back({h, hash_to_hex(txid), true, to_others, other, pending});
+                    } else if (to_me > 0) {
+                        rows.push_back({h, hash_to_hex(txid), false, to_me, "", pending});
+                    }
+                }
+            };
+            const std::vector<Block> chain = node_.chain();
+            for (std::size_t h = 0; h < chain.size(); ++h) scan(chain[h].transactions, h, false);
+            scan(node_.mempool_transactions(), chain.size(), true);
+            std::ostringstream out;
+            out << "{\"ok\":true,\"transactions\":[";
+            int count = 0;
+            for (std::size_t i = rows.size(); i-- > 0 && count < 30; ++count) {
+                const Row& r = rows[i];
+                if (count) out << ",";
+                out << "{\"block\":" << r.height << ",\"txid\":\"" << r.txid << "\""
+                    << ",\"type\":\"" << (r.sent ? "sent" : "received") << "\""
+                    << ",\"amount\":" << r.amount
+                    << ",\"peer\":\"" << czr_json_escape(r.peer) << "\""
+                    << ",\"pending\":" << (r.pending ? "true" : "false") << "}";
+            }
+            out << "]}";
+            res.set_content(out.str(), "application/json");
+        });
+
+        // Send CZR from the user's own wallet. Needs the session AND the PIN.
+        server_.Post("/api/me/send", [this, me_unauth, me_err, me_utxos, me_unlock](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            const std::string addr = czr_me_address(req);
+            if (addr.empty()) { me_unauth(res); return; }
+            if (!is_csrf_safe(req)) { me_err(res, 403, "csrf"); return; }
+            const std::string recipient = czr_json_get(req.body, "recipient");
+            const std::string amount_s = czr_json_get(req.body, "amount");
+            const std::string pin = czr_json_get(req.body, "pin");
+            if (recipient.empty() || amount_s.empty() || pin.empty()) { me_err(res, 400, "recipient, amount and PIN required"); return; }
+            if (amount_s.size() > 18 || amount_s.find_first_not_of("0123456789") != std::string::npos) { me_err(res, 400, "invalid amount"); return; }
+            const std::uint64_t amount = std::stoull(amount_s);
+            if (amount == 0) { me_err(res, 400, "amount must be > 0"); return; }
+            if (!is_valid_address(recipient)) { me_err(res, 400, "invalid recipient address"); return; }
+            std::string err;
+            auto wal = me_unlock(addr, pin, err, nullptr);
+            if (!wal) { me_err(res, err.rfind("Too many", 0) == 0 ? 429 : 401, err); return; }
+            try {
+                auto utxos = me_utxos(addr);
+                std::uint64_t total = 0;
+                for (const auto& u : utxos) total += u.amount;
+                if (total < amount) { me_err(res, 400, "insufficient balance"); return; }
+                Transaction tx;
+                tx.version = 1;
+                std::uint64_t gathered = 0;
+                for (const auto& u : utxos) {
+                    TransactionInput in;
+                    in.previous_txid = u.txid;
+                    in.output_index = u.index;
+                    tx.inputs.push_back(in);
+                    gathered += u.amount;
+                    if (gathered >= amount) break;
+                }
+                TransactionOutput out;
+                out.amount = amount;
+                out.recipient = recipient;
+                tx.outputs.push_back(out);
+                const std::uint64_t change = gathered - amount;
+                if (change > 0) {
+                    TransactionOutput ch;
+                    ch.amount = change;
+                    ch.recipient = addr;
+                    tx.outputs.push_back(ch);
+                }
+                const std::string pk = wal->public_key();
+                for (std::size_t i = 0; i < tx.inputs.size(); ++i) {
+                    auto sig = sign_transaction_input(tx, i, wal->private_key());
+                    TransactionWitness w;
+                    w.public_key = pk;
+                    w.signature = sig;
+                    tx.witness.inputs.push_back(w);
+                }
+                if (!node_.submit_transaction(tx)) { me_err(res, 400, "network rejected the transaction"); return; }
+                res.set_content("{\"ok\":true,\"txid\":\"" + hash_to_hex(tx.txid()) + "\"}", "application/json");
+            } catch (const std::exception& e) {
+                me_err(res, 500, e.what());
+            }
+        });
+
+        // Sign a message with the user's own key (needs the PIN).
+        server_.Post("/api/me/sign", [this, me_unauth, me_err, me_unlock](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            const std::string addr = czr_me_address(req);
+            if (addr.empty()) { me_unauth(res); return; }
+            if (!is_csrf_safe(req)) { me_err(res, 403, "csrf"); return; }
+            const std::string message = czr_json_get(req.body, "message");
+            const std::string pin = czr_json_get(req.body, "pin");
+            if (message.empty() || message.size() > 4096) { me_err(res, 400, "message required (max 4096 bytes)"); return; }
+            if (pin.empty()) { me_err(res, 400, "PIN required"); return; }
+            std::string err;
+            auto wal = me_unlock(addr, pin, err, nullptr);
+            if (!wal) { me_err(res, err.rfind("Too many", 0) == 0 ? 429 : 401, err); return; }
+            try {
+                auto sig = caesar::sign_message(wal->private_key(), message);
+                res.set_content("{\"ok\":true,\"signature\":\"" + bytes_to_hex(sig.data(), sig.size()) +
+                                "\",\"public_key\":\"" + wal->public_key() + "\"}", "application/json");
+            } catch (const std::exception& e) {
+                me_err(res, 500, e.what());
+            }
+        });
+
+        // Verify any signature against any Ed25519 public key (no secrets involved).
+        server_.Post("/api/me/verify", [this, me_unauth, me_err](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            if (czr_me_address(req).empty()) { me_unauth(res); return; }
+            if (!is_csrf_safe(req)) { me_err(res, 403, "csrf"); return; }
+            const std::string message = czr_json_get(req.body, "message");
+            const std::string sig_hex = czr_json_get(req.body, "signature");
+            const std::string pk_hex = czr_json_get(req.body, "public_key");
+            if (message.empty() || message.size() > 4096 || sig_hex.empty() || pk_hex.empty()) {
+                me_err(res, 400, "message, signature and public key required"); return;
+            }
+            EVP_PKEY* key = nullptr;
+            try {
+                key = public_key_from_hex(pk_hex);
+                const bool ok = caesar::verify_signature(key, message, caesar::hex_to_bytes(sig_hex));
+                EVP_PKEY_free(key);
+                res.set_content(std::string("{\"ok\":true,\"valid\":") + (ok ? "true" : "false") +
+                                ",\"signer\":\"" + address_from_public_key(pk_hex) + "\"}", "application/json");
+            } catch (const std::exception& e) {
+                if (key) EVP_PKEY_free(key);
+                me_err(res, 400, e.what());
+            }
+        });
+
+        // Change the PIN that encrypts the user's wallet file.
+        server_.Post("/api/me/change-pin", [this, me_unauth, me_err, me_unlock](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            const std::string addr = czr_me_address(req);
+            if (addr.empty()) { me_unauth(res); return; }
+            if (!is_csrf_safe(req)) { me_err(res, 403, "csrf"); return; }
+            const std::string old_pin = czr_json_get(req.body, "old_pin");
+            const std::string new_pin = czr_json_get(req.body, "new_pin");
+            if (old_pin.empty()) { me_err(res, 400, "current PIN required"); return; }
+            if (new_pin.size() < 8 || new_pin.size() > 64 || new_pin.find_first_not_of("0123456789") != std::string::npos) {
+                me_err(res, 400, "New PIN must be 8 or more digits"); return;
+            }
+            std::string err;
+            std::string mnemonic;
+            auto wal = me_unlock(addr, old_pin, err, &mnemonic);
+            if (!wal) { me_err(res, err.rfind("Too many", 0) == 0 ? 429 : 401, err); return; }
+            const std::filesystem::path enc_path = wallet_path_.parent_path() / "users" / (addr + ".enc");
+            const std::filesystem::path bak_path = wallet_path_.parent_path() / "users" / (addr + ".enc.pinbak");
+            std::error_code ec;
+            std::filesystem::copy_file(enc_path, bak_path, std::filesystem::copy_options::overwrite_existing, ec);
+            if (ec) { for (auto& c : mnemonic) c = 0; me_err(res, 500, "could not create safety copy, PIN not changed"); return; }
+            bool done = false;
+            try {
+                std::vector<std::uint8_t> plaintext(mnemonic.begin(), mnemonic.end());
+                SecureWalletStorage::encrypt(enc_path, new_pin, plaintext);
+                for (auto& c : plaintext) c = 0;
+                std::vector<std::uint8_t> check = SecureWalletStorage::decrypt(enc_path, new_pin);
+                done = (std::string(check.begin(), check.end()) == mnemonic);
+                for (auto& c : check) c = 0;
+            } catch (...) { done = false; }
+            for (auto& c : mnemonic) c = 0;
+            if (!done) {
+                std::filesystem::copy_file(bak_path, enc_path, std::filesystem::copy_options::overwrite_existing, ec);
+                std::filesystem::remove(bak_path, ec);
+                me_err(res, 500, "PIN change failed, your old PIN still works");
+                return;
+            }
+            std::filesystem::remove(bak_path, ec);
+            res.set_content("{\"ok\":true}", "application/json");
+        });
+
+        // Show the 12-word recovery phrase of the user's own wallet (needs the PIN).
+        server_.Post("/api/me/backup", [this, me_unauth, me_err, me_unlock](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            const std::string addr = czr_me_address(req);
+            if (addr.empty()) { me_unauth(res); return; }
+            if (!is_csrf_safe(req)) { me_err(res, 403, "csrf"); return; }
+            const std::string pin = czr_json_get(req.body, "pin");
+            if (pin.empty()) { me_err(res, 400, "PIN required"); return; }
+            std::string err;
+            std::string mnemonic;
+            auto wal = me_unlock(addr, pin, err, &mnemonic);
+            if (!wal) { me_err(res, err.rfind("Too many", 0) == 0 ? 429 : 401, err); return; }
+            res.set_content("{\"ok\":true,\"mnemonic\":\"" + czr_json_escape(mnemonic) + "\"}", "application/json");
+            for (auto& c : mnemonic) c = 0;
+        });
+
+        // Public chain overview for the Explore tab (no wallet data).
+        server_.Get("/api/me/network", [this, me_unauth](const httplib::Request& req, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            if (czr_me_address(req).empty()) { me_unauth(res); return; }
+            const std::vector<Block> chain = node_.chain();
+            std::ostringstream out;
+            out << "{\"ok\":true,\"height\":" << (chain.empty() ? 0 : chain.size() - 1)
+                << ",\"peers\":" << node_.peer_count()
+                << ",\"mempool\":" << node_.mempool_transactions().size()
+                << ",\"blocks\":[";
+            int count = 0;
+            for (std::size_t i = chain.size(); i-- > 0 && count < 8; ++count) {
+                if (count) out << ",";
+                out << "{\"height\":" << chain[i].header.height
+                    << ",\"time\":" << chain[i].header.timestamp
+                    << ",\"txs\":" << chain[i].transactions.size()
+                    << ",\"hash\":\"" << hash_to_hex(chain[i].header.hash()) << "\"}";
+            }
+            out << "]}";
+            res.set_content(out.str(), "application/json");
+        });
+        }
         // CZR-CATCHALL: serve wallet page for any unknown URL so secret links work.
         server_.Get(R"(^/[A-Za-z0-9_\-]+$)", [](const httplib::Request&, httplib::Response& res) {
             res.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
@@ -12697,10 +13364,11 @@ async function register(){
             std::string username = gs("username");
 
             std::string pin = gs("pin");
+            username = czr_trim(username); pin = czr_norm_digits(czr_trim(pin));
             // czr-pin8: new registrations need an 8+ digit PIN (existing PINs keep working)
             if (!pin.empty() && pin.size() < 8) {
                 res.status = 400;
-                res.set_content("{\"ok\":false,\"error\":\"PIN must be 8+ digits\"}", "application/json");
+                res.set_content("{\"ok\":false,\"error\":\"PIN: 8+ chiffres / PIN must be 8+ digits / الرمز 8 أرقام على الأقل\"}", "application/json");
                 return;
             }
 
@@ -12800,48 +13468,25 @@ async function register(){
 
             // NEW PATH: create real wallet with mnemonic
 
-            if (username.size() < 3 || username.size() > 32) {
-
-                res.status = 400;
-
-                res.set_content("{\"ok\":false,\"error\":\"Username must be 3-32 characters\"}",
-
-                                "application/json");
-
-                return;
-
-            }
-
-            if (pin.size() < 8 || pin.size() > 12) {
-
-                res.status = 400;
-
-                res.set_content("{\"ok\":false,\"error\":\"PIN must be 4-12 digits\"}",
-
-                                "application/json");
-
-                return;
-
-            }
-
-            for (char c : username) {
-
-                if (!(std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-')) {
-
+            {
+                const int nc = czr_check_username(username);
+                if (nc == 1) {
                     res.status = 400;
-
-                    res.set_content("{\"ok\":false,\"error\":\"Username: only letters, digits, _ and -\"}",
-
-                                    "application/json");
-
+                    res.set_content("{\"ok\":false,\"error\":\"الاسم من 3 إلى 32 حرفًا / Nom: 3 à 32 caractères / Name: 3-32 characters\"}", "application/json");
                     return;
-
                 }
-
+                if (nc == 2) {
+                    res.status = 400;
+                    res.set_content("{\"ok\":false,\"error\":\"الاسم: حروف عربية أو فرنسية أو إنجليزية وأرقام فقط / Nom: lettres arabes, françaises ou anglaises et chiffres / Name: Arabic, French or English letters and digits\"}", "application/json");
+                    return;
+                }
+                if (pin.size() < 8 || pin.size() > 12) {
+                    res.status = 400;
+                    res.set_content("{\"ok\":false,\"error\":\"الرمز من 8 إلى 12 رقمًا / PIN: 8 à 12 chiffres / PIN must be 8-12 digits\"}", "application/json");
+                    return;
+                }
             }
-
-
-
+            {  // czr-deadlock-fix: do not hold g_pool_mutex across the slow wallet work
             std::lock_guard<std::mutex> lock(g_pool_mutex);
 
             if (!g_pool_state_loaded.exchange(true)) {
@@ -12867,6 +13512,7 @@ async function register(){
                 }
 
             }
+            }  // release g_pool_mutex: registration below re-locks it
 
 
 
@@ -12939,6 +13585,18 @@ async function register(){
 
                     if (!g_pool_state_loaded.exchange(true)) {
                         pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+                    }
+
+                    // Re-check uniqueness now that the lock is held again: the
+                    // first check was released before the slow key derivation.
+                    for (const auto& kv : g_pool_users) {
+                        if (kv.second.username == username) {
+                            std::error_code rm_ec;
+                            std::filesystem::remove(enc_path, rm_ec);
+                            res.set_content("{\"ok\":false,\"error\":\"Username already taken\"}",
+                                            "application/json");
+                            return;
+                        }
                     }
 
                     u.user_number = static_cast<std::uint32_t>(g_pool_next_user_number++);
@@ -13025,6 +13683,7 @@ async function register(){
             std::string username = gs("username");
 
             std::string pin = gs("pin");
+            username = czr_trim(username); pin = czr_norm_digits(czr_trim(pin));
 
 
 

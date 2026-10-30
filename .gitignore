@@ -140,3 +140,5 @@ android/keystore/*.keystore
 android/keystore/*.jks
 *.keystore
 *.jks
+second
+second.address

@@ -1,3 +1,4 @@
+// Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 #include <httplib.h>
 #include <caesar/crypto.hpp>
 #include <sstream>
