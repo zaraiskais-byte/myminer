@@ -426,6 +426,11 @@ inline bool validate_block_chain(const std::vector<Block>& chain) {
 // pass validation once the difficulty window activates.
 inline std::uint32_t expected_difficulty_at_position(const std::vector<Block>& chain,
                                                      std::size_t position) {
+    if (position >= CZR_EASY_FORK_HEIGHT &&
+        position < CZR_EASY_FORK_HEIGHT + CZR_DIFFICULTY_WINDOW) {
+        return CZR_EASY_FORK_DIFFICULTY;
+    }
+
     // BOOTSTRAP: fixed difficulty for new blocks to let the network grow.
     // Existing blocks (height 0..39) keep their original difficulty.
     // All new blocks (height 40+) use fixed difficulty 8.

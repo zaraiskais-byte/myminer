@@ -5,7 +5,7 @@
 1. BIP39 for deterministic key generation and recovery.
 2. SLIP-0010 for Ed25519 hierarchical key derivation.
 3. AES-256-GCM for encrypted at-rest storage.
-4. PBKDF2-HMAC-SHA256 (100k iterations) for PIN-derived keys.
+4. PBKDF2-HMAC-SHA256 (600k iterations) for PIN-derived keys.
 5. Atomic write plus fsync to prevent corruption.
 
 ## Key Generation
@@ -88,5 +88,5 @@ Not protected against:
 | Mnemonic encoding  | BIP39 English wordlist | 128-bit entropy        |
 | Seed derivation    | PBKDF2-HMAC-SHA512     | 2048 iterations        |
 | HD derivation      | SLIP-0010 Ed25519      | m/44'/7999'/0'/0'/0'   |
-| PIN key derivation | PBKDF2-HMAC-SHA256     | 100k iterations        |
+| PIN key derivation | PBKDF2-HMAC-SHA256     | 600k iterations        |
 | Storage encryption | AES-256-GCM            | 96-bit IV, 128-bit tag |

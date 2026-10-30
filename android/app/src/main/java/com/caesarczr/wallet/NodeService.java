@@ -82,6 +82,7 @@ public class NodeService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (true) return START_NOT_STICKY; // DISABLED_LOCAL_NODE
         try {
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             Notification.Builder b;
