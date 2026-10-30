@@ -6026,6 +6026,23 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
         <div class="hero-meta">
 
           <span>Blocks today: <b id="heroBlocksToday">0</b></span>
+<script>
+(function(){
+  function czrToday(){
+    fetch('/api/blocks').then(function(r){return r.json();}).then(function(j){
+      var d=new Date(); d.setHours(0,0,0,0);
+      var t0=Math.floor(d.getTime()/1000), n=0;
+      (j.blocks||[]).forEach(function(b){ if(b.height>0 && b.timestamp>=t0) n++; });
+      window.__czrBT=n;
+      var pct=Math.min(100,Math.round(n/50*100));
+      var a=document.getElementById('heroBlocksToday'); if(a) a.textContent=String(n);
+      var p=document.getElementById('heroProgressPct'); if(p) p.textContent=pct+'%';
+      var f=document.getElementById('heroProgressFill'); if(f) f.style.width=pct+'%';
+    }).catch(function(){});
+  }
+  czrToday(); setInterval(czrToday,10000);
+})();
+</script>
 
           <span>Shares today: <b id="heroSharesToday">0</b></span>
 
@@ -6873,7 +6890,7 @@ async function updateHeroCard(){
 
     const uptimeSec = 0;
 
-    const myBlocks = Math.min(height, Math.floor(uptimeSec / 60));
+    const myBlocks = (window.__czrBT||0);
 
     const myShares = totalShares;
 
@@ -10538,6 +10555,23 @@ CZR JS CHECKING
         <div class="hero-meta">
 
           <span>Blocks today: <b id="heroBlocksToday">0</b></span>
+<script>
+(function(){
+  function czrToday(){
+    fetch('/api/blocks').then(function(r){return r.json();}).then(function(j){
+      var d=new Date(); d.setHours(0,0,0,0);
+      var t0=Math.floor(d.getTime()/1000), n=0;
+      (j.blocks||[]).forEach(function(b){ if(b.height>0 && b.timestamp>=t0) n++; });
+      window.__czrBT=n;
+      var pct=Math.min(100,Math.round(n/50*100));
+      var a=document.getElementById('heroBlocksToday'); if(a) a.textContent=String(n);
+      var p=document.getElementById('heroProgressPct'); if(p) p.textContent=pct+'%';
+      var f=document.getElementById('heroProgressFill'); if(f) f.style.width=pct+'%';
+    }).catch(function(){});
+  }
+  czrToday(); setInterval(czrToday,10000);
+})();
+</script>
 
           <span>Shares today: <b id="heroSharesToday">0</b></span>
 
