@@ -175,6 +175,7 @@ public class NodeService extends Service {
                     try {
                         if (portOpen()) {
                             String a = fetchAddress();
+                            dbgWrite(app, "loop: address=" + (a.length() == 0 ? "none" : "ok") + " threads=" + pickThreads(app));
                             if (a.length() == 0) {
                                 toastState(app, "waiting for wallet");
                             } else {
@@ -193,6 +194,16 @@ public class NodeService extends Service {
         });
         t.setDaemon(true);
         t.start();
+    }
+
+    static void dbgWrite(Context c, String msg) {
+        try {
+            File d = c.getExternalFilesDir(null);
+            if (d == null) return;
+            java.io.FileWriter w = new java.io.FileWriter(new File(d, "miner-debug.txt"), true);
+            w.write(System.currentTimeMillis() + " " + msg + "\n");
+            w.close();
+        } catch (Exception ignored) {}
     }
 
     private static void releaseWake() {
@@ -229,6 +240,7 @@ public class NodeService extends Service {
                 workerProc = null;
                 workerNextTry = now + Math.min(300000L, 5000L << Math.min(workerFails, 6));
                 lastLine = "worker exited, retry with backoff";
+                dbgWrite(ctx, "worker exited, fails=" + workerFails);
             }
             if (running && address.equals(workerAddr)) {
                 if (wakeLock != null) wakeLock.acquire(600000L);
@@ -254,6 +266,7 @@ public class NodeService extends Service {
                 workerAddr = address;
                 workerStarted = now;
                 workerThreads = target;
+                dbgWrite(ctx, "spawned worker threads=" + target + " addr=" + address);
                 if (wakeLock == null) {
                     PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
                     wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "caesar:miner");
@@ -265,7 +278,7 @@ public class NodeService extends Service {
                         try {
                             BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
                             String line;
-                            while ((line = r.readLine()) != null) { lastLine = line; Log.i("CaesarWorker", line); }
+                            while ((line = r.readLine()) != null) { lastLine = line; Log.i("CaesarWorker", line); dbgWrite(ctx, "worker: " + line); }
                         } catch (Exception ignored) {}
                     }
                 }).start();
@@ -273,6 +286,7 @@ public class NodeService extends Service {
                 workerFails++;
                 workerNextTry = now + Math.min(300000L, 5000L << Math.min(workerFails, 6));
                 lastLine = "worker spawn failed: " + e;
+                dbgWrite(ctx, "spawn failed: " + e);
                 Log.e(TAG, "worker spawn failed", e);
             }
         }
