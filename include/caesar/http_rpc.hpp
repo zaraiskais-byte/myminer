@@ -5288,7 +5288,7 @@ async function mine(){
 
   if(r.status==='ok'){
 
-    toast('Mined! Height: '+r.height);
+    toast('Mined! Height: '+(r.height!=null?r.height:(r.block_height!=null?r.block_height:'new block')));
 
     await refreshWallet();
 
@@ -9436,7 +9436,7 @@ async function mine(){
 
   const r=await api('/api/mine_default',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:(localStorage.getItem('czr_address')||'')})});
 
-  if(r.status==='ok'){toast('Mined! Height: '+r.height);await refreshWallet()}
+  if(r.status==='ok'){toast('Mined! Height: '+(r.height!=null?r.height:(r.block_height!=null?r.block_height:'new block')));await refreshWallet()}
 
   else toast('Failed: '+(r.error||'unknown'));
 

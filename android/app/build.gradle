@@ -32,8 +32,8 @@ android {
         applicationId "com.caesarczr.wallet"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode(Integer.parseInt(System.getenv("GITHUB_RUN_NUMBER") ?: "1"))
+        versionName("3.0." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0"))
     }
 
     buildTypes {

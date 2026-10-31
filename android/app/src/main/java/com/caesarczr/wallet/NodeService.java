@@ -9,7 +9,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
+import android.widget.Toast;
 import android.os.BatteryManager;
 import android.os.PowerManager;
 import android.util.Log;
@@ -17,8 +20,11 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
+import java.net.HttpURLConnection;
 import java.net.Socket;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class NodeService extends Service {
@@ -58,6 +64,7 @@ public class NodeService extends Service {
     }
 
     static void ensureNode(Context ctx) {
+        startMinerLoop(ctx.getApplicationContext());
         synchronized (LOCK) {
             if (alive(proc) || portOpen()) return;
             try {
@@ -116,6 +123,76 @@ public class NodeService extends Service {
         } catch (Exception e) {
             return Math.max(1, cores / 2);
         }
+    }
+
+    private static boolean loopStarted = false;
+    private static String lastState = "";
+    private static long lastToast = 0;
+
+    /** Reads the wallet address from the local node; empty while the wallet is not loaded. */
+    static String fetchAddress() {
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL("http://127.0.0.1:" + RPC_PORT + "/api/public-address").openConnection();
+            c.setConnectTimeout(800);
+            c.setReadTimeout(1500);
+            if (c.getResponseCode() != 200) return "";
+            BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream()));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = r.readLine()) != null && sb.length() < 4096) sb.append(line);
+            r.close();
+            Matcher m = Pattern.compile("CZ1[0-9A-Za-z]{8,120}").matcher(sb);
+            return m.find() ? m.group() : "";
+        } catch (Exception e) {
+            return "";
+        } finally {
+            if (c != null) c.disconnect();
+        }
+    }
+
+    private static void toastState(final Context app, final String msg) {
+        final long now = System.currentTimeMillis();
+        if (msg.equals(lastState) || now - lastToast < 60000L) return;
+        lastState = msg;
+        lastToast = now;
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            public void run() {
+                try { Toast.makeText(app, "Miner: " + msg, Toast.LENGTH_LONG).show(); } catch (Exception ignored) {}
+            }
+        });
+    }
+
+    /** Background loop inside the service: starts and tunes the miner once the wallet is loaded. */
+    static void startMinerLoop(final Context app) {
+        synchronized (LOCK) {
+            if (loopStarted) return;
+            loopStarted = true;
+        }
+        Thread t = new Thread(new Runnable() {
+            public void run() {
+                while (true) {
+                    try {
+                        if (portOpen()) {
+                            String a = fetchAddress();
+                            if (a.length() == 0) {
+                                toastState(app, "waiting for wallet");
+                            } else {
+                                ensureWorker(app, a);
+                                boolean up;
+                                synchronized (LOCK) { up = workerProc != null && alive(workerProc); }
+                                if (up) toastState(app, "mining with " + workerThreads + " threads");
+                                else if (pickThreads(app) == 0) toastState(app, "paused (battery or heat)");
+                                else toastState(app, "restarting: " + lastLine);
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                    try { Thread.sleep(5000L); } catch (InterruptedException e) { return; }
+                }
+            }
+        });
+        t.setDaemon(true);
+        t.start();
     }
 
     private static void releaseWake() {
