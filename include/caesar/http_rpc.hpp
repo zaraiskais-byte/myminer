@@ -4753,6 +4753,72 @@ g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.c
 <div style='color:#9aa4b2;font-size:12px;margin-bottom:16px'>يُنسخ الوصف تلقائيًا قبل فتح المنصة · الصق الوصف عند الرفع. لا تَعِد بأرباح مضمونة في الفيديو.</div>
 <div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>مشاريعي · My projects</div>
 <div id='czrStList' style='display:flex;flex-direction:column;gap:6px'></div>
+<div id='czrMvBox' style='margin:6px 0 18px;padding:12px;border:1px solid #e8c45a66;border-radius:14px;background:#0f1522'>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:8px'>🎞 فيلم متحرك · Animated movie</div>
+<label style='display:inline-block;background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px;cursor:pointer;margin-bottom:8px'>🖼 اختر صورًا · Pick images<input id='czrMvFiles' type='file' accept='image/*' multiple style='display:none'></label>
+<span id='czrMvCount' style='color:#9aa4b2;font-size:13px;margin:0 8px'></span>
+<div><button onclick='czrMovie()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:12px 16px;font-weight:700;font-size:15px'>🎞 أنشئ الفيلم · Make movie</button></div>
+</div>
+<script>
+(function(){
+var imgs=[],tok=0,AR=/[\u0600-\u06FF]/;
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+if(!g('czrMvCss')){var st=document.createElement('style');st.id='czrMvCss';st.textContent='@keyframes czrKb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.32) translate(-4%,-3%)}}@keyframes czrGl{0%{background-position:0% 50%}100%{background-position:100% 50%}}@keyframes czrPl{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}';document.head.appendChild(st);}
+var f=g('czrMvFiles');
+if(f)f.onchange=function(){imgs=[];for(var i=0;i<f.files.length&&i<12;i++){try{imgs.push(URL.createObjectURL(f.files[i]));}catch(e){}}var c=g('czrMvCount');if(c)c.textContent=imgs.length?imgs.length+' ✓':'';};
+function stop(){tok++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}var o=g('czrMvRoot');if(o)o.remove();}
+window.czrMovie=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),sc=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)sc.push(v);}
+if(!sc.length){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:3000;font-size:14px','اكتب فكرة واضغط ✨ أولًا · Write an idea and tap ✨ first');document.body.appendChild(t);setTimeout(function(){t.remove();},2200);}catch(e){}return;}
+stop();var my=tok;
+var ar=AR.test(sc.join(' '));
+var root=el('div','position:fixed;top:0;left:0;right:0;bottom:0;z-index:2500;background:#05080d;overflow:hidden');root.id='czrMvRoot';
+var bg=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:#05080d');
+var shade=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,0) 35%,rgba(0,0,0,.78) 100%)');
+var badge=el('img','position:absolute;top:22px;left:18px;width:62px;height:62px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;box-shadow:0 0 22px #e8c45a73;animation:czrPl 1.6s infinite');badge.src='/brand/caesar.jpg';
+var title=el('div','position:absolute;top:36px;left:92px;color:#e8c45a;font-weight:700;letter-spacing:2px;font-size:16px','CAESAR CZR');
+var x=el('div','position:absolute;top:22px;right:20px;color:#fff;font-size:30px;cursor:pointer;z-index:5','✕');x.onclick=stop;
+var tx=el('div','position:absolute;left:18px;right:18px;bottom:90px;color:#fff;font-size:27px;line-height:1.6;font-weight:700;text-align:center;text-shadow:0 2px 12px #000');
+tx.dir=ar?'rtl':'ltr';
+var bar=el('div','position:absolute;left:0;bottom:0;height:5px;background:#e8c45a;width:0;transition:width .6s');
+root.appendChild(bg);root.appendChild(shade);root.appendChild(badge);root.appendChild(title);root.appendChild(x);root.appendChild(tx);root.appendChild(bar);
+document.body.appendChild(root);
+function speak(text,cb){
+var done=false,tm;
+function fin(){if(done)return;done=true;clearTimeout(tm);cb();}
+try{if(window.speechSynthesis){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=ar?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}}catch(e){}
+tm=setTimeout(fin,Math.max(4000,text.length*130+2500));
+}
+function show(i){
+if(my!==tok)return;
+var text=sc[i],dur=Math.max(3000,text.length*95);
+bg.style.animation='none';bg.style.backgroundImage='none';void bg.offsetWidth;
+if(imgs.length){bg.style.backgroundImage='url("'+imgs[i%imgs.length]+'")';bg.style.backgroundSize='cover';bg.style.backgroundPosition='center';bg.style.animation='czrKb '+(dur/1000+2)+'s ease-out forwards';}
+else{var gr=['#0a1020,#1a2440,#3a2e10','#101a2e,#2b1f0a,#0a1020','#1a1408,#0a1020,#243252'][i%3];bg.style.backgroundImage='linear-gradient(135deg,'+gr+')';bg.style.backgroundSize='300% 300%';bg.style.animation='czrGl '+(dur/1000+2)+'s ease-in-out forwards';}
+tx.textContent='';
+var ws=text.split(' '),sp=[];
+ws.forEach(function(w){var s=el('span','opacity:0;transition:opacity .35s;display:inline-block;margin:0 5px',w);tx.appendChild(s);sp.push(s);});
+var step=dur/Math.max(1,ws.length);
+sp.forEach(function(s,k){setTimeout(function(){if(my===tok)s.style.opacity='1';},120+k*step*0.8);});
+bar.style.width=((i+1)/sc.length*100)+'%';
+var t0=Date.now();
+speak(text,function(){
+var wait=Math.max(0,dur-(Date.now()-t0))+350;
+setTimeout(function(){if(my!==tok)return;if(i+1<sc.length)show(i+1);else endCard();},wait);
+});
+}
+function endCard(){
+if(my!==tok)return;
+bg.style.animation='none';bg.style.backgroundImage='linear-gradient(135deg,#0a1020,#3a2e10)';
+tx.textContent=ar?'Caesar CZR · الرابط في الوصف':'Caesar CZR · link in the description';
+setTimeout(function(){if(my===tok)stop();},3500);
+}
+show(0);
+};
+})();
+</script>
 <div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
 </div></section>
 <script>
@@ -9420,6 +9486,72 @@ g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.c
 <div style='color:#9aa4b2;font-size:12px;margin-bottom:16px'>يُنسخ الوصف تلقائيًا قبل فتح المنصة · الصق الوصف عند الرفع. لا تَعِد بأرباح مضمونة في الفيديو.</div>
 <div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>مشاريعي · My projects</div>
 <div id='czrStList' style='display:flex;flex-direction:column;gap:6px'></div>
+<div id='czrMvBox' style='margin:6px 0 18px;padding:12px;border:1px solid #e8c45a66;border-radius:14px;background:#0f1522'>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:8px'>🎞 فيلم متحرك · Animated movie</div>
+<label style='display:inline-block;background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px;cursor:pointer;margin-bottom:8px'>🖼 اختر صورًا · Pick images<input id='czrMvFiles' type='file' accept='image/*' multiple style='display:none'></label>
+<span id='czrMvCount' style='color:#9aa4b2;font-size:13px;margin:0 8px'></span>
+<div><button onclick='czrMovie()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:12px 16px;font-weight:700;font-size:15px'>🎞 أنشئ الفيلم · Make movie</button></div>
+</div>
+<script>
+(function(){
+var imgs=[],tok=0,AR=/[\u0600-\u06FF]/;
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+if(!g('czrMvCss')){var st=document.createElement('style');st.id='czrMvCss';st.textContent='@keyframes czrKb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.32) translate(-4%,-3%)}}@keyframes czrGl{0%{background-position:0% 50%}100%{background-position:100% 50%}}@keyframes czrPl{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}';document.head.appendChild(st);}
+var f=g('czrMvFiles');
+if(f)f.onchange=function(){imgs=[];for(var i=0;i<f.files.length&&i<12;i++){try{imgs.push(URL.createObjectURL(f.files[i]));}catch(e){}}var c=g('czrMvCount');if(c)c.textContent=imgs.length?imgs.length+' ✓':'';};
+function stop(){tok++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}var o=g('czrMvRoot');if(o)o.remove();}
+window.czrMovie=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),sc=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)sc.push(v);}
+if(!sc.length){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:3000;font-size:14px','اكتب فكرة واضغط ✨ أولًا · Write an idea and tap ✨ first');document.body.appendChild(t);setTimeout(function(){t.remove();},2200);}catch(e){}return;}
+stop();var my=tok;
+var ar=AR.test(sc.join(' '));
+var root=el('div','position:fixed;top:0;left:0;right:0;bottom:0;z-index:2500;background:#05080d;overflow:hidden');root.id='czrMvRoot';
+var bg=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:#05080d');
+var shade=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,0) 35%,rgba(0,0,0,.78) 100%)');
+var badge=el('img','position:absolute;top:22px;left:18px;width:62px;height:62px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;box-shadow:0 0 22px #e8c45a73;animation:czrPl 1.6s infinite');badge.src='/brand/caesar.jpg';
+var title=el('div','position:absolute;top:36px;left:92px;color:#e8c45a;font-weight:700;letter-spacing:2px;font-size:16px','CAESAR CZR');
+var x=el('div','position:absolute;top:22px;right:20px;color:#fff;font-size:30px;cursor:pointer;z-index:5','✕');x.onclick=stop;
+var tx=el('div','position:absolute;left:18px;right:18px;bottom:90px;color:#fff;font-size:27px;line-height:1.6;font-weight:700;text-align:center;text-shadow:0 2px 12px #000');
+tx.dir=ar?'rtl':'ltr';
+var bar=el('div','position:absolute;left:0;bottom:0;height:5px;background:#e8c45a;width:0;transition:width .6s');
+root.appendChild(bg);root.appendChild(shade);root.appendChild(badge);root.appendChild(title);root.appendChild(x);root.appendChild(tx);root.appendChild(bar);
+document.body.appendChild(root);
+function speak(text,cb){
+var done=false,tm;
+function fin(){if(done)return;done=true;clearTimeout(tm);cb();}
+try{if(window.speechSynthesis){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=ar?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}}catch(e){}
+tm=setTimeout(fin,Math.max(4000,text.length*130+2500));
+}
+function show(i){
+if(my!==tok)return;
+var text=sc[i],dur=Math.max(3000,text.length*95);
+bg.style.animation='none';bg.style.backgroundImage='none';void bg.offsetWidth;
+if(imgs.length){bg.style.backgroundImage='url("'+imgs[i%imgs.length]+'")';bg.style.backgroundSize='cover';bg.style.backgroundPosition='center';bg.style.animation='czrKb '+(dur/1000+2)+'s ease-out forwards';}
+else{var gr=['#0a1020,#1a2440,#3a2e10','#101a2e,#2b1f0a,#0a1020','#1a1408,#0a1020,#243252'][i%3];bg.style.backgroundImage='linear-gradient(135deg,'+gr+')';bg.style.backgroundSize='300% 300%';bg.style.animation='czrGl '+(dur/1000+2)+'s ease-in-out forwards';}
+tx.textContent='';
+var ws=text.split(' '),sp=[];
+ws.forEach(function(w){var s=el('span','opacity:0;transition:opacity .35s;display:inline-block;margin:0 5px',w);tx.appendChild(s);sp.push(s);});
+var step=dur/Math.max(1,ws.length);
+sp.forEach(function(s,k){setTimeout(function(){if(my===tok)s.style.opacity='1';},120+k*step*0.8);});
+bar.style.width=((i+1)/sc.length*100)+'%';
+var t0=Date.now();
+speak(text,function(){
+var wait=Math.max(0,dur-(Date.now()-t0))+350;
+setTimeout(function(){if(my!==tok)return;if(i+1<sc.length)show(i+1);else endCard();},wait);
+});
+}
+function endCard(){
+if(my!==tok)return;
+bg.style.animation='none';bg.style.backgroundImage='linear-gradient(135deg,#0a1020,#3a2e10)';
+tx.textContent=ar?'Caesar CZR · الرابط في الوصف':'Caesar CZR · link in the description';
+setTimeout(function(){if(my===tok)stop();},3500);
+}
+show(0);
+};
+})();
+</script>
 <div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
 </div></section>
 <script>
