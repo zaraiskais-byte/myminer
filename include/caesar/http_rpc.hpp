@@ -2425,7 +2425,7 @@ var q2=document.getElementById('qr');
 
 if(q2)q2.src='/api/wallet/qr.svg?address='+encodeURIComponent(a)+'&_t='+Date.now();
 
-var l='https://tailscale-termux.tail57075d.ts.net/?ref='+a;
+var l='https://tailscale-termux.tail57075d.ts.net/?ref='+a.slice(0,12);
 
 var c=document.getElementById('circleLink');if(c)c.value=l;
 
@@ -5920,7 +5920,7 @@ function getMyInviteLink(){
 
   const base = location.origin + location.pathname;
 
-  return 'https://tailscale-termux.tail57075d.ts.net' + '/?ref=' + a;
+  return 'https://tailscale-termux.tail57075d.ts.net' + '/?ref=' + a.slice(0,12);
 
 }
 
@@ -10150,11 +10150,11 @@ function confirmMnemonic(){
 
     var il = document.getElementById('circleLink');
 
-    if (il && !il.value) il.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr;
+    if (il && !il.value) il.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr.slice(0,12);
 
     var wl = document.getElementById('welcomeLink');
 
-    if (wl && !wl.value) wl.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr;
+    if (wl && !wl.value) wl.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr.slice(0,12);
 
   }
 
@@ -10562,6 +10562,21 @@ document.addEventListener('DOMContentLoaded', function() {
             std::string pin = gs("pin");
 
             std::string parent = gs("parent");
+            if (!parent.empty() && parent.size() < 40) {
+                std::lock_guard<std::mutex> czr_lk(g_pool_mutex);
+                if (!g_pool_state_loaded.exchange(true)) {
+                    pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+                }
+                if (!g_pool_users.count(parent)) {
+                    std::string czr_hit;
+                    int czr_n = 0;
+                    for (const auto& czr_kv : g_pool_users) {
+                        if (czr_kv.first.compare(0, parent.size(), parent) == 0) { czr_hit = czr_kv.first; ++czr_n; }
+                    }
+                    if (czr_n == 1) parent = czr_hit;
+                }
+            }
+
 
             std::string legacy_addr = gs("address");
 
