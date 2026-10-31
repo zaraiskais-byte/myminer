@@ -6,9 +6,11 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.BatteryManager;
 import android.os.PowerManager;
 import android.util.Log;
 import java.io.BufferedReader;
@@ -33,6 +35,9 @@ public class NodeService extends Service {
     private static int workerFails = 0;
     private static long workerNextTry = 0;
     private static long workerStarted = 0;
+    private static int workerThreads = 0;
+    private static long lastTune = 0;
+    private static boolean heatPaused = false;
     private static PowerManager.WakeLock wakeLock;
     private static final Pattern ADDR = Pattern.compile("^CZ1[0-9A-Za-z]{8,120}$");
 
@@ -86,6 +91,33 @@ public class NodeService extends Service {
         }
     }
 
+    /** Picks miner threads from charging state, battery level and temperature. 0 means pause. */
+    static int pickThreads(Context ctx) {
+        int cores = Math.max(1, Runtime.getRuntime().availableProcessors());
+        try {
+            Intent b = ctx.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+            if (b == null) return Math.max(1, cores / 2);
+            int level = b.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int scale = b.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+            int status = b.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+            int temp = b.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0);
+            boolean charging = status == BatteryManager.BATTERY_STATUS_CHARGING
+                    || status == BatteryManager.BATTERY_STATUS_FULL;
+            int pct = (level >= 0 && scale > 0) ? (level * 100 / scale) : 50;
+            if (temp >= 450) heatPaused = true; else if (temp < 420) heatPaused = false;
+            if (heatPaused) return 0;
+            int t;
+            if (charging) t = Math.max(1, cores - 1);
+            else if (pct >= 50) t = Math.max(1, cores / 2);
+            else if (pct >= 25) t = 1;
+            else return 0;
+            if (temp >= 420) t = Math.max(1, t / 2);
+            return t;
+        } catch (Exception e) {
+            return Math.max(1, cores / 2);
+        }
+    }
+
     private static void releaseWake() {
         try { if (wakeLock != null && wakeLock.isHeld()) wakeLock.release(); } catch (Exception ignored) {}
     }
@@ -96,6 +128,24 @@ public class NodeService extends Service {
         synchronized (LOCK) {
             long now = System.currentTimeMillis();
             boolean running = workerProc != null && alive(workerProc);
+            int target = pickThreads(ctx);
+            if (target == 0) {
+                if (running) {
+                    workerProc.destroy();
+                    workerProc = null;
+                    releaseWake();
+                    lastLine = "miner paused: battery or heat";
+                }
+                return;
+            }
+            if (running && target != workerThreads && now - lastTune > 120000L) {
+                workerProc.destroy();
+                workerProc = null;
+                running = false;
+                workerNextTry = 0;
+                lastTune = now;
+                lastLine = "miner retuned to " + target + " threads";
+            }
             if (workerProc != null && !running) {
                 releaseWake();
                 if (now - workerStarted < 30000L) workerFails++; else workerFails = 0;
@@ -112,7 +162,7 @@ public class NodeService extends Service {
             try {
                 File bin = new File(ctx.getApplicationInfo().nativeLibraryDir, "libcaesar_worker.so");
                 if (!bin.exists()) { lastLine = "worker binary missing"; return; }
-                int threads = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+                int threads = target;
                 ArrayList<String> cmd = new ArrayList<String>();
                 cmd.add(bin.getAbsolutePath());
                 cmd.add("--pool"); cmd.add("http://127.0.0.1:" + RPC_PORT);
@@ -126,6 +176,7 @@ public class NodeService extends Service {
                 workerProc = p;
                 workerAddr = address;
                 workerStarted = now;
+                workerThreads = target;
                 if (wakeLock == null) {
                     PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
                     wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "caesar:miner");
