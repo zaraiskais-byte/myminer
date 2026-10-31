@@ -4925,6 +4925,44 @@ setTimeout(function(){show(0);},500);
 };
 })();
 </script>
+<div id='czrPrBox' style='margin:6px 0 18px;padding:12px;border:1px solid #e8c45a66;border-radius:14px;background:#0f1522'>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>🖼 أوامر صور الذكاء الاصطناعي · Image prompts</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:8px'>الصق كل أمر في تطبيق توليد صور على هاتفك (Off Grid أو Local Dream) · Paste each prompt into an on-device image app</div>
+<div style='display:flex;gap:8px;margin-bottom:8px'>
+<button onclick='czrPrompts()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>✨ ولّد الأوامر</button>
+<button onclick='czrPrCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Copy</button>
+</div>
+<textarea id='czrPrOut' style='width:100%;box-sizing:border-box;min-height:150px;background:#000;color:#e8ecf3;border:1px solid #333;border-radius:10px;padding:10px;font-size:13px;line-height:1.5'></textarea>
+</div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/;
+function g(i){return document.getElementById(i);}
+function toast(m){try{var t=document.createElement('div');t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4000;font-size:14px';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove();},2200);}catch(e){}}
+var roles=[
+'dramatic close-up of a curious person looking at a phone, glowing golden light',
+'frustrated person at a desk with complicated charts, dim blue light',
+'hand holding a smartphone with a glowing golden coin on the screen, bright optimistic light',
+'phone screen showing a mining dashboard with green numbers, shallow depth of field',
+'confident smiling person holding a phone, golden hour, welcoming mood'
+];
+window.czrPrompts=function(){
+var tas=document.querySelectorAll('#czrStOut textarea');
+if(!tas.length){toast('اكتب فكرة واضغط ✨ أولًا · Write an idea and tap ✨ first');return;}
+var tp=(g('czrStTopic').value||'').trim();
+var theme=(tp&&!AR.test(tp))?', theme: '+tp:'';
+var out=[];
+for(var i=0;i<tas.length;i++){out.push('Scene '+(i+1)+':\nphotorealistic, cinematic, vertical 9:16, '+roles[i%roles.length]+theme+', highly detailed, sharp focus\n');}
+out.push('Negative prompt:\ntext, watermark, logo, deformed hands, extra fingers, blurry, low quality');
+g('czrPrOut').value=out.join('\n');
+};
+window.czrPrCopy=function(){
+var t=g('czrPrOut').value;if(!t)return;
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t);toast('تم النسخ · Copied');return;}}catch(e){}
+try{var o=g('czrPrOut');o.select();document.execCommand('copy');toast('تم النسخ · Copied');}catch(e){}
+};
+})();
+</script>
 <div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
 </div></section>
 <script>
@@ -9761,6 +9799,44 @@ if(my!==tok)return;
 big.style.opacity='0';badge.style.opacity='1';title.style.opacity='1';
 setTimeout(function(){show(0);},500);
 },2800);
+};
+})();
+</script>
+<div id='czrPrBox' style='margin:6px 0 18px;padding:12px;border:1px solid #e8c45a66;border-radius:14px;background:#0f1522'>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>🖼 أوامر صور الذكاء الاصطناعي · Image prompts</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:8px'>الصق كل أمر في تطبيق توليد صور على هاتفك (Off Grid أو Local Dream) · Paste each prompt into an on-device image app</div>
+<div style='display:flex;gap:8px;margin-bottom:8px'>
+<button onclick='czrPrompts()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>✨ ولّد الأوامر</button>
+<button onclick='czrPrCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Copy</button>
+</div>
+<textarea id='czrPrOut' style='width:100%;box-sizing:border-box;min-height:150px;background:#000;color:#e8ecf3;border:1px solid #333;border-radius:10px;padding:10px;font-size:13px;line-height:1.5'></textarea>
+</div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/;
+function g(i){return document.getElementById(i);}
+function toast(m){try{var t=document.createElement('div');t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4000;font-size:14px';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove();},2200);}catch(e){}}
+var roles=[
+'dramatic close-up of a curious person looking at a phone, glowing golden light',
+'frustrated person at a desk with complicated charts, dim blue light',
+'hand holding a smartphone with a glowing golden coin on the screen, bright optimistic light',
+'phone screen showing a mining dashboard with green numbers, shallow depth of field',
+'confident smiling person holding a phone, golden hour, welcoming mood'
+];
+window.czrPrompts=function(){
+var tas=document.querySelectorAll('#czrStOut textarea');
+if(!tas.length){toast('اكتب فكرة واضغط ✨ أولًا · Write an idea and tap ✨ first');return;}
+var tp=(g('czrStTopic').value||'').trim();
+var theme=(tp&&!AR.test(tp))?', theme: '+tp:'';
+var out=[];
+for(var i=0;i<tas.length;i++){out.push('Scene '+(i+1)+':\nphotorealistic, cinematic, vertical 9:16, '+roles[i%roles.length]+theme+', highly detailed, sharp focus\n');}
+out.push('Negative prompt:\ntext, watermark, logo, deformed hands, extra fingers, blurry, low quality');
+g('czrPrOut').value=out.join('\n');
+};
+window.czrPrCopy=function(){
+var t=g('czrPrOut').value;if(!t)return;
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t);toast('تم النسخ · Copied');return;}}catch(e){}
+try{var o=g('czrPrOut');o.select();document.execCommand('copy');toast('تم النسخ · Copied');}catch(e){}
 };
 })();
 </script>
