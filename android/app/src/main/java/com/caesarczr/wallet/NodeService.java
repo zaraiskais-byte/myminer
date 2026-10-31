@@ -58,6 +58,14 @@ public class NodeService extends Service {
 
     static String lastLine() { return lastLine; }
 
+    static String debugState(Context c) {
+        int t = -1;
+        try { t = pickThreads(c); } catch (Exception e) {}
+        boolean up;
+        synchronized (LOCK) { up = workerProc != null && alive(workerProc); }
+        return "worker=" + (up ? "up" : "down") + " pick=" + t + " fails=" + workerFails + " | " + lastLine;
+    }
+
     private static boolean alive(Process p) {
         if (p == null) return false;
         try { p.exitValue(); return false; } catch (IllegalThreadStateException e) { return true; }

@@ -24,6 +24,7 @@ public class MainActivity extends Activity {
     private static final String URL = "http://127.0.0.1:" + NodeService.RPC_PORT;
     private FrameLayout root;
     private TextView status;
+    private TextView dbg;
     private WebView webView;
     private Handler ui;
     private boolean waiting = false;
@@ -49,6 +50,7 @@ public class MainActivity extends Activity {
                         });
                 }
             } catch (Exception ignored) {}
+            if (dbg != null) dbg.setText(NodeService.debugState(MainActivity.this));
             ui.postDelayed(this, 5000);
         }
     };
@@ -69,6 +71,13 @@ public class MainActivity extends Activity {
         root.addView(status, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(root);
+        dbg = new TextView(this);
+        dbg.setTextSize(10);
+        dbg.setTextColor(0xFFFFFF00);
+        dbg.setBackgroundColor(0xCC000000);
+        dbg.setPadding(8, 4, 8, 4);
+        root.addView(dbg, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1);
