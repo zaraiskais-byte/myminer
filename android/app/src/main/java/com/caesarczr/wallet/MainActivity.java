@@ -88,6 +88,62 @@ public class MainActivity extends Activity {
         startNode();
     }
 
+    private long lastUpdateCheck = 0;
+
+    private void checkUpdate() {
+        final long now = System.currentTimeMillis();
+        if (now - lastUpdateCheck < 6L * 3600L * 1000L) return;
+        lastUpdateCheck = now;
+        new Thread(new Runnable() {
+            public void run() {
+                java.net.HttpURLConnection c = null;
+                try {
+                    c = (java.net.HttpURLConnection) new java.net.URL(
+                        "https://api.github.com/repos/zaraiskais-byte/myminer/releases/latest").openConnection();
+                    c.setConnectTimeout(5000);
+                    c.setReadTimeout(8000);
+                    c.setRequestProperty("Accept", "application/vnd.github+json");
+                    if (c.getResponseCode() != 200) return;
+                    java.io.BufferedReader r = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(c.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = r.readLine()) != null && sb.length() < 200000) sb.append(line);
+                    r.close();
+                    java.util.regex.Matcher t = java.util.regex.Pattern
+                        .compile("\"tag_name\"\\s*:\\s*\"[^\"]*?(\\d+)\"").matcher(sb);
+                    java.util.regex.Matcher u = java.util.regex.Pattern
+                        .compile("\"browser_download_url\"\\s*:\\s*\"([^\"]+\\.apk)\"").matcher(sb);
+                    if (!t.find() || !u.find()) return;
+                    final int latest = Integer.parseInt(t.group(1));
+                    final String url = u.group(1);
+                    String vn = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+                    int cur = Integer.parseInt(vn.substring(vn.lastIndexOf('.') + 1));
+                    if (latest <= cur) return;
+                    ui.post(new Runnable() {
+                        public void run() {
+                            try {
+                                new android.app.AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("Caesar CZR")
+                                    .setMessage("New version 3.0." + latest + " is available.")
+                                    .setPositiveButton("Update", new android.content.DialogInterface.OnClickListener() {
+                                        public void onClick(android.content.DialogInterface d, int w) {
+                                            startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+                                        }
+                                    })
+                                    .setNegativeButton("Later", null)
+                                    .show();
+                            } catch (Exception ignored) {}
+                        }
+                    });
+                } catch (Exception ignored) {
+                } finally {
+                    if (c != null) c.disconnect();
+                }
+            }
+        }).start();
+    }
+
     private void attachNewWebView() {
         if (webView != null) {
             root.removeView(webView);
@@ -177,6 +233,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        checkUpdate();
         webView.onResume();
         webView.resumeTimers();
         ui.removeCallbacks(minerTick);
