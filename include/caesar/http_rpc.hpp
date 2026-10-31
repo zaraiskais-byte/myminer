@@ -4024,28 +4024,6 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 <!-- ============ APP ============ -->
 
 <div id="app">
-<div id='czrSt' style='position:fixed;left:14px;bottom:96px;z-index:900'>
-<div id='czrStBtn' onclick='czrStOpen()' style='width:58px;height:58px;border-radius:50%;background:#0f1522;border:2px solid #e8c45a;box-shadow:0 0 18px #e8c45a73;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer'>🎬</div>
-<div id='czrStBox' style='display:none;flex-direction:column;position:fixed;left:10px;right:10px;bottom:164px;max-height:70vh;background:#0f1522;border:1px solid #e8c45a66;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #000000b3'>
-<div style='display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #ffffff1a'>
-<b style='flex:1;color:#e8c45a'>🎬 Studio · استوديو</b>
-<span onclick='czrStOpen()' style='cursor:pointer;font-size:18px;color:#9aa4b2'>✕</span>
-</div>
-<div style='padding:10px;display:flex;gap:8px'>
-<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font-size:15px'>
-<button onclick='czrStGen()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 14px;font-weight:700'>✨</button>
-</div>
-<div id='czrStOut' style='flex:1;overflow-y:auto;padding:0 10px 8px;display:flex;flex-direction:column;gap:8px;min-height:80px'></div>
-<div style='display:flex;gap:6px;padding:8px 10px;border-top:1px solid #ffffff1a;flex-wrap:wrap'>
-<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>▶ 🔊</button>
-<button onclick='czrStCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Copy</button>
-<button onclick='czrStShare()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Share</button>
-</div>
-<div style='display:flex;gap:6px;padding:0 10px 10px;flex-wrap:wrap'>
-<button onclick='czrStGo("https://studio.youtube.com")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>YouTube</button>
-<button onclick='czrStGo("https://www.tiktok.com/upload")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>TikTok</button>
-<button onclick='czrStGo("https://www.facebook.com/")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>Facebook</button>
-</div></div></div>
 <script>
 (function(){
 var AR=/[\u0600-\u06FF]/,scenes=[],isAr=true;
@@ -4703,7 +4681,26 @@ g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.c
 
 
 
-  <nav class="bottom">
+  <style>nav.bottom{grid-template-columns:repeat(5,1fr)!important}nav.bottom button{min-width:0;flex:1 1 0}</style>
+<section class="tab" id="tab-studio"><div style='padding:14px 14px 110px'>
+<h2 style='color:#e8c45a;margin:0 0 4px'>🎬 Studio · استوديو</h2>
+<div style='color:#9aa4b2;font-size:13px;margin-bottom:12px'>اكتب فكرة فيديو لجلب مستخدمين جدد · Write a video idea to attract new users</div>
+<div style='display:flex;gap:8px;margin-bottom:10px'>
+<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:12px;font-size:15px'>
+<button onclick='czrStGen()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 16px;font-weight:700;font-size:18px'>✨</button>
+</div>
+<div id='czrStOut' style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px'></div>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px'>
+<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>▶ 🔊</button>
+<button onclick='czrStCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Copy</button>
+<button onclick='czrStShare()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Share</button>
+</div>
+<div style='display:flex;gap:8px;flex-wrap:wrap'>
+<button onclick='czrStGo("https://studio.youtube.com")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>YouTube</button>
+<button onclick='czrStGo("https://www.tiktok.com/upload")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>TikTok</button>
+<button onclick='czrStGo("https://www.facebook.com/")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>Facebook</button>
+</div></div></section>
+<nav class="bottom">
 
     <button data-tab="wallet" class="active" onclick="switchTab('wallet',this)">
 
@@ -4729,6 +4726,10 @@ g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.c
 
     </button>
 
+    <button data-tab="studio" onclick="switchTab('studio',this)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="m3 8 3-5h4l-3 5"/><path d="m11 8 3-5h4l-3 5"/></svg>
+      Studio
+    </button>
     <button data-tab="more" onclick="switchTab('more',this)">
 
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
@@ -8658,28 +8659,6 @@ CZR JS CHECKING
 <!-- ============ APP ============ -->
 
 <div id="app">
-<div id='czrSt' style='position:fixed;left:14px;bottom:96px;z-index:900'>
-<div id='czrStBtn' onclick='czrStOpen()' style='width:58px;height:58px;border-radius:50%;background:#0f1522;border:2px solid #e8c45a;box-shadow:0 0 18px #e8c45a73;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer'>🎬</div>
-<div id='czrStBox' style='display:none;flex-direction:column;position:fixed;left:10px;right:10px;bottom:164px;max-height:70vh;background:#0f1522;border:1px solid #e8c45a66;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #000000b3'>
-<div style='display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #ffffff1a'>
-<b style='flex:1;color:#e8c45a'>🎬 Studio · استوديو</b>
-<span onclick='czrStOpen()' style='cursor:pointer;font-size:18px;color:#9aa4b2'>✕</span>
-</div>
-<div style='padding:10px;display:flex;gap:8px'>
-<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font-size:15px'>
-<button onclick='czrStGen()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 14px;font-weight:700'>✨</button>
-</div>
-<div id='czrStOut' style='flex:1;overflow-y:auto;padding:0 10px 8px;display:flex;flex-direction:column;gap:8px;min-height:80px'></div>
-<div style='display:flex;gap:6px;padding:8px 10px;border-top:1px solid #ffffff1a;flex-wrap:wrap'>
-<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>▶ 🔊</button>
-<button onclick='czrStCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Copy</button>
-<button onclick='czrStShare()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Share</button>
-</div>
-<div style='display:flex;gap:6px;padding:0 10px 10px;flex-wrap:wrap'>
-<button onclick='czrStGo("https://studio.youtube.com")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>YouTube</button>
-<button onclick='czrStGo("https://www.tiktok.com/upload")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>TikTok</button>
-<button onclick='czrStGo("https://www.facebook.com/")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>Facebook</button>
-</div></div></div>
 <script>
 (function(){
 var AR=/[\u0600-\u06FF]/,scenes=[],isAr=true;
@@ -9215,7 +9194,26 @@ g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.c
 
 
 
-  <nav class="bottom">
+  <style>nav.bottom{grid-template-columns:repeat(5,1fr)!important}nav.bottom button{min-width:0;flex:1 1 0}</style>
+<section class="tab" id="tab-studio"><div style='padding:14px 14px 110px'>
+<h2 style='color:#e8c45a;margin:0 0 4px'>🎬 Studio · استوديو</h2>
+<div style='color:#9aa4b2;font-size:13px;margin-bottom:12px'>اكتب فكرة فيديو لجلب مستخدمين جدد · Write a video idea to attract new users</div>
+<div style='display:flex;gap:8px;margin-bottom:10px'>
+<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:12px;font-size:15px'>
+<button onclick='czrStGen()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 16px;font-weight:700;font-size:18px'>✨</button>
+</div>
+<div id='czrStOut' style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px'></div>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px'>
+<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>▶ 🔊</button>
+<button onclick='czrStCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Copy</button>
+<button onclick='czrStShare()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Share</button>
+</div>
+<div style='display:flex;gap:8px;flex-wrap:wrap'>
+<button onclick='czrStGo("https://studio.youtube.com")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>YouTube</button>
+<button onclick='czrStGo("https://www.tiktok.com/upload")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>TikTok</button>
+<button onclick='czrStGo("https://www.facebook.com/")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>Facebook</button>
+</div></div></section>
+<nav class="bottom">
 
     <button data-tab="wallet" class="active" onclick="switchTab('wallet',this)">
 
@@ -9241,6 +9239,10 @@ g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.c
 
     </button>
 
+    <button data-tab="studio" onclick="switchTab('studio',this)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="m3 8 3-5h4l-3 5"/><path d="m11 8 3-5h4l-3 5"/></svg>
+      Studio
+    </button>
     <button data-tab="more" onclick="switchTab('more',this)">
 
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
