@@ -7,6 +7,7 @@ on:
   push:
     branches:
       - main
+      - feat/real-miner
 
 jobs:
   build:
@@ -63,27 +64,31 @@ jobs:
             -DANDROID_STL=c++_static \
             -DOPENSSL_ROOT=/tmp/openssl-android \
             -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --target caesar_web -j4
+          cmake --build build --target caesar_web caesar_worker -j4
           mkdir -p ../jniLibs/arm64-v8a
           cp build/caesar_web ../jniLibs/arm64-v8a/libcaesar_web.so
-          chmod +x ../jniLibs/arm64-v8a/libcaesar_web.so
-          file ../jniLibs/arm64-v8a/libcaesar_web.so
+          cp build/caesar_worker ../jniLibs/arm64-v8a/libcaesar_worker.so
+          chmod +x ../jniLibs/arm64-v8a/libcaesar_web.so ../jniLibs/arm64-v8a/libcaesar_worker.so
+          file ../jniLibs/arm64-v8a/libcaesar_web.so ../jniLibs/arm64-v8a/libcaesar_worker.so
 
-      - name: Restore or create release keystore
+      - name: Restore release keystore from secrets
+        env:
+          KS_B64: ${{ secrets.CZR_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.CZR_KEYSTORE_PASSWORD }}
+          KEY_ALIAS_IN: ${{ secrets.CZR_KEY_ALIAS }}
+          KEY_PASS_IN: ${{ secrets.CZR_KEY_PASSWORD }}
         run: |
           set -e
-          mkdir -p android/keystore
-          if [ ! -f android/keystore/caesar-release.keystore ]; then
-            keytool -genkeypair -v \
-              -keystore android/keystore/caesar-release.keystore \
-              -alias caesar -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass caesar123 -keypass caesar123 \
-              -dname "CN=Caesar CZR, OU=Wallet, O=Caesar, L=Tripoli, C=LY"
+          if [ -z "$KS_B64" ]; then
+            echo "CZR_KEYSTORE_B64 secret is missing: refusing to sign with a random key"
+            exit 1
           fi
+          mkdir -p android/keystore
+          echo "$KS_B64" | base64 -d > android/keystore/caesar-release.keystore
           echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/android/keystore/caesar-release.keystore" >> $GITHUB_ENV
-          echo "KEYSTORE_PASSWORD=caesar123" >> $GITHUB_ENV
-          echo "KEY_ALIAS=caesar" >> $GITHUB_ENV
-          echo "KEY_PASSWORD=caesar123" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=$KS_PASS" >> $GITHUB_ENV
+          echo "KEY_ALIAS=$KEY_ALIAS_IN" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=$KEY_PASS_IN" >> $GITHUB_ENV
 
       - name: Build Release APK
         run: |
@@ -100,9 +105,11 @@ jobs:
           if-no-files-found: error
 
       - name: Publish APK to GitHub Releases
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/real-miner'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.0.${{ github.run_number }}
+          tag_name: ${{ github.ref_name == 'main' && 'v3.0.' || 'miner-v3.0.' }}${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
           name: Caesar CZR v3.0.${{ github.run_number }}
           files: android/app/build/outputs/apk/release/*.apk
           make_latest: true
