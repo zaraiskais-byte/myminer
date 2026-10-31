@@ -202,12 +202,49 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private void attachNewWebView() {
+    private android.speech.tts.TextToSpeech czrTts;
+    private boolean czrTtsReady = false;
+
+    public class CzrTtsBridge {
+        @android.webkit.JavascriptInterface
+        public void speak(final String text, final String lang) {
+            ui.post(new Runnable() {
+                public void run() {
+                    try {
+                        if (czrTts == null) {
+                            czrTts = new android.speech.tts.TextToSpeech(MainActivity.this,
+                                new android.speech.tts.TextToSpeech.OnInitListener() {
+                                    public void onInit(int st) {
+                                        czrTtsReady = (st == android.speech.tts.TextToSpeech.SUCCESS);
+                                        czrSpeakNow(text, lang);
+                                    }
+                                });
+                        } else {
+                            czrSpeakNow(text, lang);
+                        }
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
+    }
+
+    private void czrSpeakNow(String text, String lang) {
+        if (czrTts == null || !czrTtsReady) return;
+        java.util.Locale loc = "ar".equals(lang) ? new java.util.Locale("ar") : java.util.Locale.US;
+        int r = czrTts.setLanguage(loc);
+        if (r == android.speech.tts.TextToSpeech.LANG_MISSING_DATA
+                || r == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) return;
+        czrTts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "czr");
+    }
+
+    
+private void attachNewWebView() {
         if (webView != null) {
             root.removeView(webView);
             try { webView.destroy(); } catch (Exception ignored) {}
         }
         webView = new WebView(this);
+        webView.addJavascriptInterface(new CzrTtsBridge(), "CzrTTS");
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);

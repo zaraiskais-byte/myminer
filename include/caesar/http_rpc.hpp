@@ -4043,7 +4043,7 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 var AR=/[\u0600-\u06FF]/,voiceOn=false;
 function g(i){return document.getElementById(i);}
 function add(w,t){var l=g('czrBotLog'),d=document.createElement('div');d.textContent=t;d.style.cssText='white-space:pre-wrap;padding:8px 11px;border-radius:12px;max-width:88%;font-size:14px;line-height:1.5;'+(w==='u'?'align-self:flex-end;background:#e8c45a;color:#000':'align-self:flex-start;background:#1c2536;color:#e8ecf3');l.appendChild(d);l.scrollTop=l.scrollHeight;}
-function say(t,ar){if(!voiceOn||!window.speechSynthesis)return;try{var u=new SpeechSynthesisUtterance(t);u.lang=ar?'ar-SA':'en-US';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+function say(t,ar){if(!voiceOn)return;if(window.CzrTTS){try{window.CzrTTS.speak(t,ar?'ar':'en');}catch(e){}return;}if(!window.speechSynthesis)return;try{var u=new SpeechSynthesisUtterance(t);u.lang=ar?'ar-SA':'en-US';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
 function jget(p){return fetch(p,{credentials:'include'}).then(function(r){return r.json();});}
 function T(ar,a,e){return Promise.resolve(ar?a:e);}
 function answer(q){
@@ -8619,7 +8619,7 @@ CZR JS CHECKING
 var AR=/[\u0600-\u06FF]/,voiceOn=false;
 function g(i){return document.getElementById(i);}
 function add(w,t){var l=g('czrBotLog'),d=document.createElement('div');d.textContent=t;d.style.cssText='white-space:pre-wrap;padding:8px 11px;border-radius:12px;max-width:88%;font-size:14px;line-height:1.5;'+(w==='u'?'align-self:flex-end;background:#e8c45a;color:#000':'align-self:flex-start;background:#1c2536;color:#e8ecf3');l.appendChild(d);l.scrollTop=l.scrollHeight;}
-function say(t,ar){if(!voiceOn||!window.speechSynthesis)return;try{var u=new SpeechSynthesisUtterance(t);u.lang=ar?'ar-SA':'en-US';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+function say(t,ar){if(!voiceOn)return;if(window.CzrTTS){try{window.CzrTTS.speak(t,ar?'ar':'en');}catch(e){}return;}if(!window.speechSynthesis)return;try{var u=new SpeechSynthesisUtterance(t);u.lang=ar?'ar-SA':'en-US';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
 function jget(p){return fetch(p,{credentials:'include'}).then(function(r){return r.json();});}
 function T(ar,a,e){return Promise.resolve(ar?a:e);}
 function answer(q){
