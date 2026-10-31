@@ -2353,6 +2353,10 @@ class HttpRpcServer {
 
 
 
+        server_.Get("/brand/gold.jpg", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "public, max-age=86400");
+            res.set_content(reinterpret_cast<const char*>(czr_brand_gold), czr_brand_gold_len, "image/jpeg");
+        });
         server_.Get("/brand/caesar.jpg", [](const httplib::Request&, httplib::Response& res) {
             res.set_header("Cache-Control", "public, max-age=86400");
             res.set_content(reinterpret_cast<const char*>(czr_brand_coin), czr_brand_coin_len, "image/jpeg");
@@ -3999,7 +4003,7 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 
 <div id="lock">
 
-  <img src="/brand/caesar.jpg" alt="Caesar" style="width:132px;height:132px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;box-shadow:0 0 24px rgba(232,196,90,.35)">
+  <img src="/brand/gold.jpg" alt="Caesar CZR" style="width:210px;height:210px;border-radius:26px;object-fit:cover;display:block;margin:0 auto 14px;box-shadow:0 0 28px #e8c45a59">
 
   <h1>CAESAR CZR</h1>
 
@@ -4020,6 +4024,53 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 <!-- ============ APP ============ -->
 
 <div id="app">
+<div id='czrBot' style='position:fixed;right:14px;bottom:96px;z-index:900'>
+<img id='czrBotBtn' src='/brand/caesar.jpg' alt='Caesar' onclick='czrBotToggle()' style='width:58px;height:58px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;box-shadow:0 0 18px #e8c45a73;display:block;cursor:pointer'>
+<div id='czrBotBox' style='display:none;flex-direction:column;position:fixed;left:10px;right:10px;bottom:164px;max-height:60vh;background:#0f1522;border:1px solid #e8c45a66;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #000000b3'>
+<div style='display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #ffffff1a'>
+<img src='/brand/caesar.jpg' alt='' style='width:36px;height:36px;border-radius:50%;object-fit:cover'>
+<b style='flex:1;color:#e8c45a'>قيصر · Caesar</b>
+<span id='czrBotVoice' onclick='czrBotVoice()' style='cursor:pointer;font-size:18px'>🔇</span>
+<span onclick='czrBotToggle()' style='cursor:pointer;font-size:18px;color:#9aa4b2'>✕</span>
+</div>
+<div id='czrBotLog' style='flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:120px'></div>
+<div style='display:flex;gap:8px;padding:10px;border-top:1px solid #ffffff1a'>
+<input id='czrBotIn' type='text' placeholder='اسأل · Ask' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font-size:15px'>
+<button onclick='czrBotAsk()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 16px;font-weight:700'>➤</button>
+</div></div></div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/,voiceOn=false;
+function g(i){return document.getElementById(i);}
+function add(w,t){var l=g('czrBotLog'),d=document.createElement('div');d.textContent=t;d.style.cssText='white-space:pre-wrap;padding:8px 11px;border-radius:12px;max-width:88%;font-size:14px;line-height:1.5;'+(w==='u'?'align-self:flex-end;background:#e8c45a;color:#000':'align-self:flex-start;background:#1c2536;color:#e8ecf3');l.appendChild(d);l.scrollTop=l.scrollHeight;}
+function say(t,ar){if(!voiceOn||!window.speechSynthesis)return;try{var u=new SpeechSynthesisUtterance(t);u.lang=ar?'ar-SA':'en-US';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+function jget(p){return fetch(p,{credentials:'include'}).then(function(r){return r.json();});}
+function T(ar,a,e){return Promise.resolve(ar?a:e);}
+function answer(q){
+var ar=AR.test(q),s=q.toLowerCase();
+function h(re){return re.test(s);}
+if(h(/(مرحبا|السلام|أهلا|اهلا|hello|\bhi\b|hey)/))return T(ar,'وعليكم السلام، أنا قيصر. اسألني عن الرصيد أو التعدين أو الإرسال أو رابط الدعوة.','Hello, I am Caesar. Ask me about your balance, mining, sending or your invite link.');
+if(h(/(شكرا|شكراً|thank)/))return T(ar,'على الرحب والسعة.','You are welcome.');
+if(h(/(دعوة|دعوه|إحالة|احالة|رابط|invite|referral|link)/))return T(ar,'رابط الدعوة في الصفحة الرئيسية ضمن بطاقة YOUR INVITE LINK. اضغط Copy وأرسله لأصدقائك، ويُسجَّل كل من ينضم عبره في دائرتك حتى أربعة مستويات.','Your invite link is in the YOUR INVITE LINK card on the main page. Tap Copy and share it. Everyone who joins through it is added to your circle, up to four levels.');
+if(h(/(سحب|دفع|payout|pay out)/))return jget('/api/pool/stats').then(function(j){var f=j.fee_percent;return ar?'من تبويب Pool اضغط Payout Now. يشترط وجود مشاركات معلّقة. رسوم المجمّع الحالية '+f+'٪، ويمكن تفعيل الدفع التلقائي كل 5 أو 10 أو 20 كتلة.':'In the Pool tab tap Payout Now. It needs pending shares. The current pool fee is '+f+'%, and auto-payout can run every 5, 10 or 20 blocks.';});
+if(h(/(رصيد|balance|كم لدي|كم عندي|how much)/))return jget('/api/balance').then(function(j){var v=j&&(j.balance!==undefined?j.balance:j.confirmed);if(v===undefined)throw 0;return ar?'الرصيد كما تعيده العقدة: '+v+'. ويظهر أيضًا في بطاقة BALANCE بالصفحة الرئيسية.':'Balance as returned by the node: '+v+'. It is also shown in the BALANCE card on the main page.';}).catch(function(){return ar?'يظهر رصيدك في بطاقة BALANCE بالصفحة الرئيسية.':'Your balance is shown in the BALANCE card on the main page.';});
+if(h(/(إرسال|ارسال|تحويل|send|transfer)/))return T(ar,'في قسم SEND CZR اكتب عنوان المستلم الذي يبدأ بـ CZ1 والمبلغ بالوحدات الذرية، ثم اضغط Send. تأكد من العنوان قبل الإرسال لأن المعاملات لا تُسترجع.','In the SEND CZR section enter the recipient address starting with CZ1 and the amount in atomic units, then tap Send. Check the address first because transactions cannot be reversed.');
+if(h(/(استلام|عنوان|receive|address|qr)/))return T(ar,'عنوان محفظتك ورمز QR في قسم RECEIVE. اضغط Copy لنسخ العنوان وشاركه مع من يريد إرسال CZR إليك.','Your wallet address and QR code are in the RECEIVE section. Tap Copy and share the address with whoever wants to send you CZR.');
+if(h(/(تعدين|تعدن|مشاركات|هاش|شير|mining|miner|shares|hash)/))return jget('/api/pool/stats').then(function(j){var n=(j.workers||[]).length;return ar?'العمّال المتصلون: '+n+'، وإجمالي المشاركات: '+j.total_shares+'، وارتفاع السلسلة: '+j.current_height+'. تجد سرعتك في بطاقة MINING STATUS.':'Connected workers: '+n+', total shares: '+j.total_shares+', chain height: '+j.current_height+'. Your speed is in the MINING STATUS card.';});
+if(h(/(مستخدم|مجتمع|أعضاء|اعضاء|users|community|members)/))return jget('/api/pool/community').then(function(j){return ar?'عدد المستخدمين: '+j.total_users+'، والنشطون خلال 24 ساعة: '+j.active_24h+'.':'Total users: '+j.total_users+', active in the last 24 hours: '+j.active_24h+'.';});
+if(h(/(كتلة|كتل|ارتفاع|شبكة|block|height|network|peers)/))return jget('/api/status').then(function(j){return ar?'ارتفاع السلسلة: '+j.height+'، وعدد النظراء: '+j.peers+'.':'Chain height: '+j.height+', peers: '+j.peers+'.';});
+if(h(/(pin|رمز|أمان|امان|حماية|security|backup|نسخة)/))return T(ar,'لا تشارك رمز PIN مع أحد. حذف التطبيق يمسح المحفظة من هذا الهاتف، فاحتفظ بنسخة من بياناتها قبل ذلك.','Never share your PIN. Uninstalling the app erases the wallet from this phone, so keep a backup of its data first.');
+if(h(/(ما هي|ما هو|من أنت|من انت|caesar|czr|what is|who are)/))return T(ar,'Caesar CZR عملة رقمية للهاتف المحمول من الطبقة الأولى، فيها مجمّع تعدين ومحفظة ومستكشف كتل وشجرة دعوة من أربعة مستويات. وأنا قيصر، دليلك داخل المحفظة.','Caesar CZR is a mobile-first Layer-1 cryptocurrency with a mining pool, wallet, block explorer and a four-level invite tree. I am Caesar, your guide inside the wallet.');
+return T(ar,'أجيب عن محفظتك: الرصيد والتعدين والإرسال والاستلام والدعوة والسحب والشبكة والأمان. أما الأسئلة العامة فتحتاج ربطي بخدمة ذكاء اصطناعي، وهذا غير مفعّل بعد.','I answer about your wallet: balance, mining, sending, receiving, invites, payouts, the network and security. General questions need an online AI service, which is not connected yet.');
+}
+window.czrBotAsk=function(){var i=g('czrBotIn'),q=i.value.trim();if(!q)return;i.value='';add('u',q);var ar=AR.test(q);answer(q).then(function(a){add('b',a);say(a,ar);}).catch(function(){add('b',ar?'تعذّر الاتصال بالعقدة الآن.':'Could not reach the node right now.');});};
+window.czrBotToggle=function(){var b=g('czrBotBox'),o=b.style.display!=='flex';b.style.display=o?'flex':'none';if(o&&!g('czrBotLog').children.length){add('b','أنا قيصر، دليل محفظتك. اسألني بالعربية أو بالإنجليزية.\nI am Caesar, your wallet guide. Ask me in Arabic or English.');}};
+window.czrBotVoice=function(){voiceOn=!voiceOn;g('czrBotVoice').textContent=voiceOn?'🔊':'🔇';if(!voiceOn&&window.speechSynthesis)speechSynthesis.cancel();};
+g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.czrBotAsk();});
+})();
+</script>
+
+
 
   <header class="app-header">
 
@@ -8528,7 +8579,7 @@ CZR JS CHECKING
 
 <div id="lock">
 
-  <img src="/brand/caesar.jpg" alt="Caesar" style="width:132px;height:132px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;box-shadow:0 0 24px rgba(232,196,90,.35)">
+  <img src="/brand/gold.jpg" alt="Caesar CZR" style="width:210px;height:210px;border-radius:26px;object-fit:cover;display:block;margin:0 auto 14px;box-shadow:0 0 28px #e8c45a59">
 
   <h1>CAESAR CZR</h1>
 
@@ -8549,6 +8600,53 @@ CZR JS CHECKING
 <!-- ============ APP ============ -->
 
 <div id="app">
+<div id='czrBot' style='position:fixed;right:14px;bottom:96px;z-index:900'>
+<img id='czrBotBtn' src='/brand/caesar.jpg' alt='Caesar' onclick='czrBotToggle()' style='width:58px;height:58px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;box-shadow:0 0 18px #e8c45a73;display:block;cursor:pointer'>
+<div id='czrBotBox' style='display:none;flex-direction:column;position:fixed;left:10px;right:10px;bottom:164px;max-height:60vh;background:#0f1522;border:1px solid #e8c45a66;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #000000b3'>
+<div style='display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #ffffff1a'>
+<img src='/brand/caesar.jpg' alt='' style='width:36px;height:36px;border-radius:50%;object-fit:cover'>
+<b style='flex:1;color:#e8c45a'>قيصر · Caesar</b>
+<span id='czrBotVoice' onclick='czrBotVoice()' style='cursor:pointer;font-size:18px'>🔇</span>
+<span onclick='czrBotToggle()' style='cursor:pointer;font-size:18px;color:#9aa4b2'>✕</span>
+</div>
+<div id='czrBotLog' style='flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:120px'></div>
+<div style='display:flex;gap:8px;padding:10px;border-top:1px solid #ffffff1a'>
+<input id='czrBotIn' type='text' placeholder='اسأل · Ask' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font-size:15px'>
+<button onclick='czrBotAsk()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 16px;font-weight:700'>➤</button>
+</div></div></div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/,voiceOn=false;
+function g(i){return document.getElementById(i);}
+function add(w,t){var l=g('czrBotLog'),d=document.createElement('div');d.textContent=t;d.style.cssText='white-space:pre-wrap;padding:8px 11px;border-radius:12px;max-width:88%;font-size:14px;line-height:1.5;'+(w==='u'?'align-self:flex-end;background:#e8c45a;color:#000':'align-self:flex-start;background:#1c2536;color:#e8ecf3');l.appendChild(d);l.scrollTop=l.scrollHeight;}
+function say(t,ar){if(!voiceOn||!window.speechSynthesis)return;try{var u=new SpeechSynthesisUtterance(t);u.lang=ar?'ar-SA':'en-US';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+function jget(p){return fetch(p,{credentials:'include'}).then(function(r){return r.json();});}
+function T(ar,a,e){return Promise.resolve(ar?a:e);}
+function answer(q){
+var ar=AR.test(q),s=q.toLowerCase();
+function h(re){return re.test(s);}
+if(h(/(مرحبا|السلام|أهلا|اهلا|hello|\bhi\b|hey)/))return T(ar,'وعليكم السلام، أنا قيصر. اسألني عن الرصيد أو التعدين أو الإرسال أو رابط الدعوة.','Hello, I am Caesar. Ask me about your balance, mining, sending or your invite link.');
+if(h(/(شكرا|شكراً|thank)/))return T(ar,'على الرحب والسعة.','You are welcome.');
+if(h(/(دعوة|دعوه|إحالة|احالة|رابط|invite|referral|link)/))return T(ar,'رابط الدعوة في الصفحة الرئيسية ضمن بطاقة YOUR INVITE LINK. اضغط Copy وأرسله لأصدقائك، ويُسجَّل كل من ينضم عبره في دائرتك حتى أربعة مستويات.','Your invite link is in the YOUR INVITE LINK card on the main page. Tap Copy and share it. Everyone who joins through it is added to your circle, up to four levels.');
+if(h(/(سحب|دفع|payout|pay out)/))return jget('/api/pool/stats').then(function(j){var f=j.fee_percent;return ar?'من تبويب Pool اضغط Payout Now. يشترط وجود مشاركات معلّقة. رسوم المجمّع الحالية '+f+'٪، ويمكن تفعيل الدفع التلقائي كل 5 أو 10 أو 20 كتلة.':'In the Pool tab tap Payout Now. It needs pending shares. The current pool fee is '+f+'%, and auto-payout can run every 5, 10 or 20 blocks.';});
+if(h(/(رصيد|balance|كم لدي|كم عندي|how much)/))return jget('/api/balance').then(function(j){var v=j&&(j.balance!==undefined?j.balance:j.confirmed);if(v===undefined)throw 0;return ar?'الرصيد كما تعيده العقدة: '+v+'. ويظهر أيضًا في بطاقة BALANCE بالصفحة الرئيسية.':'Balance as returned by the node: '+v+'. It is also shown in the BALANCE card on the main page.';}).catch(function(){return ar?'يظهر رصيدك في بطاقة BALANCE بالصفحة الرئيسية.':'Your balance is shown in the BALANCE card on the main page.';});
+if(h(/(إرسال|ارسال|تحويل|send|transfer)/))return T(ar,'في قسم SEND CZR اكتب عنوان المستلم الذي يبدأ بـ CZ1 والمبلغ بالوحدات الذرية، ثم اضغط Send. تأكد من العنوان قبل الإرسال لأن المعاملات لا تُسترجع.','In the SEND CZR section enter the recipient address starting with CZ1 and the amount in atomic units, then tap Send. Check the address first because transactions cannot be reversed.');
+if(h(/(استلام|عنوان|receive|address|qr)/))return T(ar,'عنوان محفظتك ورمز QR في قسم RECEIVE. اضغط Copy لنسخ العنوان وشاركه مع من يريد إرسال CZR إليك.','Your wallet address and QR code are in the RECEIVE section. Tap Copy and share the address with whoever wants to send you CZR.');
+if(h(/(تعدين|تعدن|مشاركات|هاش|شير|mining|miner|shares|hash)/))return jget('/api/pool/stats').then(function(j){var n=(j.workers||[]).length;return ar?'العمّال المتصلون: '+n+'، وإجمالي المشاركات: '+j.total_shares+'، وارتفاع السلسلة: '+j.current_height+'. تجد سرعتك في بطاقة MINING STATUS.':'Connected workers: '+n+', total shares: '+j.total_shares+', chain height: '+j.current_height+'. Your speed is in the MINING STATUS card.';});
+if(h(/(مستخدم|مجتمع|أعضاء|اعضاء|users|community|members)/))return jget('/api/pool/community').then(function(j){return ar?'عدد المستخدمين: '+j.total_users+'، والنشطون خلال 24 ساعة: '+j.active_24h+'.':'Total users: '+j.total_users+', active in the last 24 hours: '+j.active_24h+'.';});
+if(h(/(كتلة|كتل|ارتفاع|شبكة|block|height|network|peers)/))return jget('/api/status').then(function(j){return ar?'ارتفاع السلسلة: '+j.height+'، وعدد النظراء: '+j.peers+'.':'Chain height: '+j.height+', peers: '+j.peers+'.';});
+if(h(/(pin|رمز|أمان|امان|حماية|security|backup|نسخة)/))return T(ar,'لا تشارك رمز PIN مع أحد. حذف التطبيق يمسح المحفظة من هذا الهاتف، فاحتفظ بنسخة من بياناتها قبل ذلك.','Never share your PIN. Uninstalling the app erases the wallet from this phone, so keep a backup of its data first.');
+if(h(/(ما هي|ما هو|من أنت|من انت|caesar|czr|what is|who are)/))return T(ar,'Caesar CZR عملة رقمية للهاتف المحمول من الطبقة الأولى، فيها مجمّع تعدين ومحفظة ومستكشف كتل وشجرة دعوة من أربعة مستويات. وأنا قيصر، دليلك داخل المحفظة.','Caesar CZR is a mobile-first Layer-1 cryptocurrency with a mining pool, wallet, block explorer and a four-level invite tree. I am Caesar, your guide inside the wallet.');
+return T(ar,'أجيب عن محفظتك: الرصيد والتعدين والإرسال والاستلام والدعوة والسحب والشبكة والأمان. أما الأسئلة العامة فتحتاج ربطي بخدمة ذكاء اصطناعي، وهذا غير مفعّل بعد.','I answer about your wallet: balance, mining, sending, receiving, invites, payouts, the network and security. General questions need an online AI service, which is not connected yet.');
+}
+window.czrBotAsk=function(){var i=g('czrBotIn'),q=i.value.trim();if(!q)return;i.value='';add('u',q);var ar=AR.test(q);answer(q).then(function(a){add('b',a);say(a,ar);}).catch(function(){add('b',ar?'تعذّر الاتصال بالعقدة الآن.':'Could not reach the node right now.');});};
+window.czrBotToggle=function(){var b=g('czrBotBox'),o=b.style.display!=='flex';b.style.display=o?'flex':'none';if(o&&!g('czrBotLog').children.length){add('b','أنا قيصر، دليل محفظتك. اسألني بالعربية أو بالإنجليزية.\nI am Caesar, your wallet guide. Ask me in Arabic or English.');}};
+window.czrBotVoice=function(){voiceOn=!voiceOn;g('czrBotVoice').textContent=voiceOn?'🔊':'🔇';if(!voiceOn&&window.speechSynthesis)speechSynthesis.cancel();};
+g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.czrBotAsk();});
+})();
+</script>
+
+
 
   <header class="app-header">
 
