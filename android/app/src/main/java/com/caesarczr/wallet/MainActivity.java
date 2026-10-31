@@ -88,6 +88,63 @@ public class MainActivity extends Activity {
         startNode();
     }
 
+    private static final boolean AUTO_UPDATE = true;
+    private boolean installing = false;
+
+    private void installUpdate(final String url) {
+        if (installing) return;
+        try {
+            if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+                startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    android.net.Uri.parse("package:" + getPackageName())));
+                return;
+            }
+        } catch (Exception ignored) {}
+        installing = true;
+        new Thread(new Runnable() {
+            public void run() {
+                java.net.HttpURLConnection c = null;
+                try {
+                    c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                    c.setInstanceFollowRedirects(true);
+                    c.setConnectTimeout(10000);
+                    c.setReadTimeout(30000);
+                    if (c.getResponseCode() != 200) return;
+                    android.content.pm.PackageInstaller pi = getPackageManager().getPackageInstaller();
+                    android.content.pm.PackageInstaller.SessionParams sp =
+                        new android.content.pm.PackageInstaller.SessionParams(
+                            android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+                    if (Build.VERSION.SDK_INT >= 31) {
+                        sp.setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED);
+                    }
+                    int id = pi.createSession(sp);
+                    android.content.pm.PackageInstaller.Session ses = pi.openSession(id);
+                    try {
+                        java.io.OutputStream os = ses.openWrite("caesar.apk", 0, -1);
+                        java.io.InputStream in = c.getInputStream();
+                        byte[] buf = new byte[65536];
+                        int n;
+                        while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+                        ses.fsync(os);
+                        os.close();
+                        in.close();
+                        Intent it = new Intent(MainActivity.this, UpdateReceiver.class);
+                        int fl = android.app.PendingIntent.FLAG_UPDATE_CURRENT;
+                        if (Build.VERSION.SDK_INT >= 31) fl |= android.app.PendingIntent.FLAG_MUTABLE;
+                        android.app.PendingIntent pend = android.app.PendingIntent.getBroadcast(MainActivity.this, id, it, fl);
+                        ses.commit(pend.getIntentSender());
+                    } finally {
+                        ses.close();
+                    }
+                } catch (Exception ignored) {
+                } finally {
+                    installing = false;
+                    if (c != null) c.disconnect();
+                }
+            }
+        }).start();
+    }
+
     private long lastUpdateCheck = 0;
 
     private void checkUpdate() {
@@ -120,6 +177,7 @@ public class MainActivity extends Activity {
                     String vn = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
                     int cur = Integer.parseInt(vn.substring(vn.lastIndexOf('.') + 1));
                     if (latest <= cur) return;
+                    if (AUTO_UPDATE) { installUpdate(url); return; }
                     ui.post(new Runnable() {
                         public void run() {
                             try {
