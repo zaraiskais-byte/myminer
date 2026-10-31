@@ -105,10 +105,11 @@ jobs:
           if-no-files-found: error
 
       - name: Publish APK to GitHub Releases
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/real-miner'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.0.${{ github.run_number }}
+          tag_name: ${{ github.ref_name == 'main' && 'v3.0.' || 'miner-v3.0.' }}${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
           name: Caesar CZR v3.0.${{ github.run_number }}
           files: android/app/build/outputs/apk/release/*.apk
           make_latest: true
