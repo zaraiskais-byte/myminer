@@ -2425,7 +2425,7 @@ var q2=document.getElementById('qr');
 
 if(q2)q2.src='/api/wallet/qr.svg?address='+encodeURIComponent(a)+'&_t='+Date.now();
 
-var l='https://tailscale-termux.tail57075d.ts.net/?ref='+a.slice(0,12);
+var l='https://zaraiskais-byte.github.io/myminer/?ref='+a.slice(0,12);
 
 var c=document.getElementById('circleLink');if(c)c.value=l;
 
@@ -5920,7 +5920,7 @@ function getMyInviteLink(){
 
   const base = location.origin + location.pathname;
 
-  return 'https://tailscale-termux.tail57075d.ts.net' + '/?ref=' + a.slice(0,12);
+  return 'https://zaraiskais-byte.github.io/myminer' + '/?ref=' + a.slice(0,12);
 
 }
 
@@ -10150,11 +10150,11 @@ function confirmMnemonic(){
 
     var il = document.getElementById('circleLink');
 
-    if (il && !il.value) il.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr.slice(0,12);
+    if (il && !il.value) il.value = 'https://zaraiskais-byte.github.io/myminer/?ref=' + addr.slice(0,12);
 
     var wl = document.getElementById('welcomeLink');
 
-    if (wl && !wl.value) wl.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr.slice(0,12);
+    if (wl && !wl.value) wl.value = 'https://zaraiskais-byte.github.io/myminer/?ref=' + addr.slice(0,12);
 
   }
 
