@@ -2,6 +2,9 @@
 #include "caesar/web_assets.hpp"
 // Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 #pragma once
+#ifndef CZR_BUILD
+#define CZR_BUILD 0
+#endif
 
 #include <unordered_set>
 #include <queue>
@@ -2353,6 +2356,10 @@ class HttpRpcServer {
 
 
 
+        server_.Get("/api/app/version", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            res.set_content(std::string("{\"build\":") + std::to_string(CZR_BUILD) + "}", "application/json");
+        });
         server_.Get("/brand/gold.jpg", [](const httplib::Request&, httplib::Response& res) {
             res.set_header("Cache-Control", "public, max-age=86400");
             res.set_content(reinterpret_cast<const char*>(czr_brand_gold), czr_brand_gold_len, "image/jpeg");
@@ -4024,6 +4031,31 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 <!-- ============ APP ============ -->
 
 <div id="app">
+<div id='czrUpd' style='display:none;position:fixed;top:0;left:0;right:0;z-index:1000;padding:12px 14px;background:#e8c45a;color:#000;font-weight:700;text-align:center;font-size:14px;cursor:pointer'></div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/.test(navigator.language||'ar')||true;
+function g(i){return document.getElementById(i);}
+setTimeout(function(){try{
+fetch('/api/app/version',{credentials:'include'}).then(function(r){return r.json();}).then(function(v){
+var cur=v&&v.build;if(!cur)return;
+return fetch('https://api.github.com/repos/zaraiskais-byte/myminer/releases?per_page=10').then(function(r){return r.json();}).then(function(rs){
+var best=null,n=0;
+(rs||[]).forEach(function(r){var m=/v3\.0\.(\d+)$/.exec(r.tag_name||'');if(m&&+m[1]>n){n=+m[1];best=r;}});
+if(!best||n<=cur)return;
+var url=best.html_url;
+(best.assets||[]).forEach(function(a){if(/\.apk$/i.test(a.name))url=a.browser_download_url;});
+var b=g('czrUpd');
+b.textContent='تحديث جديد '+n+' · اضغط للتنزيل · Update available, tap to download';
+b.onclick=function(){try{window.open(url,'_blank');}catch(e){location.href=url;}};
+b.style.display='block';
+});
+}).catch(function(){});
+}catch(e){}},4000);
+})();
+</script>
+
+
 <script>
 (function(){
 var AR=/[\u0600-\u06FF]/,scenes=[],isAr=true;
@@ -8659,6 +8691,31 @@ CZR JS CHECKING
 <!-- ============ APP ============ -->
 
 <div id="app">
+<div id='czrUpd' style='display:none;position:fixed;top:0;left:0;right:0;z-index:1000;padding:12px 14px;background:#e8c45a;color:#000;font-weight:700;text-align:center;font-size:14px;cursor:pointer'></div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/.test(navigator.language||'ar')||true;
+function g(i){return document.getElementById(i);}
+setTimeout(function(){try{
+fetch('/api/app/version',{credentials:'include'}).then(function(r){return r.json();}).then(function(v){
+var cur=v&&v.build;if(!cur)return;
+return fetch('https://api.github.com/repos/zaraiskais-byte/myminer/releases?per_page=10').then(function(r){return r.json();}).then(function(rs){
+var best=null,n=0;
+(rs||[]).forEach(function(r){var m=/v3\.0\.(\d+)$/.exec(r.tag_name||'');if(m&&+m[1]>n){n=+m[1];best=r;}});
+if(!best||n<=cur)return;
+var url=best.html_url;
+(best.assets||[]).forEach(function(a){if(/\.apk$/i.test(a.name))url=a.browser_download_url;});
+var b=g('czrUpd');
+b.textContent='تحديث جديد '+n+' · اضغط للتنزيل · Update available, tap to download';
+b.onclick=function(){try{window.open(url,'_blank');}catch(e){location.href=url;}};
+b.style.display='block';
+});
+}).catch(function(){});
+}catch(e){}},4000);
+})();
+</script>
+
+
 <script>
 (function(){
 var AR=/[\u0600-\u06FF]/,scenes=[],isAr=true;
