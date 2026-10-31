@@ -21,7 +21,15 @@ import android.widget.FrameLayout;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
-    private static final String URL = "http://127.0.0.1:" + NodeService.RPC_PORT;
+    private static final String INTERNAL_URL = "http://127.0.0.1:" + NodeService.RPC_PORT;
+    private static final String TERMUX_URL = "http://127.0.0.1:8443";
+    private volatile String URL = INTERNAL_URL;
+    private static boolean termuxUp() {
+        try (java.net.Socket s = new java.net.Socket()) {
+            s.connect(new java.net.InetSocketAddress("127.0.0.1", 8443), 300);
+            return true;
+        } catch (Exception e) { return false; }
+    }
     private FrameLayout root;
     private TextView status;
     private WebView webView;
@@ -110,6 +118,7 @@ public class MainActivity extends Activity {
                     });
                     try { Thread.sleep(500); } catch (InterruptedException e) { break; }
                 }
+                URL = termuxUp() ? TERMUX_URL : INTERNAL_URL;
                 final boolean fok = ok;
                 ui.post(new Runnable() {
                     public void run() {
