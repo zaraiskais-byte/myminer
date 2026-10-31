@@ -4024,6 +4024,64 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 <!-- ============ APP ============ -->
 
 <div id="app">
+<div id='czrSt' style='position:fixed;left:14px;bottom:96px;z-index:900'>
+<div id='czrStBtn' onclick='czrStOpen()' style='width:58px;height:58px;border-radius:50%;background:#0f1522;border:2px solid #e8c45a;box-shadow:0 0 18px #e8c45a73;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer'>🎬</div>
+<div id='czrStBox' style='display:none;flex-direction:column;position:fixed;left:10px;right:10px;bottom:164px;max-height:70vh;background:#0f1522;border:1px solid #e8c45a66;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #000000b3'>
+<div style='display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #ffffff1a'>
+<b style='flex:1;color:#e8c45a'>🎬 Studio · استوديو</b>
+<span onclick='czrStOpen()' style='cursor:pointer;font-size:18px;color:#9aa4b2'>✕</span>
+</div>
+<div style='padding:10px;display:flex;gap:8px'>
+<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font-size:15px'>
+<button onclick='czrStGen()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 14px;font-weight:700'>✨</button>
+</div>
+<div id='czrStOut' style='flex:1;overflow-y:auto;padding:0 10px 8px;display:flex;flex-direction:column;gap:8px;min-height:80px'></div>
+<div style='display:flex;gap:6px;padding:8px 10px;border-top:1px solid #ffffff1a;flex-wrap:wrap'>
+<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>▶ 🔊</button>
+<button onclick='czrStCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Copy</button>
+<button onclick='czrStShare()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Share</button>
+</div>
+<div style='display:flex;gap:6px;padding:0 10px 10px;flex-wrap:wrap'>
+<button onclick='czrStGo("https://studio.youtube.com")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>YouTube</button>
+<button onclick='czrStGo("https://www.tiktok.com/upload")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>TikTok</button>
+<button onclick='czrStGo("https://www.facebook.com/")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>Facebook</button>
+</div></div></div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/,scenes=[],isAr=true;
+function g(i){return document.getElementById(i);}
+window.czrStOpen=function(){var b=g('czrStBox');b.style.display=b.style.display==='flex'?'none':'flex';};
+window.czrStGen=function(){
+var t=g('czrStTopic').value.trim();if(!t)return;
+isAr=AR.test(t);
+scenes=isAr?[
+'المشهد 1 - الخطاف: '+t+'؟ ثلاث ثوانٍ قد تغيّر نظرتك.',
+'المشهد 2 - المشكلة: كثيرون يريدون دخلًا رقميًا لكن الأدوات معقدة ومكلفة.',
+'المشهد 3 - الحل: Caesar CZR محفظة وتعدين من هاتفك مباشرة.',
+'المشهد 4 - الدليل: افتح التطبيق وشاهد المشاركات تُقبل أمامك.',
+'المشهد 5 - الدعوة: حمّل التطبيق وانضم عبر رابط الدعوة وابدأ التعدين اليوم.'
+]:[
+'Scene 1 - Hook: '+t+'? Three seconds that may change how you see it.',
+'Scene 2 - Problem: many people want digital income but the tools are complex and costly.',
+'Scene 3 - Solution: Caesar CZR is a wallet and miner right on your phone.',
+'Scene 4 - Proof: open the app and watch your shares get accepted live.',
+'Scene 5 - Call to action: download the app, join with the invite link and start mining today.'
+];
+var o=g('czrStOut');o.innerHTML='';
+scenes.forEach(function(x){var d=document.createElement('div');d.textContent=x;d.style.cssText='padding:8px 11px;border-radius:12px;background:#1c2536;color:#e8ecf3;font-size:14px;line-height:1.5';o.appendChild(d);});
+};
+window.czrStPlay=function(){
+if(!scenes.length||!window.speechSynthesis)return;
+try{speechSynthesis.cancel();scenes.forEach(function(x){var u=new SpeechSynthesisUtterance(x);u.lang=isAr?'ar-SA':'en-US';speechSynthesis.speak(u);});}catch(e){}
+};
+function txt(){return scenes.join('\n');}
+window.czrStCopy=function(){if(!scenes.length)return;try{navigator.clipboard.writeText(txt());}catch(e){}};
+window.czrStShare=function(){if(!scenes.length)return;try{if(navigator.share){navigator.share({text:txt()});}else{navigator.clipboard.writeText(txt());}}catch(e){}};
+window.czrStGo=function(u){try{window.open(u,'_blank');}catch(e){}};
+})();
+</script>
+
+
 <div id='czrBot' style='position:fixed;right:14px;bottom:96px;z-index:900'>
 <img id='czrBotBtn' src='/brand/caesar.jpg' alt='Caesar' onclick='czrBotToggle()' style='width:58px;height:58px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;box-shadow:0 0 18px #e8c45a73;display:block;cursor:pointer'>
 <div id='czrBotBox' style='display:none;flex-direction:column;position:fixed;left:10px;right:10px;bottom:164px;max-height:60vh;background:#0f1522;border:1px solid #e8c45a66;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #000000b3'>
@@ -8600,6 +8658,64 @@ CZR JS CHECKING
 <!-- ============ APP ============ -->
 
 <div id="app">
+<div id='czrSt' style='position:fixed;left:14px;bottom:96px;z-index:900'>
+<div id='czrStBtn' onclick='czrStOpen()' style='width:58px;height:58px;border-radius:50%;background:#0f1522;border:2px solid #e8c45a;box-shadow:0 0 18px #e8c45a73;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer'>🎬</div>
+<div id='czrStBox' style='display:none;flex-direction:column;position:fixed;left:10px;right:10px;bottom:164px;max-height:70vh;background:#0f1522;border:1px solid #e8c45a66;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #000000b3'>
+<div style='display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #ffffff1a'>
+<b style='flex:1;color:#e8c45a'>🎬 Studio · استوديو</b>
+<span onclick='czrStOpen()' style='cursor:pointer;font-size:18px;color:#9aa4b2'>✕</span>
+</div>
+<div style='padding:10px;display:flex;gap:8px'>
+<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font-size:15px'>
+<button onclick='czrStGen()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 14px;font-weight:700'>✨</button>
+</div>
+<div id='czrStOut' style='flex:1;overflow-y:auto;padding:0 10px 8px;display:flex;flex-direction:column;gap:8px;min-height:80px'></div>
+<div style='display:flex;gap:6px;padding:8px 10px;border-top:1px solid #ffffff1a;flex-wrap:wrap'>
+<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>▶ 🔊</button>
+<button onclick='czrStCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Copy</button>
+<button onclick='czrStShare()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Share</button>
+</div>
+<div style='display:flex;gap:6px;padding:0 10px 10px;flex-wrap:wrap'>
+<button onclick='czrStGo("https://studio.youtube.com")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>YouTube</button>
+<button onclick='czrStGo("https://www.tiktok.com/upload")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>TikTok</button>
+<button onclick='czrStGo("https://www.facebook.com/")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:8px 12px;font-weight:700'>Facebook</button>
+</div></div></div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/,scenes=[],isAr=true;
+function g(i){return document.getElementById(i);}
+window.czrStOpen=function(){var b=g('czrStBox');b.style.display=b.style.display==='flex'?'none':'flex';};
+window.czrStGen=function(){
+var t=g('czrStTopic').value.trim();if(!t)return;
+isAr=AR.test(t);
+scenes=isAr?[
+'المشهد 1 - الخطاف: '+t+'؟ ثلاث ثوانٍ قد تغيّر نظرتك.',
+'المشهد 2 - المشكلة: كثيرون يريدون دخلًا رقميًا لكن الأدوات معقدة ومكلفة.',
+'المشهد 3 - الحل: Caesar CZR محفظة وتعدين من هاتفك مباشرة.',
+'المشهد 4 - الدليل: افتح التطبيق وشاهد المشاركات تُقبل أمامك.',
+'المشهد 5 - الدعوة: حمّل التطبيق وانضم عبر رابط الدعوة وابدأ التعدين اليوم.'
+]:[
+'Scene 1 - Hook: '+t+'? Three seconds that may change how you see it.',
+'Scene 2 - Problem: many people want digital income but the tools are complex and costly.',
+'Scene 3 - Solution: Caesar CZR is a wallet and miner right on your phone.',
+'Scene 4 - Proof: open the app and watch your shares get accepted live.',
+'Scene 5 - Call to action: download the app, join with the invite link and start mining today.'
+];
+var o=g('czrStOut');o.innerHTML='';
+scenes.forEach(function(x){var d=document.createElement('div');d.textContent=x;d.style.cssText='padding:8px 11px;border-radius:12px;background:#1c2536;color:#e8ecf3;font-size:14px;line-height:1.5';o.appendChild(d);});
+};
+window.czrStPlay=function(){
+if(!scenes.length||!window.speechSynthesis)return;
+try{speechSynthesis.cancel();scenes.forEach(function(x){var u=new SpeechSynthesisUtterance(x);u.lang=isAr?'ar-SA':'en-US';speechSynthesis.speak(u);});}catch(e){}
+};
+function txt(){return scenes.join('\n');}
+window.czrStCopy=function(){if(!scenes.length)return;try{navigator.clipboard.writeText(txt());}catch(e){}};
+window.czrStShare=function(){if(!scenes.length)return;try{if(navigator.share){navigator.share({text:txt()});}else{navigator.clipboard.writeText(txt());}}catch(e){}};
+window.czrStGo=function(u){try{window.open(u,'_blank');}catch(e){}};
+})();
+</script>
+
+
 <div id='czrBot' style='position:fixed;right:14px;bottom:96px;z-index:900'>
 <img id='czrBotBtn' src='/brand/caesar.jpg' alt='Caesar' onclick='czrBotToggle()' style='width:58px;height:58px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;box-shadow:0 0 18px #e8c45a73;display:block;cursor:pointer'>
 <div id='czrBotBox' style='display:none;flex-direction:column;position:fixed;left:10px;right:10px;bottom:164px;max-height:60vh;background:#0f1522;border:1px solid #e8c45a66;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #000000b3'>
