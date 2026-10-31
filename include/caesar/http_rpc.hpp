@@ -1,3 +1,4 @@
+#include "brand_assets.hpp"
 #include "caesar/web_assets.hpp"
 // Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 #pragma once
@@ -2352,6 +2353,10 @@ class HttpRpcServer {
 
 
 
+        server_.Get("/brand/caesar.jpg", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "public, max-age=86400");
+            res.set_content(reinterpret_cast<const char*>(czr_brand_coin), czr_brand_coin_len, "image/jpeg");
+        });
         server_.Get("/icon-512.svg", [](const httplib::Request&, httplib::Response& res) {
 
             res.set_content(
@@ -3994,7 +3999,7 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 
 <div id="lock">
 
-  <div class="logo">C</div>
+  <img src="/brand/caesar.jpg" alt="Caesar" style="width:132px;height:132px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;box-shadow:0 0 24px rgba(232,196,90,.35)">
 
   <h1>CAESAR CZR</h1>
 
@@ -8523,7 +8528,7 @@ CZR JS CHECKING
 
 <div id="lock">
 
-  <div class="logo">C</div>
+  <img src="/brand/caesar.jpg" alt="Caesar" style="width:132px;height:132px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;box-shadow:0 0 24px rgba(232,196,90,.35)">
 
   <h1>CAESAR CZR</h1>
 

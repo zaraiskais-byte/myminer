@@ -65,7 +65,10 @@ public class MainActivity extends Activity {
         status.setTextSize(14);
         status.setPadding(32, 32, 32, 32);
         status.setGravity(Gravity.CENTER);
-        status.setBackgroundColor(0xFFFFFFFF);
+        status.setBackgroundColor(0xFF0A1020);
+        status.setTextColor(0xFFE8C45A);
+        status.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.splash_logo, 0, 0);
+        status.setCompoundDrawablePadding(24);
         status.setText("Starting Caesar node...");
         attachNewWebView();
         root.addView(status, new FrameLayout.LayoutParams(
