@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.util.Log;
 import java.io.BufferedReader;
 import java.io.File;
@@ -16,6 +17,7 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.regex.Pattern;
 
 public class NodeService extends Service {
     static final int RPC_PORT = 38543;
@@ -26,6 +28,13 @@ public class NodeService extends Service {
     private static final Object LOCK = new Object();
     private static Process proc;
     private static volatile String lastLine = "";
+    private static Process workerProc;
+    private static String workerAddr = "";
+    private static int workerFails = 0;
+    private static long workerNextTry = 0;
+    private static long workerStarted = 0;
+    private static PowerManager.WakeLock wakeLock;
+    private static final Pattern ADDR = Pattern.compile("^CZ1[0-9A-Za-z]{8,120}$");
 
     static boolean portOpen() {
         try (Socket s = new Socket()) {
@@ -77,6 +86,70 @@ public class NodeService extends Service {
         }
     }
 
+    private static void releaseWake() {
+        try { if (wakeLock != null && wakeLock.isHeld()) wakeLock.release(); } catch (Exception ignored) {}
+    }
+
+    /** Starts (or restarts) the real miner for the given wallet address. */
+    static void ensureWorker(Context ctx, String address) {
+        if (address == null || !ADDR.matcher(address).matches()) return;
+        synchronized (LOCK) {
+            long now = System.currentTimeMillis();
+            boolean running = workerProc != null && alive(workerProc);
+            if (workerProc != null && !running) {
+                releaseWake();
+                if (now - workerStarted < 30000L) workerFails++; else workerFails = 0;
+                workerProc = null;
+                workerNextTry = now + Math.min(300000L, 5000L << Math.min(workerFails, 6));
+                lastLine = "worker exited, retry with backoff";
+            }
+            if (running && address.equals(workerAddr)) {
+                if (wakeLock != null) wakeLock.acquire(600000L);
+                return;
+            }
+            if (now < workerNextTry) return;
+            if (workerProc != null) { workerProc.destroy(); workerProc = null; }
+            try {
+                File bin = new File(ctx.getApplicationInfo().nativeLibraryDir, "libcaesar_worker.so");
+                if (!bin.exists()) { lastLine = "worker binary missing"; return; }
+                int threads = Math.max(1, Runtime.getRuntime().availableProcessors() / 2);
+                ArrayList<String> cmd = new ArrayList<String>();
+                cmd.add(bin.getAbsolutePath());
+                cmd.add("--pool"); cmd.add("http://127.0.0.1:" + RPC_PORT);
+                cmd.add("--address"); cmd.add(address);
+                cmd.add("--name"); cmd.add("phone");
+                cmd.add("--threads"); cmd.add(String.valueOf(threads));
+                ProcessBuilder pb = new ProcessBuilder(cmd);
+                pb.redirectErrorStream(true);
+                pb.directory(ctx.getFilesDir());
+                final Process p = pb.start();
+                workerProc = p;
+                workerAddr = address;
+                workerStarted = now;
+                if (wakeLock == null) {
+                    PowerManager pm = (PowerManager) ctx.getSystemService(Context.POWER_SERVICE);
+                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "caesar:miner");
+                    wakeLock.setReferenceCounted(false);
+                }
+                wakeLock.acquire(600000L);
+                new Thread(new Runnable() {
+                    public void run() {
+                        try {
+                            BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                            String line;
+                            while ((line = r.readLine()) != null) { lastLine = line; Log.i("CaesarWorker", line); }
+                        } catch (Exception ignored) {}
+                    }
+                }).start();
+            } catch (Exception e) {
+                workerFails++;
+                workerNextTry = now + Math.min(300000L, 5000L << Math.min(workerFails, 6));
+                lastLine = "worker spawn failed: " + e;
+                Log.e(TAG, "worker spawn failed", e);
+            }
+        }
+    }
+
     @Override
     public IBinder onBind(Intent intent) { return null; }
 
@@ -107,6 +180,8 @@ public class NodeService extends Service {
     public void onDestroy() {
         synchronized (LOCK) {
             if (proc != null) { proc.destroy(); proc = null; }
+            if (workerProc != null) { workerProc.destroy(); workerProc = null; }
+            releaseWake();
         }
         super.onDestroy();
     }

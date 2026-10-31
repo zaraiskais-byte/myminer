@@ -29,6 +29,30 @@ public class MainActivity extends Activity {
     private boolean waiting = false;
     private boolean pageLoaded = false;
 
+    private final Runnable minerTick = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                if (pageLoaded && webView != null && NodeService.portOpen()) {
+                    webView.evaluateJavascript(
+                        "(function(){try{var l=document.getElementById('lock');var a=document.getElementById('app');if(!a||getComputedStyle(a).display==='none')return '';if(l&&getComputedStyle(l).display!=='none')return '';return localStorage.getItem('czr_address')||''}catch(e){return ''}})()",
+                        new ValueCallback<String>() {
+                            @Override
+                            public void onReceiveValue(String v) {
+                                if (v == null) return;
+                                final String a = v.replace("\"", "").trim();
+                                if (a.length() == 0) return;
+                                new Thread(new Runnable() {
+                                    public void run() { NodeService.ensureWorker(MainActivity.this, a); }
+                                }).start();
+                            }
+                        });
+                }
+            } catch (Exception ignored) {}
+            ui.postDelayed(this, 5000);
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -143,6 +167,8 @@ public class MainActivity extends Activity {
         super.onResume();
         webView.onResume();
         webView.resumeTimers();
+        ui.removeCallbacks(minerTick);
+        ui.postDelayed(minerTick, 5000);
         if (!NodeService.portOpen()) {
             if (!waiting) startNode();
         } else if (pageLoaded) {
