@@ -4048,7 +4048,7 @@ var url=best.html_url;
 var b=g('czrUpd');
 b.textContent='تحديث جديد '+n+' · اضغط للتنزيل · Update available, tap to download';
 b.onclick=function(){try{window.open(url,'_blank');}catch(e){location.href=url;}};
-b.style.display='block';
+b.style.display='block';document.body.style.paddingTop='46px';
 });
 }).catch(function(){});
 }catch(e){}},4000);
@@ -4714,24 +4714,153 @@ g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.c
 
 
   <style>nav.bottom{grid-template-columns:repeat(5,1fr)!important}nav.bottom button{min-width:0;flex:1 1 0}</style>
-<section class="tab" id="tab-studio"><div style='padding:14px 14px 110px'>
+<section class="tab" id="tab-studio"><div style='padding:14px 14px 120px'>
 <h2 style='color:#e8c45a;margin:0 0 4px'>🎬 Studio · استوديو</h2>
 <div style='color:#9aa4b2;font-size:13px;margin-bottom:12px'>اكتب فكرة فيديو لجلب مستخدمين جدد · Write a video idea to attract new users</div>
 <div style='display:flex;gap:8px;margin-bottom:10px'>
-<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:12px;font-size:15px'>
+<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;min-width:0;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:12px;font-size:15px'>
 <button onclick='czrStGen()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 16px;font-weight:700;font-size:18px'>✨</button>
 </div>
+<div style='display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap'>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='promo' style='background:#e8c45a;color:#000;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>ترويج · Promo</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='learn' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>تعليمي · Learn</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='story' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>قصة · Story</button>
+</div>
 <div id='czrStOut' style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px'></div>
-<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px'>
-<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>▶ 🔊</button>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px'>
+<button onclick='czrStPreview()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>▶ معاينة بالصوت · Preview</button>
+<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>🔊</button>
+<button onclick='czrStStop()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>⏹</button>
+<button onclick='czrStSave()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>💾</button>
+</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:14px'>لتسجيل فيديو بصوت قيصر: شغّل تسجيل الشاشة في هاتفك ثم اضغط معاينة · To record a video with voice: start your phone screen recorder, then tap Preview</div>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>الوصف والهاشتاغ · Caption</div>
+<div style='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap'>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='yt' style='background:#e8c45a;color:#000;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>YouTube</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='tt' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>TikTok</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='fb' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Facebook</button>
+</div>
+<textarea id='czrStCap' style='width:100%;box-sizing:border-box;min-height:110px;background:#000;color:#e8ecf3;border:1px solid #333;border-radius:10px;padding:10px;font-size:14px;line-height:1.5;margin-bottom:10px'></textarea>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px'>
 <button onclick='czrStCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Copy</button>
 <button onclick='czrStShare()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Share</button>
 </div>
-<div style='display:flex;gap:8px;flex-wrap:wrap'>
-<button onclick='czrStGo("https://studio.youtube.com")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>YouTube</button>
-<button onclick='czrStGo("https://www.tiktok.com/upload")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>TikTok</button>
-<button onclick='czrStGo("https://www.facebook.com/")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>Facebook</button>
-</div></div></section>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px'>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://studio.youtube.com' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>YouTube ↗</button>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://www.tiktok.com/upload' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>TikTok ↗</button>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://www.facebook.com/' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>Facebook ↗</button>
+</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:16px'>يُنسخ الوصف تلقائيًا قبل فتح المنصة · الصق الوصف عند الرفع. لا تَعِد بأرباح مضمونة في الفيديو.</div>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>مشاريعي · My projects</div>
+<div id='czrStList' style='display:flex;flex-direction:column;gap:6px'></div>
+<div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
+</div></section>
+<script>
+(function(){
+var czrStV2=1;
+var AR=/[\u0600-\u06FF]/;
+var S={style:'promo',plat:'yt',scenes:[],topic:'',ar:true,tok:0};
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function toast(m){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:3000;font-size:14px',m);document.body.appendChild(t);setTimeout(function(){t.remove();},1800);}catch(e){}}
+function inv(){try{var w=g('tab-wallet')||document.body;var m=(w.textContent||'').match(/https?:\/\/[^\s]*\?ref=[A-Za-z0-9_-]+/);return m?m[0]:'';}catch(e){return '';}}
+function build(t,st,ar){
+if(ar){
+if(st==='learn')return [t+': ما الذي يجب أن تعرفه؟','Caesar CZR عملة رقمية للهاتف المحمول من الطبقة الأولى.','التعدين يعني أن هاتفك يساهم في تأمين الشبكة ويسجّل مشاركات.','المحفظة تحفظ رصيدك، ولا تشارك رمز PIN مع أحد.','رابط التطبيق في الوصف، جرّبه بنفسك.'];
+if(st==='story')return ['قصة قصيرة: '+t+'.','بدأت الشبكة صغيرة، وكان كل شيء فيها جديدًا.','ومع كل كتلة جديدة كبرت الدائرة.','اليوم يمكنك أن تنضم إليها من هاتفك.','رابط الدعوة في الوصف.'];
+return [t+'؟ لن تصدّق كم هو بسيط.','كثيرون يريدون دخول عالم العملات الرقمية، لكن الطرق معقدة أو مكلفة.','Caesar CZR محفظة وتعدين على هاتفك مباشرة، دون أجهزة ضخمة.','افتح التطبيق وشاهد المشاركات تُقبل أمامك لحظة بلحظة.','حمّل التطبيق وانضم عبر رابط الدعوة في الوصف.'];
+}
+if(st==='learn')return [t+': what should you know?','Caesar CZR is a mobile-first Layer-1 cryptocurrency.','Mining means your phone helps secure the network and records shares.','The wallet keeps your balance. Never share your PIN with anyone.','The app link is in the description. Try it yourself.'];
+if(st==='story')return ['A short story: '+t+'.','The network started small and everything in it was new.','With every new block the circle grew.','Today you can join it from your phone.','The invite link is in the description.'];
+return [t+'? You will not believe how simple it is.','Many people want to enter crypto, but the ways in are complex or costly.','Caesar CZR is a wallet and miner right on your phone, no heavy hardware.','Open the app and watch your shares get accepted live.','Download the app and join with the invite link in the description.'];
+}
+function cap(){
+var t=S.topic||'Caesar CZR',ar=S.ar,l=inv(),p=S.plat;
+var tags={yt:'#Shorts #CaesarCZR #Crypto #Mining',tt:'#fyp #CaesarCZR #Crypto #Mining',fb:'#CaesarCZR #Crypto #Mining'}[p];
+var body=ar?'جرّب Caesar CZR: محفظة وتعدين من هاتفك.':'Try Caesar CZR: a wallet and miner on your phone.';
+var link=l?(ar?'\nرابط الدعوة: ':'\nInvite link: ')+l:'';
+if(p==='yt')return t+' | Caesar CZR\n\n'+body+link+'\n\n'+tags;
+if(p==='tt')return t+' '+body+link+'\n'+tags;
+return t+'\n\n'+body+link+'\n\n'+tags;
+}
+function render(){
+var o=g('czrStOut');o.textContent='';
+S.scenes.forEach(function(x,i){var ta=el('textarea','width:100%;box-sizing:border-box;min-height:62px;background:#1c2536;color:#e8ecf3;border:1px solid #2a3550;border-radius:12px;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical',x);ta.oninput=function(){S.scenes[i]=ta.value;};o.appendChild(ta);});
+g('czrStCap').value=S.scenes.length?cap():'';
+}
+window.czrStGen=function(){var t=g('czrStTopic').value.trim();if(!t)return;S.topic=t;S.ar=AR.test(t);S.scenes=build(t,S.style,S.ar);render();};
+window.czrStSet=function(k,v,b){
+S[k]=v;
+var kids=b.parentNode.children;
+for(var i=0;i<kids.length;i++){kids[i].style.background='#1c2536';kids[i].style.color='#e8c45a';}
+b.style.background='#e8c45a';b.style.color='#000';
+if(k==='style'&&S.topic){S.scenes=build(S.topic,S.style,S.ar);render();}
+if(k==='plat'&&S.scenes.length){g('czrStCap').value=cap();}
+};
+function stop(){S.tok++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}var o=g('czrStPv');if(o)o.remove();}
+window.czrStStop=stop;
+function speak(text,ar,cb){
+var done=false,tm;
+function fin(){if(done)return;done=true;clearTimeout(tm);if(cb)cb();}
+try{if(window.speechSynthesis){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=ar?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}}catch(e){}
+tm=setTimeout(fin,Math.max(4000,text.length*120+2500));
+}
+function seq(i,tok,show,end){
+if(tok!==S.tok)return;
+if(i>=S.scenes.length){if(end)end();return;}
+if(show)show(i);
+speak(S.scenes[i],S.ar,function(){setTimeout(function(){seq(i+1,tok,show,end);},500);});
+}
+window.czrStPlay=function(){if(!S.scenes.length)return;stop();seq(0,S.tok,null,null);};
+window.czrStPreview=function(){
+if(!S.scenes.length)return;
+stop();var tok=S.tok;
+var o=el('div','position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;background:#05080d;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center');o.id='czrStPv';
+var im=el('img','width:120px;height:120px;border-radius:50%;object-fit:cover;border:3px solid #e8c45a;box-shadow:0 0 30px #e8c45a73;margin-bottom:28px');im.src='/brand/caesar.jpg';
+var tx=el('div','color:#fff;font-size:26px;line-height:1.6;font-weight:700;max-width:92%;opacity:0;transition:opacity .4s');
+tx.dir=S.ar?'rtl':'ltr';
+var dots=el('div','display:flex;gap:6px;margin-top:28px');
+var ds=S.scenes.map(function(){var d=el('div','width:9px;height:9px;border-radius:50%;background:#2a3550');dots.appendChild(d);return d;});
+var x=el('div','position:absolute;top:18px;right:20px;color:#9aa4b2;font-size:28px;cursor:pointer','✕');x.onclick=stop;
+var br=el('div','position:absolute;bottom:22px;color:#e8c45a;font-size:15px;letter-spacing:2px','CAESAR CZR');
+o.appendChild(x);o.appendChild(im);o.appendChild(tx);o.appendChild(dots);o.appendChild(br);
+document.body.appendChild(o);
+seq(0,tok,function(i){
+tx.style.opacity='0';
+setTimeout(function(){if(tok!==S.tok)return;tx.textContent=S.scenes[i];tx.style.opacity='1';},200);
+ds.forEach(function(d,k){d.style.background=k===i?'#e8c45a':'#2a3550';});
+},function(){tx.style.opacity='0';setTimeout(function(){if(tok!==S.tok)return;tx.textContent=S.ar?'Caesar CZR · الرابط في الوصف':'Caesar CZR · link in description';tx.style.opacity='1';},300);setTimeout(function(){if(tok===S.tok)stop();},3500);});
+};
+function copy(t){
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t);return;}}catch(e){}
+try{var a=el('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();}catch(e){}
+}
+window.czrStCopy=function(){copy(g('czrStCap').value);toast('تم النسخ · Copied');};
+window.czrStShare=function(){var t=g('czrStCap').value;try{if(navigator.share){navigator.share({text:t});return;}}catch(e){}copy(t);toast('تم النسخ · Copied');};
+window.czrStGo=function(u){copy(g('czrStCap').value);toast('تم نسخ الوصف · Caption copied');setTimeout(function(){try{window.open(u,'_blank');}catch(e){location.href=u;}},900);};
+function load(){try{return JSON.parse(localStorage.getItem('czrStudio')||'[]');}catch(e){return [];}}
+function store(a){try{localStorage.setItem('czrStudio',JSON.stringify(a.slice(0,20)));}catch(e){}}
+function list(){
+var o=g('czrStList');if(!o)return;o.textContent='';
+var a=load();
+if(!a.length){o.appendChild(el('div','color:#9aa4b2;font-size:13px','لا مشاريع محفوظة · No saved projects'));return;}
+a.forEach(function(p,i){
+var r=el('div','display:flex;gap:8px;align-items:center;background:#1c2536;border-radius:10px;padding:8px 10px');
+var n=el('div','flex:1;color:#e8ecf3;font-size:14px;cursor:pointer',p.t);
+n.onclick=function(){S.topic=p.t;S.style=p.st;S.ar=AR.test(p.t);S.scenes=p.sc.slice();g('czrStTopic').value=p.t;render();};
+var d=el('span','color:#9aa4b2;font-size:18px;cursor:pointer','✕');
+d.onclick=function(){var b=load();b.splice(i,1);store(b);list();};
+r.appendChild(n);r.appendChild(d);o.appendChild(r);
+});
+}
+window.czrStSave=function(){if(!S.scenes.length)return;var a=load();a.unshift({t:S.topic,st:S.style,sc:S.scenes.slice(),d:Date.now()});store(a);list();toast('تم الحفظ · Saved');};
+function fix(){try{var st=g('tab-studio'),mo=document.getElementById('tab-more');if(st&&mo&&mo.parentNode&&st.parentNode!==mo.parentNode)mo.parentNode.insertBefore(st,mo.nextSibling);}catch(e){}}
+fix();
+list();
+try{fetch('/api/app/version',{credentials:'include'}).then(function(r){return r.json();}).then(function(v){var e=g('czrStVer');if(e)e.textContent='build '+v.build;}).catch(function(){});}catch(e){}
+})();
+</script>
+
 <nav class="bottom">
 
     <button data-tab="wallet" class="active" onclick="switchTab('wallet',this)">
@@ -8708,7 +8837,7 @@ var url=best.html_url;
 var b=g('czrUpd');
 b.textContent='تحديث جديد '+n+' · اضغط للتنزيل · Update available, tap to download';
 b.onclick=function(){try{window.open(url,'_blank');}catch(e){location.href=url;}};
-b.style.display='block';
+b.style.display='block';document.body.style.paddingTop='46px';
 });
 }).catch(function(){});
 }catch(e){}},4000);
@@ -9252,24 +9381,153 @@ g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.c
 
 
   <style>nav.bottom{grid-template-columns:repeat(5,1fr)!important}nav.bottom button{min-width:0;flex:1 1 0}</style>
-<section class="tab" id="tab-studio"><div style='padding:14px 14px 110px'>
+<section class="tab" id="tab-studio"><div style='padding:14px 14px 120px'>
 <h2 style='color:#e8c45a;margin:0 0 4px'>🎬 Studio · استوديو</h2>
 <div style='color:#9aa4b2;font-size:13px;margin-bottom:12px'>اكتب فكرة فيديو لجلب مستخدمين جدد · Write a video idea to attract new users</div>
 <div style='display:flex;gap:8px;margin-bottom:10px'>
-<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:12px;font-size:15px'>
+<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;min-width:0;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:12px;font-size:15px'>
 <button onclick='czrStGen()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 16px;font-weight:700;font-size:18px'>✨</button>
 </div>
+<div style='display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap'>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='promo' style='background:#e8c45a;color:#000;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>ترويج · Promo</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='learn' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>تعليمي · Learn</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='story' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>قصة · Story</button>
+</div>
 <div id='czrStOut' style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px'></div>
-<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px'>
-<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>▶ 🔊</button>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px'>
+<button onclick='czrStPreview()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>▶ معاينة بالصوت · Preview</button>
+<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>🔊</button>
+<button onclick='czrStStop()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>⏹</button>
+<button onclick='czrStSave()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>💾</button>
+</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:14px'>لتسجيل فيديو بصوت قيصر: شغّل تسجيل الشاشة في هاتفك ثم اضغط معاينة · To record a video with voice: start your phone screen recorder, then tap Preview</div>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>الوصف والهاشتاغ · Caption</div>
+<div style='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap'>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='yt' style='background:#e8c45a;color:#000;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>YouTube</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='tt' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>TikTok</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='fb' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Facebook</button>
+</div>
+<textarea id='czrStCap' style='width:100%;box-sizing:border-box;min-height:110px;background:#000;color:#e8ecf3;border:1px solid #333;border-radius:10px;padding:10px;font-size:14px;line-height:1.5;margin-bottom:10px'></textarea>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px'>
 <button onclick='czrStCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Copy</button>
 <button onclick='czrStShare()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Share</button>
 </div>
-<div style='display:flex;gap:8px;flex-wrap:wrap'>
-<button onclick='czrStGo("https://studio.youtube.com")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>YouTube</button>
-<button onclick='czrStGo("https://www.tiktok.com/upload")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>TikTok</button>
-<button onclick='czrStGo("https://www.facebook.com/")' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>Facebook</button>
-</div></div></section>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px'>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://studio.youtube.com' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>YouTube ↗</button>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://www.tiktok.com/upload' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>TikTok ↗</button>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://www.facebook.com/' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>Facebook ↗</button>
+</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:16px'>يُنسخ الوصف تلقائيًا قبل فتح المنصة · الصق الوصف عند الرفع. لا تَعِد بأرباح مضمونة في الفيديو.</div>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>مشاريعي · My projects</div>
+<div id='czrStList' style='display:flex;flex-direction:column;gap:6px'></div>
+<div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
+</div></section>
+<script>
+(function(){
+var czrStV2=1;
+var AR=/[\u0600-\u06FF]/;
+var S={style:'promo',plat:'yt',scenes:[],topic:'',ar:true,tok:0};
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function toast(m){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:3000;font-size:14px',m);document.body.appendChild(t);setTimeout(function(){t.remove();},1800);}catch(e){}}
+function inv(){try{var w=g('tab-wallet')||document.body;var m=(w.textContent||'').match(/https?:\/\/[^\s]*\?ref=[A-Za-z0-9_-]+/);return m?m[0]:'';}catch(e){return '';}}
+function build(t,st,ar){
+if(ar){
+if(st==='learn')return [t+': ما الذي يجب أن تعرفه؟','Caesar CZR عملة رقمية للهاتف المحمول من الطبقة الأولى.','التعدين يعني أن هاتفك يساهم في تأمين الشبكة ويسجّل مشاركات.','المحفظة تحفظ رصيدك، ولا تشارك رمز PIN مع أحد.','رابط التطبيق في الوصف، جرّبه بنفسك.'];
+if(st==='story')return ['قصة قصيرة: '+t+'.','بدأت الشبكة صغيرة، وكان كل شيء فيها جديدًا.','ومع كل كتلة جديدة كبرت الدائرة.','اليوم يمكنك أن تنضم إليها من هاتفك.','رابط الدعوة في الوصف.'];
+return [t+'؟ لن تصدّق كم هو بسيط.','كثيرون يريدون دخول عالم العملات الرقمية، لكن الطرق معقدة أو مكلفة.','Caesar CZR محفظة وتعدين على هاتفك مباشرة، دون أجهزة ضخمة.','افتح التطبيق وشاهد المشاركات تُقبل أمامك لحظة بلحظة.','حمّل التطبيق وانضم عبر رابط الدعوة في الوصف.'];
+}
+if(st==='learn')return [t+': what should you know?','Caesar CZR is a mobile-first Layer-1 cryptocurrency.','Mining means your phone helps secure the network and records shares.','The wallet keeps your balance. Never share your PIN with anyone.','The app link is in the description. Try it yourself.'];
+if(st==='story')return ['A short story: '+t+'.','The network started small and everything in it was new.','With every new block the circle grew.','Today you can join it from your phone.','The invite link is in the description.'];
+return [t+'? You will not believe how simple it is.','Many people want to enter crypto, but the ways in are complex or costly.','Caesar CZR is a wallet and miner right on your phone, no heavy hardware.','Open the app and watch your shares get accepted live.','Download the app and join with the invite link in the description.'];
+}
+function cap(){
+var t=S.topic||'Caesar CZR',ar=S.ar,l=inv(),p=S.plat;
+var tags={yt:'#Shorts #CaesarCZR #Crypto #Mining',tt:'#fyp #CaesarCZR #Crypto #Mining',fb:'#CaesarCZR #Crypto #Mining'}[p];
+var body=ar?'جرّب Caesar CZR: محفظة وتعدين من هاتفك.':'Try Caesar CZR: a wallet and miner on your phone.';
+var link=l?(ar?'\nرابط الدعوة: ':'\nInvite link: ')+l:'';
+if(p==='yt')return t+' | Caesar CZR\n\n'+body+link+'\n\n'+tags;
+if(p==='tt')return t+' '+body+link+'\n'+tags;
+return t+'\n\n'+body+link+'\n\n'+tags;
+}
+function render(){
+var o=g('czrStOut');o.textContent='';
+S.scenes.forEach(function(x,i){var ta=el('textarea','width:100%;box-sizing:border-box;min-height:62px;background:#1c2536;color:#e8ecf3;border:1px solid #2a3550;border-radius:12px;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical',x);ta.oninput=function(){S.scenes[i]=ta.value;};o.appendChild(ta);});
+g('czrStCap').value=S.scenes.length?cap():'';
+}
+window.czrStGen=function(){var t=g('czrStTopic').value.trim();if(!t)return;S.topic=t;S.ar=AR.test(t);S.scenes=build(t,S.style,S.ar);render();};
+window.czrStSet=function(k,v,b){
+S[k]=v;
+var kids=b.parentNode.children;
+for(var i=0;i<kids.length;i++){kids[i].style.background='#1c2536';kids[i].style.color='#e8c45a';}
+b.style.background='#e8c45a';b.style.color='#000';
+if(k==='style'&&S.topic){S.scenes=build(S.topic,S.style,S.ar);render();}
+if(k==='plat'&&S.scenes.length){g('czrStCap').value=cap();}
+};
+function stop(){S.tok++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}var o=g('czrStPv');if(o)o.remove();}
+window.czrStStop=stop;
+function speak(text,ar,cb){
+var done=false,tm;
+function fin(){if(done)return;done=true;clearTimeout(tm);if(cb)cb();}
+try{if(window.speechSynthesis){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=ar?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}}catch(e){}
+tm=setTimeout(fin,Math.max(4000,text.length*120+2500));
+}
+function seq(i,tok,show,end){
+if(tok!==S.tok)return;
+if(i>=S.scenes.length){if(end)end();return;}
+if(show)show(i);
+speak(S.scenes[i],S.ar,function(){setTimeout(function(){seq(i+1,tok,show,end);},500);});
+}
+window.czrStPlay=function(){if(!S.scenes.length)return;stop();seq(0,S.tok,null,null);};
+window.czrStPreview=function(){
+if(!S.scenes.length)return;
+stop();var tok=S.tok;
+var o=el('div','position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;background:#05080d;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center');o.id='czrStPv';
+var im=el('img','width:120px;height:120px;border-radius:50%;object-fit:cover;border:3px solid #e8c45a;box-shadow:0 0 30px #e8c45a73;margin-bottom:28px');im.src='/brand/caesar.jpg';
+var tx=el('div','color:#fff;font-size:26px;line-height:1.6;font-weight:700;max-width:92%;opacity:0;transition:opacity .4s');
+tx.dir=S.ar?'rtl':'ltr';
+var dots=el('div','display:flex;gap:6px;margin-top:28px');
+var ds=S.scenes.map(function(){var d=el('div','width:9px;height:9px;border-radius:50%;background:#2a3550');dots.appendChild(d);return d;});
+var x=el('div','position:absolute;top:18px;right:20px;color:#9aa4b2;font-size:28px;cursor:pointer','✕');x.onclick=stop;
+var br=el('div','position:absolute;bottom:22px;color:#e8c45a;font-size:15px;letter-spacing:2px','CAESAR CZR');
+o.appendChild(x);o.appendChild(im);o.appendChild(tx);o.appendChild(dots);o.appendChild(br);
+document.body.appendChild(o);
+seq(0,tok,function(i){
+tx.style.opacity='0';
+setTimeout(function(){if(tok!==S.tok)return;tx.textContent=S.scenes[i];tx.style.opacity='1';},200);
+ds.forEach(function(d,k){d.style.background=k===i?'#e8c45a':'#2a3550';});
+},function(){tx.style.opacity='0';setTimeout(function(){if(tok!==S.tok)return;tx.textContent=S.ar?'Caesar CZR · الرابط في الوصف':'Caesar CZR · link in description';tx.style.opacity='1';},300);setTimeout(function(){if(tok===S.tok)stop();},3500);});
+};
+function copy(t){
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t);return;}}catch(e){}
+try{var a=el('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();}catch(e){}
+}
+window.czrStCopy=function(){copy(g('czrStCap').value);toast('تم النسخ · Copied');};
+window.czrStShare=function(){var t=g('czrStCap').value;try{if(navigator.share){navigator.share({text:t});return;}}catch(e){}copy(t);toast('تم النسخ · Copied');};
+window.czrStGo=function(u){copy(g('czrStCap').value);toast('تم نسخ الوصف · Caption copied');setTimeout(function(){try{window.open(u,'_blank');}catch(e){location.href=u;}},900);};
+function load(){try{return JSON.parse(localStorage.getItem('czrStudio')||'[]');}catch(e){return [];}}
+function store(a){try{localStorage.setItem('czrStudio',JSON.stringify(a.slice(0,20)));}catch(e){}}
+function list(){
+var o=g('czrStList');if(!o)return;o.textContent='';
+var a=load();
+if(!a.length){o.appendChild(el('div','color:#9aa4b2;font-size:13px','لا مشاريع محفوظة · No saved projects'));return;}
+a.forEach(function(p,i){
+var r=el('div','display:flex;gap:8px;align-items:center;background:#1c2536;border-radius:10px;padding:8px 10px');
+var n=el('div','flex:1;color:#e8ecf3;font-size:14px;cursor:pointer',p.t);
+n.onclick=function(){S.topic=p.t;S.style=p.st;S.ar=AR.test(p.t);S.scenes=p.sc.slice();g('czrStTopic').value=p.t;render();};
+var d=el('span','color:#9aa4b2;font-size:18px;cursor:pointer','✕');
+d.onclick=function(){var b=load();b.splice(i,1);store(b);list();};
+r.appendChild(n);r.appendChild(d);o.appendChild(r);
+});
+}
+window.czrStSave=function(){if(!S.scenes.length)return;var a=load();a.unshift({t:S.topic,st:S.style,sc:S.scenes.slice(),d:Date.now()});store(a);list();toast('تم الحفظ · Saved');};
+function fix(){try{var st=g('tab-studio'),mo=document.getElementById('tab-more');if(st&&mo&&mo.parentNode&&st.parentNode!==mo.parentNode)mo.parentNode.insertBefore(st,mo.nextSibling);}catch(e){}}
+fix();
+list();
+try{fetch('/api/app/version',{credentials:'include'}).then(function(r){return r.json();}).then(function(v){var e=g('czrStVer');if(e)e.textContent='build '+v.build;}).catch(function(){});}catch(e){}
+})();
+</script>
+
 <nav class="bottom">
 
     <button data-tab="wallet" class="active" onclick="switchTab('wallet',this)">
