@@ -5081,6 +5081,63 @@ requestAnimationFrame(loop);
 };
 })();
 </script>
+<script>
+(function(){
+var czrStBook=1;
+setTimeout(function(){
+var AR=/[\u0600-\u06FF]/,old=window.czrStGen,off=0,book=[],pt=0,PER=10;
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function chunks(t){
+var ws=t.replace(/\s+/g,' ').trim().split(' '),out=[],cur=[];
+for(var i=0;i<ws.length;i++){cur.push(ws[i]);if(cur.length>=22){out.push(cur.join(' '));cur=[];}}
+if(cur.length)out.push(cur.join(' '));
+return out;
+}
+function helpers(){
+var o=g('czrStOut');if(!o)return;
+if(!g('czrStInfo')){var inf=el('div','color:#e8c45a;font-size:13px;margin:0 0 8px');inf.id='czrStInfo';o.parentNode.insertBefore(inf,o);}
+if(!g('czrStNext')){
+var b=el('button','background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:none','الجزء التالي ➡ · Next part');b.id='czrStNext';
+b.onclick=function(){off+=PER;if(off>=book.length)off=0;show();};
+o.parentNode.insertBefore(b,o.nextSibling);
+}
+}
+function show(){
+helpers();
+var o=g('czrStOut');o.textContent='';
+book.slice(off,off+PER).forEach(function(x){
+o.appendChild(el('textarea','width:100%;box-sizing:border-box;min-height:62px;background:#1c2536;color:#e8ecf3;border:1px solid #2a3550;border-radius:12px;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical',x));
+});
+var total=Math.ceil(book.length/PER),cur=Math.floor(off/PER)+1;
+g('czrStInfo').textContent='الجزء '+cur+' من '+total+' · Part '+cur+' of '+total;
+g('czrStNext').style.display=total>1?'inline-block':'none';
+var first=(book[off]||'').split(' ').slice(0,6).join(' ');
+g('czrStCap').value=first+' ...\n\nCaesar CZR\n#CaesarCZR';
+}
+window.czrStGen=function(){
+var t=(g('czrStTopic').value||'').trim();
+if(t.length<=180){var nx=g('czrStNext'),inf=g('czrStInfo');if(nx)nx.style.display='none';if(inf)inf.textContent='';return old?old():undefined;}
+book=chunks(t);off=0;show();
+};
+var os=window.czrStStop;
+window.czrStStop=function(){pt++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}if(os)os();};
+window.czrStPlay=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),L=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)L.push(v);}
+if(!L.length||!window.speechSynthesis)return;
+var my=++pt;try{speechSynthesis.cancel();}catch(e){}
+(function next(i){
+if(my!==pt||i>=L.length)return;
+var done=false;
+function fin(){if(done)return;done=true;next(i+1);}
+try{var u=new SpeechSynthesisUtterance(L[i]);u.lang=AR.test(L[i])?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}catch(e){}
+setTimeout(fin,Math.max(5000,L[i].length*150+3000));
+})(0);
+};
+},400);
+})();
+</script>
 <div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
 </div></section>
 <script>
@@ -10074,6 +10131,63 @@ if(!hasImg){var t=(now-t0)/1000;cx.save();cx.globalAlpha=Math.min(1,t*1.6);try{D
 requestAnimationFrame(loop);
 })();
 };
+})();
+</script>
+<script>
+(function(){
+var czrStBook=1;
+setTimeout(function(){
+var AR=/[\u0600-\u06FF]/,old=window.czrStGen,off=0,book=[],pt=0,PER=10;
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function chunks(t){
+var ws=t.replace(/\s+/g,' ').trim().split(' '),out=[],cur=[];
+for(var i=0;i<ws.length;i++){cur.push(ws[i]);if(cur.length>=22){out.push(cur.join(' '));cur=[];}}
+if(cur.length)out.push(cur.join(' '));
+return out;
+}
+function helpers(){
+var o=g('czrStOut');if(!o)return;
+if(!g('czrStInfo')){var inf=el('div','color:#e8c45a;font-size:13px;margin:0 0 8px');inf.id='czrStInfo';o.parentNode.insertBefore(inf,o);}
+if(!g('czrStNext')){
+var b=el('button','background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:none','الجزء التالي ➡ · Next part');b.id='czrStNext';
+b.onclick=function(){off+=PER;if(off>=book.length)off=0;show();};
+o.parentNode.insertBefore(b,o.nextSibling);
+}
+}
+function show(){
+helpers();
+var o=g('czrStOut');o.textContent='';
+book.slice(off,off+PER).forEach(function(x){
+o.appendChild(el('textarea','width:100%;box-sizing:border-box;min-height:62px;background:#1c2536;color:#e8ecf3;border:1px solid #2a3550;border-radius:12px;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical',x));
+});
+var total=Math.ceil(book.length/PER),cur=Math.floor(off/PER)+1;
+g('czrStInfo').textContent='الجزء '+cur+' من '+total+' · Part '+cur+' of '+total;
+g('czrStNext').style.display=total>1?'inline-block':'none';
+var first=(book[off]||'').split(' ').slice(0,6).join(' ');
+g('czrStCap').value=first+' ...\n\nCaesar CZR\n#CaesarCZR';
+}
+window.czrStGen=function(){
+var t=(g('czrStTopic').value||'').trim();
+if(t.length<=180){var nx=g('czrStNext'),inf=g('czrStInfo');if(nx)nx.style.display='none';if(inf)inf.textContent='';return old?old():undefined;}
+book=chunks(t);off=0;show();
+};
+var os=window.czrStStop;
+window.czrStStop=function(){pt++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}if(os)os();};
+window.czrStPlay=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),L=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)L.push(v);}
+if(!L.length||!window.speechSynthesis)return;
+var my=++pt;try{speechSynthesis.cancel();}catch(e){}
+(function next(i){
+if(my!==pt||i>=L.length)return;
+var done=false;
+function fin(){if(done)return;done=true;next(i+1);}
+try{var u=new SpeechSynthesisUtterance(L[i]);u.lang=AR.test(L[i])?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}catch(e){}
+setTimeout(fin,Math.max(5000,L[i].length*150+3000));
+})(0);
+};
+},400);
 })();
 </script>
 <div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
