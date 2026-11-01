@@ -247,6 +247,7 @@ private android.speech.tts.TextToSpeech czrV;
     private final java.util.concurrent.atomic.AtomicInteger czrVSeq = new java.util.concurrent.atomic.AtomicInteger(0);
 
     private volatile float czrVPitch = 1.0f;
+    private volatile int czrVIdx = 0;
     private volatile float czrVRate = 0.95f;
 
     public class CzrVoiceBridge {
@@ -271,6 +272,8 @@ private android.speech.tts.TextToSpeech czrV;
         }
         @android.webkit.JavascriptInterface
         public boolean busy() { return czrVBusy; }
+        @android.webkit.JavascriptInterface
+        public void voiceIndex(int i) { czrVIdx = i < 0 ? 0 : i; }
         @android.webkit.JavascriptInterface
         public void speak2(final String text, final String lang, final double pitch, final double rate) {
             czrVPitch = (float) pitch;
@@ -323,6 +326,19 @@ private android.speech.tts.TextToSpeech czrV;
         }
         if (!ok) { czrVState = "nolang"; czrVBusy = false; return; }
         czrVState = "ok";
+        try {
+            final String lc = "ar".equals(lang) ? "ar" : "en";
+            java.util.List<android.speech.tts.Voice> vs = new java.util.ArrayList<android.speech.tts.Voice>();
+            for (android.speech.tts.Voice vv : czrV.getVoices()) {
+                if (vv.getLocale().getLanguage().equals(lc) && !vv.isNetworkConnectionRequired()) vs.add(vv);
+            }
+            if (!vs.isEmpty()) {
+                java.util.Collections.sort(vs, new java.util.Comparator<android.speech.tts.Voice>() {
+                    public int compare(android.speech.tts.Voice x, android.speech.tts.Voice y) { return x.getName().compareTo(y.getName()); }
+                });
+                czrV.setVoice(vs.get(czrVIdx % vs.size()));
+            }
+        } catch (Exception ignored) {}
         try { czrV.setPitch(czrVPitch); czrV.setSpeechRate(czrVRate); } catch (Exception ignored) {}
         czrV.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "czr" + my);
     }
