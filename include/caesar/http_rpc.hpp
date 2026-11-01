@@ -1,6 +1,10 @@
+#include "brand_assets.hpp"
 #include "caesar/web_assets.hpp"
 // Copyright (c) 2026 zaraiskais-byte. All rights reserved.
 #pragma once
+#ifndef CZR_BUILD
+#define CZR_BUILD 0
+#endif
 
 #include <unordered_set>
 #include <queue>
@@ -2352,6 +2356,18 @@ class HttpRpcServer {
 
 
 
+        server_.Get("/api/app/version", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "no-store");
+            res.set_content(std::string("{\"build\":") + std::to_string(CZR_BUILD) + "}", "application/json");
+        });
+        server_.Get("/brand/gold.jpg", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "public, max-age=86400");
+            res.set_content(reinterpret_cast<const char*>(czr_brand_gold), czr_brand_gold_len, "image/jpeg");
+        });
+        server_.Get("/brand/caesar.jpg", [](const httplib::Request&, httplib::Response& res) {
+            res.set_header("Cache-Control", "public, max-age=86400");
+            res.set_content(reinterpret_cast<const char*>(czr_brand_coin), czr_brand_coin_len, "image/jpeg");
+        });
         server_.Get("/icon-512.svg", [](const httplib::Request&, httplib::Response& res) {
 
             res.set_content(
@@ -2416,7 +2432,7 @@ var q2=document.getElementById('qr');
 
 if(q2)q2.src='/api/wallet/qr.svg?address='+encodeURIComponent(a)+'&_t='+Date.now();
 
-var l='https://tailscale-termux.tail57075d.ts.net/?ref='+a;
+var l='https://zaraiskais-byte.github.io/myminer/?ref='+a.slice(0,12);
 
 var c=document.getElementById('circleLink');if(c)c.value=l;
 
@@ -3994,7 +4010,7 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 
 <div id="lock">
 
-  <div class="logo">C</div>
+  <img src="/brand/gold.jpg" alt="Caesar CZR" style="width:210px;height:210px;border-radius:26px;object-fit:cover;display:block;margin:0 auto 14px;box-shadow:0 0 28px #e8c45a59">
 
   <h1>CAESAR CZR</h1>
 
@@ -4015,6 +4031,114 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 <!-- ============ APP ============ -->
 
 <div id="app">
+<div id='czrUpd' style='display:none;position:fixed;top:0;left:0;right:0;z-index:1000;padding:12px 14px;background:#e8c45a;color:#000;font-weight:700;text-align:center;font-size:14px;cursor:pointer'></div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/.test(navigator.language||'ar')||true;
+function g(i){return document.getElementById(i);}
+setTimeout(function(){try{
+fetch('/api/app/version',{credentials:'include'}).then(function(r){return r.json();}).then(function(v){
+var cur=v&&v.build;if(!cur)return;
+return fetch('https://api.github.com/repos/zaraiskais-byte/myminer/releases?per_page=10').then(function(r){return r.json();}).then(function(rs){
+var best=null,n=0;
+(rs||[]).forEach(function(r){var m=/v3\.0\.(\d+)$/.exec(r.tag_name||'');if(m&&+m[1]>n){n=+m[1];best=r;}});
+if(!best||n<=cur)return;
+var url=best.html_url;
+(best.assets||[]).forEach(function(a){if(/\.apk$/i.test(a.name))url=a.browser_download_url;});
+var b=g('czrUpd');
+b.textContent='تحديث جديد '+n+' · اضغط للتنزيل · Update available, tap to download';
+b.onclick=function(){try{window.open(url,'_blank');}catch(e){location.href=url;}};
+b.style.display='block';document.body.style.paddingTop='46px';
+});
+}).catch(function(){});
+}catch(e){}},4000);
+})();
+</script>
+
+
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/,scenes=[],isAr=true;
+function g(i){return document.getElementById(i);}
+window.czrStOpen=function(){var b=g('czrStBox');b.style.display=b.style.display==='flex'?'none':'flex';};
+window.czrStGen=function(){
+var t=g('czrStTopic').value.trim();if(!t)return;
+isAr=AR.test(t);
+scenes=isAr?[
+'المشهد 1 - الخطاف: '+t+'؟ ثلاث ثوانٍ قد تغيّر نظرتك.',
+'المشهد 2 - المشكلة: كثيرون يريدون دخلًا رقميًا لكن الأدوات معقدة ومكلفة.',
+'المشهد 3 - الحل: Caesar CZR محفظة وتعدين من هاتفك مباشرة.',
+'المشهد 4 - الدليل: افتح التطبيق وشاهد المشاركات تُقبل أمامك.',
+'المشهد 5 - الدعوة: حمّل التطبيق وانضم عبر رابط الدعوة وابدأ التعدين اليوم.'
+]:[
+'Scene 1 - Hook: '+t+'? Three seconds that may change how you see it.',
+'Scene 2 - Problem: many people want digital income but the tools are complex and costly.',
+'Scene 3 - Solution: Caesar CZR is a wallet and miner right on your phone.',
+'Scene 4 - Proof: open the app and watch your shares get accepted live.',
+'Scene 5 - Call to action: download the app, join with the invite link and start mining today.'
+];
+var o=g('czrStOut');o.innerHTML='';
+scenes.forEach(function(x){var d=document.createElement('div');d.textContent=x;d.style.cssText='padding:8px 11px;border-radius:12px;background:#1c2536;color:#e8ecf3;font-size:14px;line-height:1.5';o.appendChild(d);});
+};
+window.czrStPlay=function(){
+if(!scenes.length||!window.speechSynthesis)return;
+try{speechSynthesis.cancel();scenes.forEach(function(x){var u=new SpeechSynthesisUtterance(x);u.lang=isAr?'ar-SA':'en-US';speechSynthesis.speak(u);});}catch(e){}
+};
+function txt(){return scenes.join('\n');}
+window.czrStCopy=function(){if(!scenes.length)return;try{navigator.clipboard.writeText(txt());}catch(e){}};
+window.czrStShare=function(){if(!scenes.length)return;try{if(navigator.share){navigator.share({text:txt()});}else{navigator.clipboard.writeText(txt());}}catch(e){}};
+window.czrStGo=function(u){try{window.open(u,'_blank');}catch(e){}};
+})();
+</script>
+
+
+<div id='czrBot' style='position:fixed;right:14px;bottom:96px;z-index:900'>
+<img id='czrBotBtn' src='/brand/caesar.jpg' alt='Caesar' onclick='czrBotToggle()' style='width:58px;height:58px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;box-shadow:0 0 18px #e8c45a73;display:block;cursor:pointer'>
+<div id='czrBotBox' style='display:none;flex-direction:column;position:fixed;left:10px;right:10px;bottom:164px;max-height:60vh;background:#0f1522;border:1px solid #e8c45a66;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #000000b3'>
+<div style='display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #ffffff1a'>
+<img src='/brand/caesar.jpg' alt='' style='width:36px;height:36px;border-radius:50%;object-fit:cover'>
+<b style='flex:1;color:#e8c45a'>قيصر · Caesar</b>
+<span id='czrBotVoice' onclick='czrBotVoice()' style='cursor:pointer;font-size:18px'>🔇</span>
+<span onclick='czrBotToggle()' style='cursor:pointer;font-size:18px;color:#9aa4b2'>✕</span>
+</div>
+<div id='czrBotLog' style='flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:120px'></div>
+<div style='display:flex;gap:8px;padding:10px;border-top:1px solid #ffffff1a'>
+<input id='czrBotIn' type='text' placeholder='اسأل · Ask' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font-size:15px'>
+<button onclick='czrBotAsk()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 16px;font-weight:700'>➤</button>
+</div></div></div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/,voiceOn=false;
+function g(i){return document.getElementById(i);}
+function add(w,t){var l=g('czrBotLog'),d=document.createElement('div');d.textContent=t;d.style.cssText='white-space:pre-wrap;padding:8px 11px;border-radius:12px;max-width:88%;font-size:14px;line-height:1.5;'+(w==='u'?'align-self:flex-end;background:#e8c45a;color:#000':'align-self:flex-start;background:#1c2536;color:#e8ecf3');l.appendChild(d);l.scrollTop=l.scrollHeight;}
+function say(t,ar){if(!voiceOn)return;if(window.CzrTTS){try{window.CzrTTS.speak(t,ar?'ar':'en');}catch(e){}return;}if(!window.speechSynthesis)return;try{var u=new SpeechSynthesisUtterance(t);u.lang=ar?'ar-SA':'en-US';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+function jget(p){return fetch(p,{credentials:'include'}).then(function(r){return r.json();});}
+function T(ar,a,e){return Promise.resolve(ar?a:e);}
+function answer(q){
+var ar=AR.test(q),s=q.toLowerCase();
+function h(re){return re.test(s);}
+if(h(/(مرحبا|السلام|أهلا|اهلا|hello|\bhi\b|hey)/))return T(ar,'وعليكم السلام، أنا قيصر. اسألني عن الرصيد أو التعدين أو الإرسال أو رابط الدعوة.','Hello, I am Caesar. Ask me about your balance, mining, sending or your invite link.');
+if(h(/(شكرا|شكراً|thank)/))return T(ar,'على الرحب والسعة.','You are welcome.');
+if(h(/(دعوة|دعوه|إحالة|احالة|رابط|invite|referral|link)/))return T(ar,'رابط الدعوة في الصفحة الرئيسية ضمن بطاقة YOUR INVITE LINK. اضغط Copy وأرسله لأصدقائك، ويُسجَّل كل من ينضم عبره في دائرتك حتى أربعة مستويات.','Your invite link is in the YOUR INVITE LINK card on the main page. Tap Copy and share it. Everyone who joins through it is added to your circle, up to four levels.');
+if(h(/(سحب|دفع|payout|pay out)/))return jget('/api/pool/stats').then(function(j){var f=j.fee_percent;return ar?'من تبويب Pool اضغط Payout Now. يشترط وجود مشاركات معلّقة. رسوم المجمّع الحالية '+f+'٪، ويمكن تفعيل الدفع التلقائي كل 5 أو 10 أو 20 كتلة.':'In the Pool tab tap Payout Now. It needs pending shares. The current pool fee is '+f+'%, and auto-payout can run every 5, 10 or 20 blocks.';});
+if(h(/(رصيد|balance|كم لدي|كم عندي|how much)/))return jget('/api/balance').then(function(j){var v=j&&(j.balance!==undefined?j.balance:j.confirmed);if(v===undefined)throw 0;return ar?'الرصيد كما تعيده العقدة: '+v+'. ويظهر أيضًا في بطاقة BALANCE بالصفحة الرئيسية.':'Balance as returned by the node: '+v+'. It is also shown in the BALANCE card on the main page.';}).catch(function(){return ar?'يظهر رصيدك في بطاقة BALANCE بالصفحة الرئيسية.':'Your balance is shown in the BALANCE card on the main page.';});
+if(h(/(إرسال|ارسال|تحويل|send|transfer)/))return T(ar,'في قسم SEND CZR اكتب عنوان المستلم الذي يبدأ بـ CZ1 والمبلغ بالوحدات الذرية، ثم اضغط Send. تأكد من العنوان قبل الإرسال لأن المعاملات لا تُسترجع.','In the SEND CZR section enter the recipient address starting with CZ1 and the amount in atomic units, then tap Send. Check the address first because transactions cannot be reversed.');
+if(h(/(استلام|عنوان|receive|address|qr)/))return T(ar,'عنوان محفظتك ورمز QR في قسم RECEIVE. اضغط Copy لنسخ العنوان وشاركه مع من يريد إرسال CZR إليك.','Your wallet address and QR code are in the RECEIVE section. Tap Copy and share the address with whoever wants to send you CZR.');
+if(h(/(تعدين|تعدن|مشاركات|هاش|شير|mining|miner|shares|hash)/))return jget('/api/pool/stats').then(function(j){var n=(j.workers||[]).length;return ar?'العمّال المتصلون: '+n+'، وإجمالي المشاركات: '+j.total_shares+'، وارتفاع السلسلة: '+j.current_height+'. تجد سرعتك في بطاقة MINING STATUS.':'Connected workers: '+n+', total shares: '+j.total_shares+', chain height: '+j.current_height+'. Your speed is in the MINING STATUS card.';});
+if(h(/(مستخدم|مجتمع|أعضاء|اعضاء|users|community|members)/))return jget('/api/pool/community').then(function(j){return ar?'عدد المستخدمين: '+j.total_users+'، والنشطون خلال 24 ساعة: '+j.active_24h+'.':'Total users: '+j.total_users+', active in the last 24 hours: '+j.active_24h+'.';});
+if(h(/(كتلة|كتل|ارتفاع|شبكة|block|height|network|peers)/))return jget('/api/status').then(function(j){return ar?'ارتفاع السلسلة: '+j.height+'، وعدد النظراء: '+j.peers+'.':'Chain height: '+j.height+', peers: '+j.peers+'.';});
+if(h(/(pin|رمز|أمان|امان|حماية|security|backup|نسخة)/))return T(ar,'لا تشارك رمز PIN مع أحد. حذف التطبيق يمسح المحفظة من هذا الهاتف، فاحتفظ بنسخة من بياناتها قبل ذلك.','Never share your PIN. Uninstalling the app erases the wallet from this phone, so keep a backup of its data first.');
+if(h(/(ما هي|ما هو|من أنت|من انت|caesar|czr|what is|who are)/))return T(ar,'Caesar CZR عملة رقمية للهاتف المحمول من الطبقة الأولى، فيها مجمّع تعدين ومحفظة ومستكشف كتل وشجرة دعوة من أربعة مستويات. وأنا قيصر، دليلك داخل المحفظة.','Caesar CZR is a mobile-first Layer-1 cryptocurrency with a mining pool, wallet, block explorer and a four-level invite tree. I am Caesar, your guide inside the wallet.');
+return T(ar,'أجيب عن محفظتك: الرصيد والتعدين والإرسال والاستلام والدعوة والسحب والشبكة والأمان. أما الأسئلة العامة فتحتاج ربطي بخدمة ذكاء اصطناعي، وهذا غير مفعّل بعد.','I answer about your wallet: balance, mining, sending, receiving, invites, payouts, the network and security. General questions need an online AI service, which is not connected yet.');
+}
+window.czrBotAsk=function(){var i=g('czrBotIn'),q=i.value.trim();if(!q)return;i.value='';add('u',q);var ar=AR.test(q);answer(q).then(function(a){add('b',a);say(a,ar);}).catch(function(){add('b',ar?'تعذّر الاتصال بالعقدة الآن.':'Could not reach the node right now.');});};
+window.czrBotToggle=function(){var b=g('czrBotBox'),o=b.style.display!=='flex';b.style.display=o?'flex':'none';if(o&&!g('czrBotLog').children.length){add('b','أنا قيصر، دليل محفظتك. اسألني بالعربية أو بالإنجليزية.\nI am Caesar, your wallet guide. Ask me in Arabic or English.');}};
+window.czrBotVoice=function(){voiceOn=!voiceOn;g('czrBotVoice').textContent=voiceOn?'🔊':'🔇';if(!voiceOn&&window.speechSynthesis)speechSynthesis.cancel();};
+g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.czrBotAsk();});
+})();
+</script>
+
+
 
   <header class="app-header">
 
@@ -4589,7 +4713,845 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 
 
 
-  <nav class="bottom">
+  <style>nav.bottom{grid-template-columns:repeat(5,1fr)!important}nav.bottom button{min-width:0;flex:1 1 0}</style>
+<section class="tab" id="tab-studio"><div style='padding:14px 14px 120px'>
+<h2 style='color:#e8c45a;margin:0 0 4px'>🎬 Studio · استوديو</h2>
+<div style='color:#9aa4b2;font-size:13px;margin-bottom:12px'>اكتب فكرة فيديو لجلب مستخدمين جدد · Write a video idea to attract new users</div>
+<div style='display:flex;gap:8px;margin-bottom:10px'>
+<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;min-width:0;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:12px;font-size:15px'>
+<button onclick='czrStGen()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 16px;font-weight:700;font-size:18px'>✨</button>
+</div>
+<div style='display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap'>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='promo' style='background:#e8c45a;color:#000;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>ترويج · Promo</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='learn' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>تعليمي · Learn</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='story' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>قصة · Story</button>
+</div>
+<div id='czrStOut' style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px'></div>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px'>
+<button onclick='czrStPreview()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>▶ معاينة بالصوت · Preview</button>
+<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>🔊</button>
+<button onclick='czrStStop()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>⏹</button>
+<button onclick='czrStSave()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>💾</button>
+</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:14px'>لتسجيل فيديو بصوت قيصر: شغّل تسجيل الشاشة في هاتفك ثم اضغط معاينة · To record a video with voice: start your phone screen recorder, then tap Preview</div>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>الوصف والهاشتاغ · Caption</div>
+<div style='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap'>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='yt' style='background:#e8c45a;color:#000;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>YouTube</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='tt' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>TikTok</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='fb' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Facebook</button>
+</div>
+<textarea id='czrStCap' style='width:100%;box-sizing:border-box;min-height:110px;background:#000;color:#e8ecf3;border:1px solid #333;border-radius:10px;padding:10px;font-size:14px;line-height:1.5;margin-bottom:10px'></textarea>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px'>
+<button onclick='czrStCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Copy</button>
+<button onclick='czrStShare()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Share</button>
+</div>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px'>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://studio.youtube.com' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>YouTube ↗</button>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://www.tiktok.com/upload' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>TikTok ↗</button>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://www.facebook.com/' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>Facebook ↗</button>
+</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:16px'>يُنسخ الوصف تلقائيًا قبل فتح المنصة · الصق الوصف عند الرفع. لا تَعِد بأرباح مضمونة في الفيديو.</div>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>مشاريعي · My projects</div>
+<div id='czrStList' style='display:flex;flex-direction:column;gap:6px'></div>
+<div id='czrMvBox' style='margin:6px 0 18px;padding:12px;border:1px solid #e8c45a66;border-radius:14px;background:#0f1522'>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:8px'>🎞 فيلم متحرك · Animated movie</div>
+<label style='display:inline-block;background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px;cursor:pointer;margin-bottom:8px'>🖼 اختر صورًا · Pick images<input id='czrMvFiles' type='file' accept='image/*' multiple style='display:none'></label>
+<span id='czrMvCount' style='color:#9aa4b2;font-size:13px;margin:0 8px'></span>
+<div><button onclick='czrMovie()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:12px 16px;font-weight:700;font-size:15px'>🎞 أنشئ الفيلم · Make movie</button></div>
+</div>
+<script>
+(function(){
+var imgs=[],tok=0,AR=/[\u0600-\u06FF]/;
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+if(!g('czrMvCss')){var st=document.createElement('style');st.id='czrMvCss';st.textContent='@keyframes czrKb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.32) translate(-4%,-3%)}}@keyframes czrGl{0%{background-position:0% 50%}100%{background-position:100% 50%}}@keyframes czrPl{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}';document.head.appendChild(st);}
+var f=g('czrMvFiles');
+if(f)f.onchange=function(){imgs=[];for(var i=0;i<f.files.length&&i<12;i++){try{imgs.push(URL.createObjectURL(f.files[i]));}catch(e){}}var c=g('czrMvCount');if(c)c.textContent=imgs.length?imgs.length+' ✓':'';};
+function stop(){tok++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}var o=g('czrMvRoot');if(o)o.remove();}
+window.czrMovie=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),sc=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)sc.push(v);}
+if(!sc.length){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:3000;font-size:14px','اكتب فكرة واضغط ✨ أولًا · Write an idea and tap ✨ first');document.body.appendChild(t);setTimeout(function(){t.remove();},2200);}catch(e){}return;}
+stop();var my=tok;
+var ar=AR.test(sc.join(' '));
+var root=el('div','position:fixed;top:0;left:0;right:0;bottom:0;z-index:2500;background:#05080d;overflow:hidden');root.id='czrMvRoot';
+var bg=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:#05080d');
+var shade=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,0) 35%,rgba(0,0,0,.78) 100%)');
+var badge=el('img','position:absolute;top:22px;left:18px;width:62px;height:62px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;box-shadow:0 0 22px #e8c45a73;animation:czrPl 1.6s infinite');badge.src='/brand/caesar.jpg';
+var title=el('div','position:absolute;top:36px;left:92px;color:#e8c45a;font-weight:700;letter-spacing:2px;font-size:16px','CAESAR CZR');
+var x=el('div','position:absolute;top:22px;right:20px;color:#fff;font-size:30px;cursor:pointer;z-index:5','✕');x.onclick=stop;
+var tx=el('div','position:absolute;left:18px;right:18px;bottom:90px;color:#fff;font-size:27px;line-height:1.6;font-weight:700;text-align:center;text-shadow:0 2px 12px #000');
+tx.dir=ar?'rtl':'ltr';
+var bar=el('div','position:absolute;left:0;bottom:0;height:5px;background:#e8c45a;width:0;transition:width .6s');
+root.appendChild(bg);root.appendChild(shade);root.appendChild(badge);root.appendChild(title);root.appendChild(x);root.appendChild(tx);root.appendChild(bar);
+document.body.appendChild(root);
+function speak(text,cb){
+var done=false,tm;
+function fin(){if(done)return;done=true;clearTimeout(tm);cb();}
+try{if(window.speechSynthesis){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=ar?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}}catch(e){}
+tm=setTimeout(fin,Math.max(4000,text.length*130+2500));
+}
+function show(i){
+if(my!==tok)return;
+var text=sc[i],dur=Math.max(3000,text.length*95);
+bg.style.animation='none';bg.style.backgroundImage='none';void bg.offsetWidth;
+if(imgs.length){bg.style.backgroundImage='url("'+imgs[i%imgs.length]+'")';bg.style.backgroundSize='cover';bg.style.backgroundPosition='center';bg.style.animation='czrKb '+(dur/1000+2)+'s ease-out forwards';}
+else{var gr=['#0a1020,#1a2440,#3a2e10','#101a2e,#2b1f0a,#0a1020','#1a1408,#0a1020,#243252'][i%3];bg.style.backgroundImage='linear-gradient(135deg,'+gr+')';bg.style.backgroundSize='300% 300%';bg.style.animation='czrGl '+(dur/1000+2)+'s ease-in-out forwards';}
+tx.textContent='';
+var ws=text.split(' '),sp=[];
+ws.forEach(function(w){var s=el('span','opacity:0;transition:opacity .35s;display:inline-block;margin:0 5px',w);tx.appendChild(s);sp.push(s);});
+var step=dur/Math.max(1,ws.length);
+sp.forEach(function(s,k){setTimeout(function(){if(my===tok)s.style.opacity='1';},120+k*step*0.8);});
+bar.style.width=((i+1)/sc.length*100)+'%';
+var t0=Date.now();
+speak(text,function(){
+var wait=Math.max(0,dur-(Date.now()-t0))+350;
+setTimeout(function(){if(my!==tok)return;if(i+1<sc.length)show(i+1);else endCard();},wait);
+});
+}
+function endCard(){
+if(my!==tok)return;
+bg.style.animation='none';bg.style.backgroundImage='linear-gradient(135deg,#0a1020,#3a2e10)';
+tx.textContent=ar?'Caesar CZR · الرابط في الوصف':'Caesar CZR · link in the description';
+setTimeout(function(){if(my===tok)stop();},3500);
+}
+show(0);
+};
+})();
+</script>
+<script>
+(function(){
+var czrMovie2=1,tok=0,AR=/[\u0600-\u06FF]/,mus=null,warned=false;
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function toast(m){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4000;font-size:14px;max-width:86%;text-align:center',m);document.body.appendChild(t);setTimeout(function(){t.remove();},3200);}catch(e){}}
+if(!g('czrMv2Css')){var st=document.createElement('style');st.id='czrMv2Css';st.textContent='@keyframes czrZ1{from{transform:scale(1) translate(0,0)}to{transform:scale(1.32) translate(-3%,-2%)}}@keyframes czrZ2{from{transform:scale(1.34)}to{transform:scale(1.02)}}@keyframes czrZ3{from{transform:scale(1.22) translateX(5%)}to{transform:scale(1.22) translateX(-5%)}}@keyframes czrSpin{from{transform:rotateY(0)}to{transform:rotateY(360deg)}}@keyframes czrGlo{0%,100%{box-shadow:0 0 30px #e8c45a73}50%{box-shadow:0 0 70px #e8c45acc}}@keyframes czrGr{0%{background-position:0% 50%}100%{background-position:100% 50%}}@keyframes czrIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}';document.head.appendChild(st);}
+function music(){
+try{
+var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;
+var c=new AC();if(c.resume)c.resume();
+var m=c.createGain();m.gain.value=0.55;
+var f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=1500;f.connect(m);m.connect(c.destination);
+var ch=[[220,261.63,329.63],[174.61,220,261.63],[261.63,329.63,392],[196,246.94,293.66]];
+function note(fr,t,v,d,ty){var o=c.createOscillator(),gg=c.createGain();o.type=ty||'triangle';o.frequency.value=fr;gg.gain.setValueAtTime(0.0001,t);gg.gain.linearRampToValueAtTime(v,t+0.04);gg.gain.exponentialRampToValueAtTime(0.0001,t+d);o.connect(gg);gg.connect(f);o.start(t);o.stop(t+d+0.05);}
+var step=0;
+var iv=setInterval(function(){var t=c.currentTime,cc=ch[Math.floor(step/8)%4];note(cc[step%3]*2,t,0.06,0.7);if(step%8===0){cc.forEach(function(x){note(x/2,t,0.05,3.8,'sine');});}step++;},380);
+return {stop:function(){clearInterval(iv);try{m.gain.linearRampToValueAtTime(0,c.currentTime+0.5);}catch(e){}setTimeout(function(){try{c.close();}catch(e){}},700);}};
+}catch(e){return null;}
+}
+function stop(){tok++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}if(mus){mus.stop();mus=null;}var o=g('czrMvRoot');if(o)o.remove();}
+window.czrMovie=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),sc=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)sc.push(v);}
+if(!sc.length){toast('اكتب فكرة واضغط ✨ أولًا · Write an idea and tap ✨ first');return;}
+stop();var my=tok;
+var ar=AR.test(sc.join(' '));
+var imgs=[];try{var fl=g('czrMvFiles').files;for(var k=0;k<fl.length&&k<12;k++)imgs.push(URL.createObjectURL(fl[k]));}catch(e){}
+var W=Math.max(300,window.innerWidth),H=Math.max(500,window.innerHeight);
+var root=el('div','position:fixed;top:0;left:0;right:0;bottom:0;z-index:2500;background:#05080d;overflow:hidden');root.id='czrMvRoot';
+var bg=el('div','position:absolute;top:-4%;left:-4%;right:-4%;bottom:-4%;background:#05080d');
+var cv=el('canvas','position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none');cv.width=W;cv.height=H;
+var shade=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 35%,rgba(0,0,0,.82) 100%)');
+var flash=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:#000;opacity:0;transition:opacity .35s;pointer-events:none');
+var badge=el('img','position:absolute;top:22px;left:18px;width:58px;height:58px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;animation:czrGlo 2s infinite;opacity:0;transition:opacity .5s');badge.src='/brand/caesar.jpg';
+var title=el('div','position:absolute;top:38px;left:88px;color:#e8c45a;font-weight:700;letter-spacing:3px;font-size:15px;opacity:0;transition:opacity .5s','CAESAR CZR');
+var big=el('div','position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .6s');
+var coin=el('img','width:190px;height:190px;border-radius:50%;object-fit:cover;border:4px solid #e8c45a;animation:czrSpin 2.6s linear infinite,czrGlo 2s infinite');coin.src='/brand/caesar.jpg';
+var bt=el('div','color:#e8c45a;font-size:30px;font-weight:700;letter-spacing:5px;margin-top:26px;text-shadow:0 0 22px #e8c45a99','CAESAR CZR');
+var bs=el('div','color:#fff;font-size:17px;margin-top:10px;opacity:.85',ar?'قيصر يقدّم لكم':'Caesar presents');
+big.appendChild(coin);big.appendChild(bt);big.appendChild(bs);
+var box=el('div','position:absolute;left:14px;right:14px;bottom:78px;padding:14px 12px;border-radius:18px;background:rgba(0,0,0,.38);text-align:center');
+var tx=el('div','color:#fff;font-size:26px;line-height:1.65;font-weight:700;text-shadow:0 2px 12px #000');tx.dir=ar?'rtl':'ltr';
+box.appendChild(tx);box.style.opacity='0';
+var bar=el('div','position:absolute;left:0;bottom:0;height:5px;background:#e8c45a;width:0;transition:width .6s');
+var x=el('div','position:absolute;top:20px;right:20px;color:#fff;font-size:30px;cursor:pointer;z-index:6','✕');x.onclick=stop;
+[bg,cv,shade,flash,badge,title,big,box,bar,x].forEach(function(n){root.appendChild(n);});
+document.body.appendChild(root);
+var cx=cv.getContext('2d'),P=[];
+for(var q=0;q<48;q++)P.push({x:Math.random()*W,y:Math.random()*H,r:1+Math.random()*2.8,v:.4+Math.random()*1.3,a:Math.random()*6});
+(function loop(){if(my!==tok)return;cx.clearRect(0,0,W,H);for(var j=0;j<P.length;j++){var p=P[j];p.y-=p.v;p.a+=.04;if(p.y<-8){p.y=H+8;p.x=Math.random()*W;}cx.globalAlpha=.3+.4*Math.sin(p.a);cx.fillStyle='#e8c45a';cx.beginPath();cx.arc(p.x,p.y,p.r,0,6.283);cx.fill();}requestAnimationFrame(loop);})();
+mus=music();
+function speak(text,cb){
+var done=false,tm;
+function fin(){if(done)return;done=true;clearTimeout(tm);cb();}
+try{if(window.speechSynthesis){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=ar?'ar-SA':'en-US';u.rate=.95;u.pitch=.9;
+var vs=speechSynthesis.getVoices()||[],pre=ar?'ar':'en',vv=null;
+for(var a=0;a<vs.length;a++){if(vs[a].lang&&vs[a].lang.toLowerCase().indexOf(pre)===0){vv=vs[a];break;}}
+if(vv)u.voice=vv;else if(ar&&vs.length&&!warned){warned=true;toast('لا يوجد صوت عربي في هاتفك: الإعدادات > اللغة > تحويل النص إلى كلام');}
+u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}}catch(e){}
+tm=setTimeout(fin,Math.max(4000,text.length*130+2500));
+}
+var kb=['czrZ1','czrZ2','czrZ3'];
+function show(i){
+if(my!==tok)return;
+var text=sc[i],dur=Math.max(3200,text.length*95);
+flash.style.opacity='1';
+setTimeout(function(){
+if(my!==tok)return;
+bg.style.animation='none';bg.style.backgroundImage='none';void bg.offsetWidth;
+if(imgs.length){bg.style.backgroundImage='url("'+imgs[i%imgs.length]+'")';bg.style.backgroundSize='cover';bg.style.backgroundPosition='center';bg.style.animation=kb[i%3]+' '+(dur/1000+3)+'s ease-out forwards';}
+else{var gr=['#0a1020,#1a2440,#4a3810','#101a2e,#3a2a0a,#0a1020','#2a1c06,#0a1020,#243252'][i%3];bg.style.backgroundImage='linear-gradient(135deg,'+gr+')';bg.style.backgroundSize='300% 300%';bg.style.animation='czrGr '+(dur/1000+3)+'s ease-in-out forwards';}
+flash.style.opacity='0';
+box.style.opacity='1';tx.textContent='';
+var ws=text.split(' '),sp=[];
+ws.forEach(function(w){var s=el('span','opacity:0;display:inline-block;margin:0 5px',w);tx.appendChild(s);sp.push(s);});
+var step=dur/Math.max(1,ws.length);
+sp.forEach(function(s,n){setTimeout(function(){if(my===tok){s.style.animation='czrIn .45s forwards';}},150+n*step*0.78);});
+bar.style.width=((i+1)/sc.length*100)+'%';
+var t0=Date.now();
+speak(text,function(){
+var wait=Math.max(0,dur-(Date.now()-t0))+300;
+setTimeout(function(){if(my!==tok)return;if(i+1<sc.length)show(i+1);else outro();},wait);
+});
+},350);
+}
+function outro(){
+if(my!==tok)return;
+flash.style.opacity='1';box.style.opacity='0';badge.style.opacity='0';title.style.opacity='0';
+setTimeout(function(){
+if(my!==tok)return;
+bg.style.animation='none';bg.style.backgroundImage='linear-gradient(135deg,#0a1020,#4a3810)';
+bs.textContent=ar?'الرابط في الوصف · انضم الآن':'Link in the description · Join now';
+big.style.opacity='1';flash.style.opacity='0';
+setTimeout(function(){if(my===tok)stop();},4200);
+},400);
+}
+big.style.opacity='1';
+setTimeout(function(){
+if(my!==tok)return;
+big.style.opacity='0';badge.style.opacity='1';title.style.opacity='1';
+setTimeout(function(){show(0);},500);
+},2800);
+};
+})();
+</script>
+<div id='czrPrBox' style='margin:6px 0 18px;padding:12px;border:1px solid #e8c45a66;border-radius:14px;background:#0f1522'>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>🖼 أوامر صور الذكاء الاصطناعي · Image prompts</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:8px'>الصق كل أمر في تطبيق توليد صور على هاتفك (Off Grid أو Local Dream) · Paste each prompt into an on-device image app</div>
+<div style='display:flex;gap:8px;margin-bottom:8px'>
+<button onclick='czrPrompts()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>✨ ولّد الأوامر</button>
+<button onclick='czrPrCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Copy</button>
+</div>
+<textarea id='czrPrOut' style='width:100%;box-sizing:border-box;min-height:150px;background:#000;color:#e8ecf3;border:1px solid #333;border-radius:10px;padding:10px;font-size:13px;line-height:1.5'></textarea>
+</div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/;
+function g(i){return document.getElementById(i);}
+function toast(m){try{var t=document.createElement('div');t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4000;font-size:14px';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove();},2200);}catch(e){}}
+var roles=[
+'dramatic close-up of a curious person looking at a phone, glowing golden light',
+'frustrated person at a desk with complicated charts, dim blue light',
+'hand holding a smartphone with a glowing golden coin on the screen, bright optimistic light',
+'phone screen showing a mining dashboard with green numbers, shallow depth of field',
+'confident smiling person holding a phone, golden hour, welcoming mood'
+];
+window.czrPrompts=function(){
+var tas=document.querySelectorAll('#czrStOut textarea');
+if(!tas.length){toast('اكتب فكرة واضغط ✨ أولًا · Write an idea and tap ✨ first');return;}
+var tp=(g('czrStTopic').value||'').trim();
+var theme=(tp&&!AR.test(tp))?', theme: '+tp:'';
+var out=[];
+for(var i=0;i<tas.length;i++){out.push('Scene '+(i+1)+':\nphotorealistic, cinematic, vertical 9:16, '+roles[i%roles.length]+theme+', highly detailed, sharp focus\n');}
+out.push('Negative prompt:\ntext, watermark, logo, deformed hands, extra fingers, blurry, low quality');
+g('czrPrOut').value=out.join('\n');
+};
+window.czrPrCopy=function(){
+var t=g('czrPrOut').value;if(!t)return;
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t);toast('تم النسخ · Copied');return;}}catch(e){}
+try{var o=g('czrPrOut');o.select();document.execCommand('copy');toast('تم النسخ · Copied');}catch(e){}
+};
+})();
+</script>
+<script>
+(function(){
+var czrAlgo=1;
+function g(i){return document.getElementById(i);}
+var old=window.czrMovie,coins=[];
+function hex(n){var x=((n+3)*2654435761)>>>0,s='';for(var i=0;i<6;i++){s+='0123456789abcdef'.charAt((x>>>(i*4))&15);}return s;}
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function pick(txt,idx){
+var s=txt.toLowerCase();
+if(/(دعوة|انضم|رابط|invite|join|link)/.test(s))return 'net';
+if(/(تعدين|مشاركات|كتلة|mining|shares|block)/.test(s))return 'chain';
+if(/(محفظة|رمز|أمان|wallet|pin|never)/.test(s))return 'shield';
+if(/(دخل|ربح|income|grow|simple|بسيط)/.test(s))return 'chart';
+if(/(عملة|عملات|coin|crypto)/.test(s))return 'coins';
+return ['chart','chain','coins','net','shield'][idx%5];
+}
+var D={};
+D.rings=function(c,W,H,t){
+var X=W/2,Y=H*0.36,u=Math.min(W,H)*0.14;
+for(var j=0;j<3;j++){c.setLineDash([8,10]);c.lineDashOffset=-t*30*(j%2?1:-1);c.strokeStyle='rgba(232,196,90,'+(0.55-j*0.12)+')';c.lineWidth=2;c.beginPath();c.arc(X,Y,u*(1.4+j*0.9),0,6.283);c.stroke();}
+c.setLineDash([]);
+};
+D.coins=function(c,W,H,t,dt){
+if(!coins.length||coins.W!==W){coins=[];coins.W=W;for(var i=0;i<26;i++)coins.push({x:Math.random()*W,y:-Math.random()*H,v:120+Math.random()*180,r:12+Math.random()*16,ph:Math.random()*6.28,sp:2+Math.random()*4});}
+coins.forEach(function(k){
+k.y+=k.v*dt;if(k.y>H+30){k.y=-30;k.x=Math.random()*W;}
+c.save();c.translate(k.x,k.y);
+var w=Math.abs(Math.cos(k.ph+t*k.sp))*k.r+1.5;
+var gr=c.createLinearGradient(-w,0,w,0);gr.addColorStop(0,'#a8821f');gr.addColorStop(0.5,'#ffe27a');gr.addColorStop(1,'#a8821f');
+c.fillStyle=gr;c.beginPath();c.ellipse(0,0,w,k.r,0,0,6.283);c.fill();
+c.strokeStyle='#7a5c10';c.lineWidth=2;c.beginPath();c.ellipse(0,0,w*0.62,k.r*0.62,0,0,6.283);c.stroke();
+c.restore();
+});
+};
+D.chain=function(c,W,H,t,dt,idx){
+var n=4,bw=W*0.19,bh=bw*1.15,gap=W*0.045,x0=(W-(n*bw+(n-1)*gap))/2,y=H*0.32;
+for(var k=0;k<n;k++){
+var st=k*0.7;if(t<st)continue;
+var p=Math.min(1,(t-st)/0.4),sc=0.6+0.4*p+(p<1?0:0.03*Math.sin(t*4+k));
+var x=x0+k*(bw+gap);
+if(k>0){c.strokeStyle='rgba(232,196,90,'+(0.9*p)+')';c.lineWidth=5;c.beginPath();c.moveTo(x-gap,y+bh/2);c.lineTo(x,y+bh/2);c.stroke();}
+c.save();c.translate(x+bw/2,y+bh/2);c.scale(sc,sc);c.globalAlpha=p;
+c.shadowColor='#e8c45a';c.shadowBlur=18;
+c.fillStyle='#14203a';rr(c,-bw/2,-bh/2,bw,bh,10);c.fill();
+c.strokeStyle='#e8c45a';c.lineWidth=3;c.stroke();c.shadowBlur=0;
+c.fillStyle='#e8c45a';c.font='bold '+Math.round(bw*0.17)+'px monospace';c.textAlign='center';
+c.fillText('BLOCK',0,-bh*0.12);
+c.fillStyle='#9fb3d9';c.font=Math.round(bw*0.15)+'px monospace';
+c.fillText('#'+hex(k+idx*4),0,bh*0.16);
+c.restore();
+}
+};
+function npos(k,i,t,W,H){
+var cnt=[4,7,10,14][k],u=Math.min(W,H)*0.115,a=(i/cnt)*6.283+k*0.5+t*0.06*(k%2?1:-1);
+return {x:W/2+Math.cos(a)*u*(k+1)*1.05,y:H*0.36+Math.sin(a)*u*(k+1)*1.05};
+}
+D.net=function(c,W,H,t){
+var cnt=[4,7,10,14],X=W/2,Y=H*0.36;
+for(var k=0;k<4;k++){
+var st=0.5+k*0.8;if(t<st)continue;
+var p=Math.min(1,(t-st)/0.6);
+for(var i=0;i<cnt[k];i++){
+var q=npos(k,i,t,W,H),par=k===0?{x:X,y:Y}:npos(k-1,Math.floor(i*cnt[k-1]/cnt[k]),t,W,H);
+c.strokeStyle='rgba(232,196,90,'+(0.55*p)+')';c.lineWidth=2;c.beginPath();c.moveTo(par.x,par.y);c.lineTo(par.x+(q.x-par.x)*p,par.y+(q.y-par.y)*p);c.stroke();
+c.fillStyle='rgba(232,196,90,'+p+')';c.beginPath();c.arc(q.x,q.y,Math.max(3,8-k*1.2)*p,0,6.283);c.fill();
+}
+}
+c.save();c.shadowColor='#e8c45a';c.shadowBlur=26;c.fillStyle='#ffe27a';c.beginPath();c.arc(X,Y,14+2*Math.sin(t*4),0,6.283);c.fill();c.restore();
+};
+D.shield=function(c,W,H,t){
+var X=W/2,Y=H*0.36,s=Math.min(W,H)*0.2;
+for(var j=0;j<3;j++){var r=(t*0.5+j/3)%1;c.strokeStyle='rgba(232,196,90,'+((1-r)*0.4)+')';c.lineWidth=3;c.beginPath();c.arc(X,Y,s*(1+r*1.3),0,6.283);c.stroke();}
+c.save();c.translate(X,Y);var sc=1+0.03*Math.sin(t*3);c.scale(sc,sc);
+c.shadowColor='#e8c45a';c.shadowBlur=28;
+var gr=c.createLinearGradient(0,-s,0,s);gr.addColorStop(0,'#ffe27a');gr.addColorStop(1,'#8a6a14');
+c.fillStyle=gr;c.beginPath();c.moveTo(0,-s);c.lineTo(s*0.85,-s*0.55);c.lineTo(s*0.85,s*0.1);c.quadraticCurveTo(s*0.85,s*0.7,0,s);c.quadraticCurveTo(-s*0.85,s*0.7,-s*0.85,s*0.1);c.lineTo(-s*0.85,-s*0.55);c.closePath();c.fill();
+c.shadowBlur=0;c.fillStyle='#0a1020';c.beginPath();c.arc(0,-s*0.12,s*0.17,0,6.283);c.fill();
+c.fillRect(-s*0.05,-s*0.12,s*0.1,s*0.4);
+c.restore();
+};
+D.chart=function(c,W,H,t){
+var x0=W*0.1,x1=W*0.9,yb=H*0.5,yt=H*0.18,n=14,pr=Math.min(1,t/2.4);
+c.strokeStyle='rgba(255,255,255,0.12)';c.lineWidth=1;
+for(var g2=0;g2<4;g2++){var gy=yb-(yb-yt)*g2/3;c.beginPath();c.moveTo(x0,gy);c.lineTo(x1,gy);c.stroke();}
+function val(i){return Math.min(1,Math.max(0,0.12+0.8*(i/(n-1))+0.07*Math.sin(i*1.7)));}
+var m=pr*(n-1),pts=[];
+for(var i=0;i<=Math.floor(m);i++)pts.push({x:x0+(x1-x0)*i/(n-1),y:yb-(yb-yt)*val(i)});
+var f=m-Math.floor(m);
+if(Math.floor(m)<n-1){var a=Math.floor(m);pts.push({x:x0+(x1-x0)*(a+f)/(n-1),y:yb-(yb-yt)*(val(a)+(val(a+1)-val(a))*f)});}
+if(pts.length<2)return;
+var gr=c.createLinearGradient(0,yt,0,yb);gr.addColorStop(0,'rgba(232,196,90,0.35)');gr.addColorStop(1,'rgba(232,196,90,0)');
+c.fillStyle=gr;c.beginPath();c.moveTo(pts[0].x,yb);pts.forEach(function(q){c.lineTo(q.x,q.y);});c.lineTo(pts[pts.length-1].x,yb);c.closePath();c.fill();
+c.strokeStyle='#e8c45a';c.lineWidth=4;c.shadowColor='#e8c45a';c.shadowBlur=14;c.beginPath();pts.forEach(function(q,i){if(i)c.lineTo(q.x,q.y);else c.moveTo(q.x,q.y);});c.stroke();
+var e=pts[pts.length-1];c.fillStyle='#fff';c.beginPath();c.arc(e.x,e.y,7+1.5*Math.sin(t*6),0,6.283);c.fill();c.shadowBlur=0;
+};
+window.czrMovie=function(){
+old();
+var root=g('czrMvRoot');if(!root||root.getAttribute('data-algo'))return;
+root.setAttribute('data-algo','1');
+var box=root.children[7];
+var W=Math.max(300,window.innerWidth),H=Math.max(500,window.innerHeight);
+var cv=document.createElement('canvas');cv.width=W;cv.height=H;cv.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none';
+root.insertBefore(cv,root.children[1]||null);
+var cx=cv.getContext('2d'),type='rings',idx=-1,last='',t0=performance.now(),prev=t0;
+(function loop(){
+if(g('czrMvRoot')!==root)return;
+var now=performance.now(),dt=Math.min(0.05,(now-prev)/1000);prev=now;
+var txt=box?(box.textContent||'').trim():'';
+if(box&&box.style.opacity==='0')txt='';
+if(txt!==last){last=txt;t0=now;if(txt){idx++;type=pick(txt,idx);}else type='rings';}
+cx.clearRect(0,0,W,H);
+var fl=g('czrMvFiles'),hasImg=fl&&fl.files&&fl.files.length>0;
+if(!hasImg){var t=(now-t0)/1000;cx.save();cx.globalAlpha=Math.min(1,t*1.6);try{D[type](cx,W,H,t,dt,idx);}catch(e){}cx.restore();}
+requestAnimationFrame(loop);
+})();
+};
+})();
+</script>
+<script>
+(function(){
+var czrStBook=1;
+setTimeout(function(){
+var AR=/[\u0600-\u06FF]/,old=window.czrStGen,off=0,book=[],pt=0,PER=10;
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function chunks(t){
+var ws=t.replace(/\s+/g,' ').trim().split(' '),out=[],cur=[];
+for(var i=0;i<ws.length;i++){cur.push(ws[i]);if(cur.length>=22){out.push(cur.join(' '));cur=[];}}
+if(cur.length)out.push(cur.join(' '));
+return out;
+}
+function helpers(){
+var o=g('czrStOut');if(!o)return;
+if(!g('czrStInfo')){var inf=el('div','color:#e8c45a;font-size:13px;margin:0 0 8px');inf.id='czrStInfo';o.parentNode.insertBefore(inf,o);}
+if(!g('czrStNext')){
+var b=el('button','background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:none','الجزء التالي ➡ · Next part');b.id='czrStNext';
+b.onclick=function(){off+=PER;if(off>=book.length)off=0;show();};
+o.parentNode.insertBefore(b,o.nextSibling);
+}
+}
+function show(){
+helpers();
+var o=g('czrStOut');o.textContent='';
+book.slice(off,off+PER).forEach(function(x){
+o.appendChild(el('textarea','width:100%;box-sizing:border-box;min-height:62px;background:#1c2536;color:#e8ecf3;border:1px solid #2a3550;border-radius:12px;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical',x));
+});
+var total=Math.ceil(book.length/PER),cur=Math.floor(off/PER)+1;
+g('czrStInfo').textContent='الجزء '+cur+' من '+total+' · Part '+cur+' of '+total;
+g('czrStNext').style.display=total>1?'inline-block':'none';
+var first=(book[off]||'').split(' ').slice(0,6).join(' ');
+g('czrStCap').value=first+' ...\n\nCaesar CZR\n#CaesarCZR';
+}
+window.czrStGen=function(){
+var t=(g('czrStTopic').value||'').trim();
+if(t.length<=180){var nx=g('czrStNext'),inf=g('czrStInfo');if(nx)nx.style.display='none';if(inf)inf.textContent='';return old?old():undefined;}
+book=chunks(t);off=0;show();
+};
+var os=window.czrStStop;
+window.czrStStop=function(){pt++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}if(os)os();};
+window.czrStPlay=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),L=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)L.push(v);}
+if(!L.length||!window.speechSynthesis)return;
+var my=++pt;try{speechSynthesis.cancel();}catch(e){}
+(function next(i){
+if(my!==pt||i>=L.length)return;
+var done=false;
+function fin(){if(done)return;done=true;next(i+1);}
+try{var u=new SpeechSynthesisUtterance(L[i]);u.lang=AR.test(L[i])?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}catch(e){}
+setTimeout(fin,Math.max(5000,L[i].length*150+3000));
+})(0);
+};
+},400);
+})();
+</script>
+<script>
+(function(){
+var czrStFull=1;
+setTimeout(function(){
+var AR=/[\u0600-\u06FF]/,full=false,pt=0,base=window.czrStGen,prevMovie=window.czrMovie,em=[];
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function chunks(t,n){var ws=t.replace(/\s+/g,' ').trim().split(' '),out=[],cur=[];for(var i=0;i<ws.length;i++){cur.push(ws[i]);if(cur.length>=n){out.push(cur.join(' '));cur=[];}}if(cur.length)out.push(cur.join(' '));return out;}
+function info(msg){var o=g('czrStOut');if(!o)return;var inf=g('czrStInfo');if(!inf){inf=el('div','color:#e8c45a;font-size:13px;margin:0 0 8px');inf.id='czrStInfo';o.parentNode.insertBefore(inf,o);}inf.textContent=msg;}
+window.czrStGen=function(){
+var t=(g('czrStTopic').value||'').trim();
+var nx=g('czrStNext');
+if(t.length<=180){full=false;if(nx)nx.style.display='none';info('');return base?base():undefined;}
+full=true;if(nx)nx.style.display='none';
+var sc=chunks(t,40),o=g('czrStOut');o.textContent='';
+sc.forEach(function(x){o.appendChild(el('textarea','width:100%;box-sizing:border-box;min-height:88px;background:#1c2536;color:#e8ecf3;border:1px solid #2a3550;border-radius:12px;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical',x));});
+var words=t.split(/\s+/).length;
+info('القصة كاملة: '+sc.length+' مشهد · نحو '+Math.max(1,Math.round(words/130))+' دقيقة · Full story: '+sc.length+' scenes');
+g('czrStCap').value=sc[0].split(' ').slice(0,6).join(' ')+' ...\n\nCaesar CZR\n#CaesarCZR';
+};
+var os=window.czrStStop;
+window.czrStStop=function(){pt++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}if(os)os();};
+window.czrStPlay=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),L=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)L.push(v);}
+if(!L.length||!window.speechSynthesis)return;
+var my=++pt;try{speechSynthesis.cancel();}catch(e){}
+(function next(i){
+if(my!==pt||i>=L.length)return;
+var done=false;function fin(){if(done)return;done=true;next(i+1);}
+try{var u=new SpeechSynthesisUtterance(L[i]);u.lang=AR.test(L[i])?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}catch(e){}
+setTimeout(fin,Math.max(6000,L[i].length*160+3000));
+})(0);
+};
+var V={};
+V.magic=function(c,W,H,t){
+var X=W/2,Y=H*0.34,u=Math.min(W,H)*0.26;
+c.strokeStyle='rgba(232,196,90,.85)';c.lineWidth=2;c.shadowColor='#e8c45a';c.shadowBlur=14;
+[1,0.78,0.5].forEach(function(f){c.beginPath();c.arc(X,Y,u*f,0,6.283);c.stroke();});
+for(var i=0;i<24;i++){var a=i/24*6.283+t*0.5,r=u*(i%2?0.9:0.96);c.beginPath();c.moveTo(X+Math.cos(a)*u*0.78,Y+Math.sin(a)*u*0.78);c.lineTo(X+Math.cos(a)*r,Y+Math.sin(a)*r);c.stroke();}
+for(var k=0;k<2;k++){c.beginPath();for(var j=0;j<3;j++){var b=j/3*6.283+(k?1.0472:0)-t*0.7*(k?-1:1),px=X+Math.cos(b)*u*0.78,py=Y+Math.sin(b)*u*0.78;if(j)c.lineTo(px,py);else c.moveTo(px,py);}c.closePath();c.stroke();}
+c.shadowBlur=0;
+};
+V.mount=function(c,W,H,t){
+var mx=W*0.72,my=H*0.16,mr=Math.min(W,H)*0.07;
+c.fillStyle='#fff6d8';c.shadowColor='#fff6d8';c.shadowBlur=30;c.beginPath();c.arc(mx,my,mr,0,6.283);c.fill();c.shadowBlur=0;
+for(var i=0;i<30;i++){var sx=(i*97%100)/100*W,sy=(i*53%40)/100*H;c.globalAlpha=0.4+0.4*Math.sin(t*2+i);c.fillStyle='#fff';c.fillRect(sx,sy,2,2);}
+c.globalAlpha=1;
+var cols=['#101a30','#0b1224','#070c18'],base2=[H*0.52,H*0.58,H*0.64];
+for(var l=0;l<3;l++){c.fillStyle=cols[l];c.beginPath();c.moveTo(0,H);for(var x=0;x<=W;x+=12){var y=base2[l]-Math.abs(Math.sin((x/W)*(3+l)*3.14+l*2+t*0.05*(l+1)))*H*(0.14-l*0.02);c.lineTo(x,y);}c.lineTo(W,H);c.closePath();c.fill();}
+};
+V.ember=function(c,W,H,t,dt){
+var gr=c.createLinearGradient(0,H*0.5,0,H);gr.addColorStop(0,'rgba(255,122,47,0)');gr.addColorStop(1,'rgba(255,122,47,0.35)');c.fillStyle=gr;c.fillRect(0,H*0.5,W,H*0.5);
+if(!em.length){for(var i=0;i<60;i++)em.push({x:Math.random()*W,y:H*Math.random(),v:30+Math.random()*80,r:1+Math.random()*3,p:Math.random()*6});}
+em.forEach(function(e){e.y-=e.v*dt;e.x+=Math.sin(t*2+e.p)*0.6;if(e.y<-10){e.y=H+10;e.x=Math.random()*W;}c.globalAlpha=0.5+0.4*Math.sin(t*5+e.p);c.fillStyle=e.r>2.2?'#ffb347':'#ff7a2f';c.beginPath();c.arc(e.x,e.y,e.r,0,6.283);c.fill();});
+c.globalAlpha=1;
+};
+var names=['magic','mount','ember'];
+window.czrMovie=function(){
+prevMovie();
+if(!full)return;
+var root=g('czrMvRoot');if(!root||root.getAttribute('data-story'))return;
+root.setAttribute('data-story','1');
+try{if(navigator.wakeLock)navigator.wakeLock.request('screen');}catch(e){}
+var tx=root.querySelector('[dir]');if(!tx)return;
+tx.style.fontSize='19px';if(tx.parentNode)tx.parentNode.style.maxHeight='48vh';
+var cvs=root.querySelectorAll('canvas');if(cvs.length>=2)cvs[0].style.display='none';
+var W=Math.max(300,window.innerWidth),H=Math.max(500,window.innerHeight);
+var cv=document.createElement('canvas');cv.width=W;cv.height=H;cv.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none';
+root.insertBefore(cv,root.children[1]?root.children[1].nextSibling:null);
+var cx=cv.getContext('2d'),idx=-1,last='',t0=performance.now(),pv=t0;
+(function loop(){
+if(g('czrMvRoot')!==root)return;
+var now=performance.now(),dt=Math.min(0.05,(now-pv)/1000);pv=now;
+var txt=(tx.textContent||'').trim();
+if(txt!==last){last=txt;t0=now;if(txt)idx++;}
+cx.clearRect(0,0,W,H);
+var fl=g('czrMvFiles'),hasImg=fl&&fl.files&&fl.files.length>0;
+if(!hasImg&&txt){var t=(now-t0)/1000;cx.save();cx.globalAlpha=Math.min(1,t*1.2);try{V[names[idx%3]](cx,W,H,t,dt);}catch(e){}cx.restore();}
+requestAnimationFrame(loop);
+})();
+};
+},900);
+})();
+</script>
+<script>
+(function(){
+if(window.__czrVoiceShim)return;
+var V=window.CzrVoice;
+if(!V)return;
+window.__czrVoiceShim=1;
+var tok=0,warned=false;
+function toast(m){try{var t=document.createElement('div');t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4000;font-size:14px;max-width:88%;text-align:center';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove();},4500);}catch(e){}}
+try{V.warm();}catch(e){}
+var sh={speaking:false,pending:false,paused:false,
+getVoices:function(){return [];},
+addEventListener:function(){},removeEventListener:function(){},
+cancel:function(){tok++;sh.speaking=false;try{V.stop();}catch(e){}},
+speak:function(u){
+var my=++tok;sh.speaking=true;
+var txt=String((u&&u.text)||''),ar=/[\u0600-\u06FF]/.test(txt)||/^ar/i.test((u&&u.lang)||'');
+try{V.speak(txt,ar?'ar':'en');}catch(e){}
+setTimeout(function(){if(my!==tok||warned)return;var st='';try{st=V.state();}catch(e){}
+if(st==='nolang'){warned=true;toast('لا يوجد صوت عربي: الإعدادات > اللغة > تحويل النص إلى كلام');}
+if(st==='noengine'){warned=true;toast('لا يوجد محرك نطق في الهاتف');}},900);
+var t0=Date.now();
+function fin(){if(my!==tok)return;sh.speaking=false;try{if(u&&u.onend)u.onend({});}catch(e){}}
+(function poll(){
+if(my!==tok)return;
+var b=true;try{b=V.busy();}catch(e){}
+if(!b){fin();return;}
+if(Date.now()-t0>180000){fin();return;}
+setTimeout(poll,250);
+})();
+}};
+if(!window.SpeechSynthesisUtterance){window.SpeechSynthesisUtterance=function(t){this.text=t;this.lang='';};}
+try{Object.defineProperty(window,'speechSynthesis',{value:sh,configurable:true,writable:true});}catch(e){try{window.speechSynthesis=sh;}catch(e2){}}
+setTimeout(function(){try{var e=document.getElementById('czrStVer');if(e&&e.textContent.indexOf('voice')<0)e.textContent=(e.textContent||'')+' · voice: '+V.state();}catch(e3){}},3000);
+})();
+</script>
+<script>
+(function(){
+if(window.__czrWiz2)return;window.__czrWiz2=1;
+var S={step:1,tab:'pre',niche:0,custom:'',lang:'ar',voice:1,vf:'all',mtab:'pre',msel:[],mfile:null,mname:'',art:0,cap:0,glitch:false,hook:false,pf:{},idea:'',n:6,imgs:[],scenes:[],capt:''};
+var T=['المجال','اللغة والصوت','الموسيقى','النمط الفني','نمط التعليق','التأثيرات','الحسابات','الفكرة والنتيجة'];
+var N=[['😱 Scary stories · قصص مرعبة','horror','قصص تقشعر لها الأبدان · Scary stories that give you goosebumps'],['📜 History · تاريخ','history','مقاطع عن التاريخ من القديم إلى الحديث'],['⚡ Greek Mythology · الأساطير اليونانية','myth','قصص صادمة ومثيرة من الأساطير'],['👑 Historical Figures · شخصيات تاريخية','figures','حياة أهم الشخصيات في دقيقة'],['🔥 Motivation · تحفيز','motivation','إضافة مني · فيديوهات تحفيزية قصيرة'],['🧠 Facts · حقائق','facts','إضافة مني · حقائق مدهشة']];
+var VO=[['Adam','واثق · Confident','low',0.85,1],['Jonah','راوي · Storyteller','low',0.9,0.88],['Jamal','هادئ · Chill','low',0.95,0.85],['Peter','عميق · Deep','low',0.7,0.92],['Brittney','حماسي · Energetic','high',1.3,1.15],['Hope','مشرق · Bright','high',1.2,1.05],['Zara','حواري · Conversational','high',1.1,1],['Jessa','عفوي · Casual','high',1.05,1.08]];
+var MUS=[['Creepy melody','لحن مخيف','Haunting and unsettling melody',[0,1,3,7,8],57,'triangle',520,0.06],['Horror piano','بيانو رعب','Dark and chilling piano keys',[0,3,6,9],48,'sine',700,0.09],['Unsolved mystery','لغز محير','Suspenseful and intriguing atmosphere',[0,2,3,7,10],52,'sawtooth',600,0.03],['8-bit slowed','8-بت بطيء','Eerie chiptune with a haunting retro feel',[0,3,5,7,10],60,'square',380,0.03],['Quiet before storm','هدوء قبل العاصفة','Building tension and anticipation',[0,7,12,5],45,'sine',900,0.08],['Brilliant symphony','سمفونية','Orchestral and majestic for epic reveals',[0,4,7,12,16,19],55,'sawtooth',480,0.03]];
+var ARTS=[['Comic','#1d4e89','#9ad1ff','comic book style, bold ink outlines, vivid colors','💥'],['Creepy Comic','#2b2b2b','#7a8b6f','creepy comic style, dark mood, thick outlines','👁'],['Modern Cartoon','#6b2d5c','#ff9e7a','modern cartoon style, clean lines, vibrant colors','🎨'],['Disney','#7a4b3a','#ffd6a5','3D Disney Pixar style, warm soft lighting','🏰'],['Mythology','#1b2a49','#c9b458','epic greek mythology painting, dramatic lightning','⚡'],['Pixel Art','#2d6a4f','#f4a6c0','detailed 16-bit pixel art, vibrant','👾'],['Ghibli','#3d5a40','#f2e3b3','studio ghibli style, hand-painted, soft light','🍄'],['Anime','#4a2c6b','#e0b7ff','anime style, detailed cel shading','🎌'],['Painting','#6b4a2b','#f0c987','classical oil painting, rich textures','🖼'],['Dark Fantasy','#101018','#5c3a5c','dark fantasy art, gloomy atmosphere, torch light','🕯'],['Lego','#a8321f','#ffd23f','lego minifigure scene, toy bricks, macro photo','🧱'],['Polaroid','#8a6a5a','#f7e1d0','polaroid photo, warm bokeh lights, portrait','📷'],['Realism','#8a5a2b','#ffd9a0','photorealistic, cinematic, golden hour','🌇'],['Fantastic','#0b4a6b','#5ed1e0','fantasy underwater ruins, god rays, epic scale','🌊']];
+var CAPS=['Bold Stroke','Red Highlight','Sleek','Karaoke','Majestic','Beast','Classic','Pixel'];
+var CCSS=['font-weight:900;color:#fff;paint-order:stroke fill;-webkit-text-stroke:6px #000','font-weight:900;color:#ff2d2d;paint-order:stroke fill;-webkit-text-stroke:4px #000','font-weight:700;color:rgba(255,255,255,.7)','font-weight:900;color:#fff;background:#7b2ff7;padding:2px 6px;border-radius:4px','font-style:italic;font-weight:900;color:#fff2c2;text-shadow:0 0 8px #000','font-style:italic;font-weight:900;color:#fff;paint-order:stroke fill;-webkit-text-stroke:8px #000','font-family:serif;color:#fff','font-family:monospace;font-weight:900;color:#fff;paint-order:stroke fill;-webkit-text-stroke:6px #000'];
+var TP=[['في ليلة هادئة بدأ كل شيء بصوت غريب','اقترب الصوت أكثر فأكثر','لم يكن وحيدًا في ذلك المكان','وعندما التفت رأى ما لا يصدق','ولا يزال السر مجهولًا حتى اليوم. تابعنا للمزيد'],['عاد الزمن بنا إلى أحداث غيرت العالم','كانت البداية صغيرة لا يلتفت إليها أحد','ثم تسارعت الأحداث بشكل مذهل','وتغير مصير أمم بأكملها','وما زال أثر تلك الحقبة باقيًا حتى اليوم. تابعنا للمزيد'],['في زمن الآلهة والأبطال بدأت الحكاية','غضبت الآلهة وارتجفت السماء','وخرج البطل لمواجهة قدره','فكان الثمن أغلى مما تخيل','وهكذا خلدت الأسطورة عبر القرون. تابعنا للمزيد'],['ولد في زمن لم يتوقع أحد منه شيئًا','واجه صعوبات كادت تحطمه','لكنه رفض الاستسلام','وبقراراته تغير وجه التاريخ','وما زال اسمه يذكر إلى اليوم. تابعنا للمزيد'],['كان على وشك الاستسلام','لكن فكرة واحدة غيرت كل شيء','بدأ بخطوة صغيرة كل يوم','وبعد أشهر لم يعد يعرف نفسه','ابدأ اليوم ولا تنتظر. تابعنا للمزيد'],['هل تعلم أن هناك حقيقة لا يعرفها أغلب الناس','الأمر يبدو بسيطًا في البداية','لكن العلماء اكتشفوا شيئًا مذهلًا','وهذا يغير نظرتنا لكل شيء','شارك الفيديو مع من يحب المعرفة. تابعنا للمزيد'],['وهنا تبدأ القصة الحقيقية','والتفاصيل التالية مثيرة','لكن المفاجأة كانت في النهاية','هل توقعت ذلك؟','تابعنا للمزيد']];
+var TPE=['Here is where the story begins','What happened next shocked everyone','Nobody saw the ending coming','Did you expect that?','Follow for more'];
+var BT='background:#e8c45a;color:#000;border:0;border-radius:12px;padding:12px 16px;font-weight:700;font-size:15px';
+var GH='background:#141b2d;color:#e8c45a;border:1px solid #3a3320;border-radius:12px;padding:12px 16px;font-size:15px';
+var CD='background:#111a2e;border:1px solid #3a3320;border-radius:14px;padding:14px;margin-bottom:12px';
+var W=360,H=640,cv=null,cx=null,tok=0,AC=null,mG=null,mDr=null,mIv=null,mAu=null,mCur=-1;
+function el(t,c,x,f){var e=document.createElement(t);if(c)e.style.cssText=c;if(x!=null)e.textContent=x;if(f)e.onclick=f;return e;}
+function toast(m){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:100px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4500;font-size:14px;max-width:88%;text-align:center',m);document.body.appendChild(t);setTimeout(function(){t.remove();},2500);}catch(e){}}
+function cp(t){var fb=function(){try{var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast('تم النسخ ✓');}catch(e){toast('تعذر النسخ');}};try{navigator.clipboard.writeText(t).then(function(){toast('تم النسخ ✓');},fb);}catch(e){fb();}}
+function chip(l,on,f){return el('button',(on?BT:GH)+';padding:9px 14px;font-size:14px',l,f);}
+function nkey(){return S.tab==='cus'?'custom':N[S.niche][1];}
+function tpi(){return S.tab==='cus'?6:S.niche;}
+var root=el('div','position:fixed;left:0;right:0;top:0;bottom:0;z-index:3500;background:#0b1020;color:#f3e7c0;display:none;flex-direction:column;font-family:sans-serif;direction:rtl');
+var bar=el('div','display:flex;gap:6px;padding:14px 16px 6px');
+var head=el('div','padding:6px 16px;font-size:19px;font-weight:700;color:#e8c45a');
+var body=el('div','flex:1;overflow-y:auto;padding:8px 16px');
+var foot=el('div','display:flex;gap:10px;padding:12px 16px 18px;border-top:1px solid #2a2a2a');
+root.appendChild(bar);root.appendChild(head);root.appendChild(body);root.appendChild(foot);
+document.body.appendChild(root);
+function open(){S.step=1;root.style.display='flex';render();}
+function close(){stopAll();try{if(window.CzrVoice&&window.CzrVoice.voiceReset)window.CzrVoice.voiceReset();}catch(e){}root.style.display='none';}
+function stopAll(){tok++;stopMusic();try{if(window.CzrVoice)window.CzrVoice.stop();}catch(e){}try{speechSynthesis.cancel();}catch(e){}}
+function speak(t,cb,vi){var my=tok,V=window.CzrVoice,v=VO[vi==null?S.voice:vi],done=false;
+function fin(){if(done)return;done=true;if(cb)cb();}
+if(V&&V.speak2){try{if(V.voiceIndex)V.voiceIndex(vi==null?S.voice:vi);V.speak2(t,S.lang,v[3],v[4]);}catch(e){fin();return;}
+var t0=Date.now();(function poll(){if(my!==tok||done)return;var b=true;try{b=V.busy();}catch(e){}
+if(!b||Date.now()-t0>180000){fin();return;}setTimeout(poll,250);})();return;}
+try{var u=new SpeechSynthesisUtterance(t);u.lang=S.lang==='ar'?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){setTimeout(fin,2500);}}
+function actx(){if(!AC){var C=window.AudioContext||window.webkitAudioContext;AC=new C();}if(AC.state==='suspended')AC.resume();return AC;}
+function hz(m){return 440*Math.pow(2,(m-69)/12);}
+function stopMusic(){mCur=-1;if(mIv){clearInterval(mIv);mIv=null;}try{if(mDr){mDr.stop();mDr=null;}}catch(e){}try{if(mG){mG.disconnect();mG=null;}}catch(e){}try{if(mAu){mAu.pause();mAu=null;}}catch(e){}}
+function startMusic(k){stopMusic();mCur=k;
+if(k==='f'){if(!S.mfile){toast('اختر ملفًا صوتيًا أولًا');mCur=-1;return;}try{mAu=new Audio(S.mfile);mAu.loop=true;mAu.volume=0.3;mAu.play();}catch(e){}return;}
+var a;try{a=actx();}catch(e){toast('الصوت غير مدعوم');mCur=-1;return;}
+var m=MUS[k];mG=a.createGain();mG.gain.value=1;mG.connect(a.destination);
+var d=a.createOscillator(),dg=a.createGain();d.type='sine';d.frequency.value=hz(m[4]-12);dg.gain.value=0.05;d.connect(dg);dg.connect(mG);d.start();mDr=d;
+var g=mG;
+function tick(){if(g!==mG)return;var t=a.currentTime,deg=m[3][Math.floor(Math.random()*m[3].length)],oc=Math.random()<0.3?12:0,o=a.createOscillator(),e=a.createGain(),L=m[6]/1000;
+o.type=m[5];o.frequency.value=hz(m[4]+deg+oc);e.gain.setValueAtTime(0.0001,t);e.gain.exponentialRampToValueAtTime(m[7],t+0.05);e.gain.exponentialRampToValueAtTime(0.0001,t+L*1.8);o.connect(e);e.connect(g);o.start(t);o.stop(t+L*1.9);}
+mIv=setInterval(tick,m[6]);tick();}
+function startSel(){if(!S.msel.length)return;startMusic(S.msel[Math.floor(Math.random()*S.msel.length)]);}
+function gen(){var t=S.idea.trim(),ss=t.split(/[.!?؟\n]+/).map(function(x){return x.trim();}).filter(Boolean);
+if(ss.length>=3)return ss.slice(0,10);
+var B=S.lang==='ar'?TP[tpi()]:TPE,out=[t];for(var i=0;i<S.n-1&&i<B.length;i++)out.push(B[i]);return out;}
+function prompts(){return S.scenes.map(function(x,i){return 'Scene '+(i+1)+': '+x+'. Style: '+ARTS[S.art][3]+', vertical 9:16, cinematic, no text';}).join('\n\n');}
+function render(){stopAll();
+bar.innerHTML='';for(var i=1;i<=8;i++)bar.appendChild(el('div','flex:1;height:5px;border-radius:3px;background:'+(i<=S.step?'#e8c45a':'#2a3148')));
+head.textContent='الخطوة '+S.step+' من 8 · '+T[S.step-1];
+body.innerHTML='';P[S.step-1]();foot.innerHTML='';
+foot.appendChild(el('button',GH+';flex:1',S.step>1?'→ رجوع':'✕ إغلاق',function(){if(S.step>1){S.step--;render();}else close();}));
+if(S.step<8)foot.appendChild(el('button',BT+';flex:1',(S.step===3&&!S.msel.length)?'تخطي ←':'يكمل ←',function(){
+if(S.step===1&&S.tab==='cus'&&!S.custom.trim()){toast('صف مجالك أولًا');return;}
+S.step++;render();}));
+else foot.appendChild(el('button',BT+';flex:1','✓ تم',close));}
+function sec(t,get,set){body.appendChild(el('div','font-weight:700;color:#e8c45a;margin:12px 0 6px',t));var a=el('textarea','width:100%;min-height:110px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:14px;box-sizing:border-box');a.value=get();if(set)a.oninput=function(){set(a.value);};body.appendChild(a);body.appendChild(el('button',GH+';margin-top:6px','نسخ',function(){cp(set?a.value:get());}));}
+function tabs(list,cur,f){var tb=el('div','display:flex;gap:18px;border-bottom:1px solid #2a3148;margin-bottom:12px');list.forEach(function(t){tb.appendChild(el('div','padding:10px 2px;cursor:pointer;font-weight:700;border-bottom:3px solid '+(cur===t[0]?'#e8c45a':'transparent')+';opacity:'+(cur===t[0]?1:0.6),t[1],function(){f(t[0]);}));});body.appendChild(tb);}
+function setFont(st,fs){cx.font=(st===4||st===5?'italic ':'')+(st===6?'':'bold ')+fs+'px '+(st===6?'serif':st===7?'monospace':'sans-serif');}
+function word(wd,x,y,on,st,fs){
+setFont(st,fs);var w=cx.measureText(wd).width;
+if(st===3&&on){cx.fillStyle='#7b2ff7';cx.fillRect(x-6,y-fs,w+12,fs*1.3);}
+cx.lineJoin='round';var sw=(st===0||st===5||st===7)?fs*0.28:(st===1?fs*0.18:0);
+if(sw){cx.lineWidth=sw;cx.strokeStyle='#000';cx.strokeText(wd,x,y);}
+if(st===4){cx.shadowColor='#000';cx.shadowBlur=12;}
+cx.fillStyle=(st===1&&on)?'#ff2d2d':(st===0&&on)?'#ffe14a':st===2?'rgba(255,255,255,0.75)':st===4?'#fff2c2':'#fff';
+cx.fillText(wd,x,y);cx.shadowBlur=0;}
+function caption(words,act){
+var st=S.cap,fs=st===2?30:st===5?44:38,g=Math.floor(act/3)*3,up=S.lang==='en'&&[0,1,3,5].indexOf(st)>=0;
+var gw=words.slice(g,g+3).map(function(x){return up?x.toUpperCase():x;});
+setFont(st,fs);var ws=gw.map(function(x){return cx.measureText(x).width;}),gap=fs*0.35,tot=ws.reduce(function(a,b){return a+b;},0)+gap*(gw.length-1);
+var ar=S.lang==='ar',x=ar?(W+tot)/2:(W-tot)/2,y=H*0.72;cx.textAlign='left';cx.textBaseline='alphabetic';
+for(var j=0;j<gw.length;j++){var on=(g+j===act);if(ar){x-=ws[j];word(gw[j],x,y,on,st,fs);x-=gap;}else{word(gw[j],x,y,on,st,fs);x+=ws[j]+gap;}}}
+function bg(im,i,k){var a=ARTS[S.art],hk=(i===0&&S.hook);
+if(im&&im.complete&&im.naturalWidth){var z=1.05+(hk?0.35:0.1)*k,r=Math.max(W/im.naturalWidth,H/im.naturalHeight)*z,w=im.naturalWidth*r,h=im.naturalHeight*r,pan=hk?(k-0.5)*50:0;cx.drawImage(im,(W-w)/2+pan,(H-h)/2,w,h);}
+else{var g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,a[2]);g.addColorStop(1,a[1]);cx.fillStyle=g;cx.fillRect(0,0,W,H);for(var q=0;q<7;q++){var rr=((i*7+q*13)%10)/10;cx.fillStyle='rgba(255,255,255,'+(0.05+rr*0.08)+')';cx.beginPath();cx.arc((q*97+i*53)%W,(q*151+i*89)%(H*0.7),30+rr*70,0,6.283);cx.fill();}cx.fillStyle='#fff';cx.globalAlpha=0.9;cx.font='140px sans-serif';cx.textAlign='center';cx.fillText(a[4],W/2+Math.sin(k*3)*8,H*0.4+k*10);cx.globalAlpha=1;}
+var s=cx.createLinearGradient(0,H*0.5,0,H);s.addColorStop(0,'rgba(0,0,0,0)');s.addColorStop(1,'rgba(0,0,0,0.65)');cx.fillStyle=s;cx.fillRect(0,0,W,H);}
+function glitch(){if(!S.glitch||Math.random()>0.25)return;for(var j=0;j<4;j++){var y=Math.random()*H,h=10+Math.random()*50,d=(Math.random()-0.5)*40;cx.drawImage(cv,0,y,W,h,d,y,W,h);}cx.fillStyle='rgba(255,0,60,0.12)';cx.fillRect(3,0,W,H);cx.fillStyle='rgba(0,255,255,0.10)';cx.fillRect(-3,0,W,H);}
+function draw(i,words,act,k){bg(S.imgs.length?S.imgs[i%S.imgs.length]:null,i,k);glitch();caption(words,act);}
+function idle(){if(!cx||!S.scenes.length)return;draw(0,S.scenes[0].split(/\s+/),0,0);}
+function play(){stopAll();var my=tok,i=0;startSel();
+function scene(){if(my!==tok)return;if(i>=S.scenes.length){stopMusic();idle();return;}
+var words=S.scenes[i].split(/\s+/),t0=Date.now(),dur=Math.max(2500,words.length*420),done=false,idx=i;
+speak(S.scenes[i],function(){done=true;});
+(function frame(){if(my!==tok)return;var e=Date.now()-t0,k=Math.min(1,e/dur);
+draw(idx,words,Math.min(words.length-1,Math.floor(k*words.length)),k);
+if((done&&e>900)||e>dur+8000){i++;scene();return;}
+requestAnimationFrame(frame);})();}
+scene();}
+function loadImgs(fl){S.imgs=[];Array.prototype.forEach.call(fl,function(f,i){var im=new Image();im.onload=idle;im.src=URL.createObjectURL(f);S.imgs[i]=im;});toast('تم اختيار '+fl.length+' صورة');}
+function tog(arr,k){var p=arr.indexOf(k);if(p>=0)arr.splice(p,1);else arr.push(k);}
+var P=[
+function(){
+tabs([['pre','الإعدادات المسبقة · Presets'],['cus','مخصص · Custom']],S.tab,function(t){S.tab=t;render();});
+if(S.tab==='pre'){N.forEach(function(n,i){var c=el('div',CD+';cursor:pointer;border:'+(S.niche===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.niche=i;render();});c.appendChild(el('div','font-size:17px;font-weight:700',n[0]));c.appendChild(el('div','font-size:13px;opacity:.7;margin-top:4px',n[2]));body.appendChild(c);});}
+else{body.appendChild(el('div','margin-bottom:8px','صف مجالك بنفسك:'));var t=el('textarea','width:100%;min-height:140px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:16px;box-sizing:border-box');t.value=S.custom;t.oninput=function(){S.custom=t.value;};body.appendChild(t);}},
+function(){
+body.appendChild(el('div','margin-bottom:6px','اللغة · Language'));
+var sl=el('select','width:100%;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:12px;font-size:16px;margin-bottom:14px');
+[['ar','🇸🇦 العربية'],['en','🇬🇧 English']].forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];if(S.lang===o[0])op.selected=true;sl.appendChild(op);});
+sl.onchange=function(){S.lang=sl.value;};body.appendChild(sl);
+body.appendChild(el('div','margin-bottom:6px','الصوت · Voice'));
+var fr=el('div','display:flex;gap:8px;margin-bottom:10px');
+[['all','الكل'],['low','غليظ'],['high','رفيع']].forEach(function(f){fr.appendChild(chip(f[1],S.vf===f[0],function(){S.vf=f[0];render();}));});body.appendChild(fr);
+var g=el('div','display:grid;grid-template-columns:1fr 1fr;gap:10px');
+VO.forEach(function(v,i){if(S.vf!=='all'&&v[2]!==S.vf)return;
+var c=el('div',CD+';margin:0;padding:10px;display:flex;align-items:center;gap:8px;cursor:pointer;border:'+(S.voice===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.voice=i;render();});
+c.appendChild(el('button',BT+';padding:8px 11px;border-radius:50%;font-size:13px','▶',function(e){e.stopPropagation();stopAll();speak(S.lang==='ar'?'مرحبًا، هذا اختبار الصوت':'Hello, this is a voice test',null,i);}));
+var tx=el('div','');tx.appendChild(el('div','font-weight:700',v[0]));tx.appendChild(el('div','font-size:11px;opacity:.7',v[1]));c.appendChild(tx);g.appendChild(c);});
+body.appendChild(g);
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:10px','الأصوات نبرات مختلفة لمحرك النطق في هاتفك، وليست 60 صوتًا حقيقيًا.'));},
+function(){
+body.appendChild(el('div','margin-bottom:8px;opacity:.8','اختر ما تشاء من المقطوعات، وسنختار واحدة عشوائيًا لكل فيديو (اختياري).'));
+tabs([['pre','موسيقى جاهزة · Preset'],['cus','مخصص · Custom']],S.mtab,function(t){S.mtab=t;render();});
+if(S.mtab==='pre'){MUS.forEach(function(m,i){var on=S.msel.indexOf(i)>=0;
+var c=el('div',CD+';display:flex;align-items:center;gap:10px;cursor:pointer;border:'+(on?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){tog(S.msel,i);render();});
+var tx=el('div','flex:1');tx.appendChild(el('div','font-weight:700',(on?'✅ ':'')+m[0]+' · '+m[1]));tx.appendChild(el('div','font-size:12px;opacity:.7;margin-top:3px',m[2]));c.appendChild(tx);
+c.appendChild(el('button',GH+';padding:8px 13px','▶',function(e){e.stopPropagation();if(mCur===i){stopMusic();}else{stopAll();startMusic(i);}}));body.appendChild(c);});
+body.appendChild(el('div','font-size:12px;opacity:.7','المقطوعات تُولَّد صوتيًا داخل التطبيق، وليست أغاني مسجلة.'));}
+else{var f=el('input','display:none');f.type='file';f.accept='audio/*';f.onchange=function(){if(f.files&&f.files[0]){S.mfile=URL.createObjectURL(f.files[0]);S.mname=f.files[0].name;if(S.msel.indexOf('f')<0)S.msel.push('f');render();}};body.appendChild(f);
+body.appendChild(el('button',BT+';width:100%','🎵 اختر أغنية من هاتفك',function(){f.click();}));
+if(S.mfile){var c=el('div',CD+';margin-top:12px;display:flex;align-items:center;gap:10px');c.appendChild(el('div','flex:1;font-size:14px','✅ '+S.mname));c.appendChild(el('button',GH+';padding:8px 13px','▶',function(){if(mCur==='f'){stopMusic();}else{stopAll();startMusic('f');}}));body.appendChild(c);}}},
+function(){var r=el('div','display:flex;gap:12px;overflow-x:auto;padding-bottom:8px');
+ARTS.forEach(function(a,i){var c=el('div','min-width:150px;height:240px;border-radius:14px;position:relative;background:linear-gradient(180deg,'+a[2]+','+a[1]+');border:'+(S.art===i?'3px solid #e8c45a':'1px solid #3a3320'),null,function(){S.art=i;render();});
+c.appendChild(el('div','position:absolute;top:70px;left:0;right:0;text-align:center;font-size:56px',a[4]));
+c.appendChild(el('div','position:absolute;bottom:0;left:0;right:0;padding:10px;background:rgba(0,0,0,.55);border-radius:0 0 12px 12px;font-weight:700;text-align:center;color:#fff',(S.art===i?'✓ ':'')+a[0]));r.appendChild(c);});
+body.appendChild(r);body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:8px','يُضاف تلقائيًا إلى أوامر الصور: '+ARTS[S.art][3]));},
+function(){var g=el('div','display:grid;grid-template-columns:1fr 1fr;gap:12px');
+CAPS.forEach(function(n,i){var c=el('div',CD+';margin:0;text-align:center;border:'+(S.cap===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.cap=i;render();});
+var p=el('div','background:#333;border-radius:10px;padding:18px 4px;margin-bottom:8px;direction:ltr;font-size:18px');p.appendChild(el('span',CCSS[i],'NOTEBOOK HIDDEN'));c.appendChild(p);c.appendChild(el('div','font-size:14px',(S.cap===i?'✓ ':'')+n));g.appendChild(c);});body.appendChild(g);},
+function(){
+var c=el('div',CD);c.appendChild(el('div','font-weight:700','Glitch effect · تأثير الخلل'+(S.glitch?' ✅':'')));c.appendChild(el('div','font-size:13px;opacity:.7;margin:6px 0 10px','اهتزاز وتشويه لوني مخيف، مناسب للرعب والإثارة.'));c.appendChild(chip(S.glitch?'مفعّل':'تفعيل',S.glitch,function(){S.glitch=!S.glitch;render();}));body.appendChild(c);
+var k=el('div',CD);k.appendChild(el('div','font-weight:700','حركة كاميرا للمشهد الأول (بديل مجاني)'+(S.hook?' ✅':'')));k.appendChild(el('div','font-size:13px;opacity:.7;margin:6px 0 10px','تقريب وتحريك سينمائي قوي على صورة المشهد الأول ليجذب المشاهد.'));k.appendChild(chip(S.hook?'مفعّل':'تفعيل',S.hook,function(){S.hook=!S.hook;render();}));body.appendChild(k);
+var h=el('div',CD+';opacity:.5');h.appendChild(el('div','font-weight:700','Animated hook · Wan 2.2 · PREMIUM'));h.appendChild(el('div','font-size:13px;margin-top:6px','توليد فيديو بالذكاء الاصطناعي يحتاج خادمًا مدفوعًا، غير متاح داخل التطبيق.'));body.appendChild(h);},
+function(){
+/*pk*/body.appendChild(el('div','margin-bottom:10px;opacity:.8','اربط وحدد الحسابات التي تريد النشر عليها.'));
+var PL=[['tt','TikTok','🎵'],['ig','Instagram','📸'],['yt','YouTube','▶️'],['fb','Facebook','👍']];
+var ks=PL.filter(function(p){return S.pf[p[0]];});
+function pick(){
+var ov=el('div','position:fixed;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.7);z-index:4000;display:flex;align-items:flex-end');
+var sh=el('div','background:#111a2e;width:100%;border-radius:18px 18px 0 0;padding:18px;box-sizing:border-box;direction:rtl');
+ov.onclick=function(e){if(e.target===ov)ov.remove();};
+sh.appendChild(el('div','font-size:18px;font-weight:700;color:#e8c45a;margin-bottom:4px','اربط حساب تواصل اجتماعي'));
+sh.appendChild(el('div','font-size:13px;opacity:.7;margin-bottom:12px','اختر إحدى المنصات المدعومة.'));
+PL.forEach(function(p){sh.appendChild(el('button',GH+';display:block;width:100%;margin-bottom:10px;text-align:right;font-size:16px',(S.pf[p[0]]?'✅ ':'')+p[2]+'  '+p[1],function(){S.pf[p[0]]=1;ov.remove();render();}));});
+sh.appendChild(el('button',GH+';width:100%','إغلاق',function(){ov.remove();}));
+ov.appendChild(sh);document.body.appendChild(ov);}
+if(!ks.length){var e=el('div',CD+';text-align:center;border-style:dashed');e.appendChild(el('div','opacity:.7;margin-bottom:12px','لم تربط أي حساب بعد.'));e.appendChild(el('button',GH,'+ اربط أول حساب',function(){pick();}));body.appendChild(e);}
+else{ks.forEach(function(p){var c=el('div',CD+';display:flex;align-items:center;gap:10px');c.appendChild(el('div','flex:1;font-weight:700','✅ '+p[2]+' '+p[1]));c.appendChild(el('button',GH+';padding:8px 13px','✕',function(){S.pf[p[0]]=0;render();}));body.appendChild(c);});
+body.appendChild(el('button',GH+';width:100%','+ إضافة حساب',function(){pick();}));}
+var nt=el('div','font-size:12px;opacity:.7;text-align:center;margin-top:16px','هذا اختيار للمنصات وليس ربطًا حقيقيًا بحساباتك. يمكنك الربط لاحقًا، وفي الخطوة الأخيرة تنشر على أي منصة.');body.appendChild(nt);},
+function(){
+body.appendChild(el('div','margin-bottom:8px','اكتب فكرة الفيديو أو القصة كاملة (كل جملة تصبح مشهدًا):'));
+var t=el('textarea','width:100%;min-height:130px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:16px;box-sizing:border-box');t.value=S.idea;t.oninput=function(){S.idea=t.value;};body.appendChild(t);
+body.appendChild(el('div','margin:12px 0 6px','عدد المشاهد (للفكرة القصيرة):'));
+var r=el('div','display:flex;gap:8px');[4,5,6].forEach(function(n){r.appendChild(chip(String(n),S.n===n,function(){S.n=n;render();}));});body.appendChild(r);
+body.appendChild(el('button',BT+';width:100%;margin-top:14px','✨ أنشئ الفيديو',function(){if(!S.idea.trim()){toast('اكتب فكرة الفيديو أولًا');return;}S.scenes=gen();S.capt=(S.scenes[0]||'')+'\n\n#shorts #reels #'+nkey()+' #fyp';render();}));
+if(!S.scenes.length)return;
+cv=el('canvas','width:100%;max-width:280px;display:block;margin:16px auto 10px;border-radius:14px;border:1px solid #3a3320;background:#000');cv.width=W;cv.height=H;cx=cv.getContext('2d');body.appendChild(cv);
+var b=el('div','display:flex;gap:8px;margin-bottom:10px');b.appendChild(el('button',BT+';flex:1','▶ معاينة بالصوت',play));b.appendChild(el('button',GH,'⏹',function(){stopAll();idle();}));body.appendChild(b);
+var f=el('input','display:none');f.type='file';f.accept='image/*';f.multiple=true;f.onchange=function(){loadImgs(f.files);};body.appendChild(f);
+body.appendChild(el('button',GH+';width:100%','🖼 اختر صورًا للمشاهد',function(){f.click();}));
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:8px','لتسجيل فيديو بالصوت: شغّل مسجل شاشة الهاتف ثم اضغط معاينة.'));
+sec('المشاهد (سطر لكل مشهد)',function(){return S.scenes.join('\n');},function(v){S.scenes=v.split('\n').map(function(x){return x.trim();}).filter(Boolean);});
+sec('أوامر الصور',prompts);
+sec('الوصف والهاشتاقات',function(){return S.capt;},function(v){S.capt=v;});
+body.appendChild(el('div','font-weight:700;color:#e8c45a;margin:18px 0 6px;font-size:17px','📤 النشر · Publish'));
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-bottom:8px','اختر المنصة: يُنسخ الوصف ثم تُفتح المنصة لترفع الفيديو (سجّل المعاينة بمسجل الشاشة أولًا).'));
+var L=[['yt','YouTube','https://www.youtube.com/upload'],['tt','TikTok','https://www.tiktok.com/upload'],['fb','Facebook','https://www.facebook.com/'],['ig','Instagram','https://www.instagram.com/']],pr=el('div','display:flex;gap:8px;flex-wrap:wrap');
+L.forEach(function(p){pr.appendChild(el('button',S.pf[p[0]]?BT:GH,p[1]+' ↗',function(){cp(S.capt);setTimeout(function(){window.open(p[2],'_blank');},400);}));});body.appendChild(pr);
+idle();}
+];
+function addBtn(){var as=document.querySelectorAll('#czrStVer');Array.prototype.forEach.call(as,function(a){if(a.__w2)return;a.__w2=1;var b=el('button',BT+';display:block;width:100%;margin:12px 0','🎬 استوديو متطور · Pro Studio',open);var p=a.parentNode;p.insertBefore(b,p.firstChild);});}
+setInterval(addBtn,1000);addBtn();
+})();
+</script>
+<div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
+</div></section>
+<script>
+(function(){
+var czrStV2=1;
+var AR=/[\u0600-\u06FF]/;
+var S={style:'promo',plat:'yt',scenes:[],topic:'',ar:true,tok:0};
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function toast(m){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:3000;font-size:14px',m);document.body.appendChild(t);setTimeout(function(){t.remove();},1800);}catch(e){}}
+function inv(){try{var w=g('tab-wallet')||document.body;var m=(w.textContent||'').match(/https?:\/\/[^\s]*\?ref=[A-Za-z0-9_-]+/);return m?m[0]:'';}catch(e){return '';}}
+function build(t,st,ar){
+if(ar){
+if(st==='learn')return [t+': ما الذي يجب أن تعرفه؟','Caesar CZR عملة رقمية للهاتف المحمول من الطبقة الأولى.','التعدين يعني أن هاتفك يساهم في تأمين الشبكة ويسجّل مشاركات.','المحفظة تحفظ رصيدك، ولا تشارك رمز PIN مع أحد.','رابط التطبيق في الوصف، جرّبه بنفسك.'];
+if(st==='story')return ['قصة قصيرة: '+t+'.','بدأت الشبكة صغيرة، وكان كل شيء فيها جديدًا.','ومع كل كتلة جديدة كبرت الدائرة.','اليوم يمكنك أن تنضم إليها من هاتفك.','رابط الدعوة في الوصف.'];
+return [t+'؟ لن تصدّق كم هو بسيط.','كثيرون يريدون دخول عالم العملات الرقمية، لكن الطرق معقدة أو مكلفة.','Caesar CZR محفظة وتعدين على هاتفك مباشرة، دون أجهزة ضخمة.','افتح التطبيق وشاهد المشاركات تُقبل أمامك لحظة بلحظة.','حمّل التطبيق وانضم عبر رابط الدعوة في الوصف.'];
+}
+if(st==='learn')return [t+': what should you know?','Caesar CZR is a mobile-first Layer-1 cryptocurrency.','Mining means your phone helps secure the network and records shares.','The wallet keeps your balance. Never share your PIN with anyone.','The app link is in the description. Try it yourself.'];
+if(st==='story')return ['A short story: '+t+'.','The network started small and everything in it was new.','With every new block the circle grew.','Today you can join it from your phone.','The invite link is in the description.'];
+return [t+'? You will not believe how simple it is.','Many people want to enter crypto, but the ways in are complex or costly.','Caesar CZR is a wallet and miner right on your phone, no heavy hardware.','Open the app and watch your shares get accepted live.','Download the app and join with the invite link in the description.'];
+}
+function cap(){
+var t=S.topic||'Caesar CZR',ar=S.ar,l=inv(),p=S.plat;
+var tags={yt:'#Shorts #CaesarCZR #Crypto #Mining',tt:'#fyp #CaesarCZR #Crypto #Mining',fb:'#CaesarCZR #Crypto #Mining'}[p];
+var body=ar?'جرّب Caesar CZR: محفظة وتعدين من هاتفك.':'Try Caesar CZR: a wallet and miner on your phone.';
+var link=l?(ar?'\nرابط الدعوة: ':'\nInvite link: ')+l:'';
+if(p==='yt')return t+' | Caesar CZR\n\n'+body+link+'\n\n'+tags;
+if(p==='tt')return t+' '+body+link+'\n'+tags;
+return t+'\n\n'+body+link+'\n\n'+tags;
+}
+function render(){
+var o=g('czrStOut');o.textContent='';
+S.scenes.forEach(function(x,i){var ta=el('textarea','width:100%;box-sizing:border-box;min-height:62px;background:#1c2536;color:#e8ecf3;border:1px solid #2a3550;border-radius:12px;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical',x);ta.oninput=function(){S.scenes[i]=ta.value;};o.appendChild(ta);});
+g('czrStCap').value=S.scenes.length?cap():'';
+}
+window.czrStGen=function(){var t=g('czrStTopic').value.trim();if(!t)return;S.topic=t;S.ar=AR.test(t);S.scenes=build(t,S.style,S.ar);render();};
+window.czrStSet=function(k,v,b){
+S[k]=v;
+var kids=b.parentNode.children;
+for(var i=0;i<kids.length;i++){kids[i].style.background='#1c2536';kids[i].style.color='#e8c45a';}
+b.style.background='#e8c45a';b.style.color='#000';
+if(k==='style'&&S.topic){S.scenes=build(S.topic,S.style,S.ar);render();}
+if(k==='plat'&&S.scenes.length){g('czrStCap').value=cap();}
+};
+function stop(){S.tok++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}var o=g('czrStPv');if(o)o.remove();}
+window.czrStStop=stop;
+function speak(text,ar,cb){
+var done=false,tm;
+function fin(){if(done)return;done=true;clearTimeout(tm);if(cb)cb();}
+try{if(window.speechSynthesis){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=ar?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}}catch(e){}
+tm=setTimeout(fin,Math.max(4000,text.length*120+2500));
+}
+function seq(i,tok,show,end){
+if(tok!==S.tok)return;
+if(i>=S.scenes.length){if(end)end();return;}
+if(show)show(i);
+speak(S.scenes[i],S.ar,function(){setTimeout(function(){seq(i+1,tok,show,end);},500);});
+}
+window.czrStPlay=function(){if(!S.scenes.length)return;stop();seq(0,S.tok,null,null);};
+window.czrStPreview=function(){
+if(!S.scenes.length)return;
+stop();var tok=S.tok;
+var o=el('div','position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;background:#05080d;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center');o.id='czrStPv';
+var im=el('img','width:120px;height:120px;border-radius:50%;object-fit:cover;border:3px solid #e8c45a;box-shadow:0 0 30px #e8c45a73;margin-bottom:28px');im.src='/brand/caesar.jpg';
+var tx=el('div','color:#fff;font-size:26px;line-height:1.6;font-weight:700;max-width:92%;opacity:0;transition:opacity .4s');
+tx.dir=S.ar?'rtl':'ltr';
+var dots=el('div','display:flex;gap:6px;margin-top:28px');
+var ds=S.scenes.map(function(){var d=el('div','width:9px;height:9px;border-radius:50%;background:#2a3550');dots.appendChild(d);return d;});
+var x=el('div','position:absolute;top:18px;right:20px;color:#9aa4b2;font-size:28px;cursor:pointer','✕');x.onclick=stop;
+var br=el('div','position:absolute;bottom:22px;color:#e8c45a;font-size:15px;letter-spacing:2px','CAESAR CZR');
+o.appendChild(x);o.appendChild(im);o.appendChild(tx);o.appendChild(dots);o.appendChild(br);
+document.body.appendChild(o);
+seq(0,tok,function(i){
+tx.style.opacity='0';
+setTimeout(function(){if(tok!==S.tok)return;tx.textContent=S.scenes[i];tx.style.opacity='1';},200);
+ds.forEach(function(d,k){d.style.background=k===i?'#e8c45a':'#2a3550';});
+},function(){tx.style.opacity='0';setTimeout(function(){if(tok!==S.tok)return;tx.textContent=S.ar?'Caesar CZR · الرابط في الوصف':'Caesar CZR · link in description';tx.style.opacity='1';},300);setTimeout(function(){if(tok===S.tok)stop();},3500);});
+};
+function copy(t){
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t);return;}}catch(e){}
+try{var a=el('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();}catch(e){}
+}
+window.czrStCopy=function(){copy(g('czrStCap').value);toast('تم النسخ · Copied');};
+window.czrStShare=function(){var t=g('czrStCap').value;try{if(navigator.share){navigator.share({text:t});return;}}catch(e){}copy(t);toast('تم النسخ · Copied');};
+window.czrStGo=function(u){copy(g('czrStCap').value);toast('تم نسخ الوصف · Caption copied');setTimeout(function(){try{window.open(u,'_blank');}catch(e){location.href=u;}},900);};
+function load(){try{return JSON.parse(localStorage.getItem('czrStudio')||'[]');}catch(e){return [];}}
+function store(a){try{localStorage.setItem('czrStudio',JSON.stringify(a.slice(0,20)));}catch(e){}}
+function list(){
+var o=g('czrStList');if(!o)return;o.textContent='';
+var a=load();
+if(!a.length){o.appendChild(el('div','color:#9aa4b2;font-size:13px','لا مشاريع محفوظة · No saved projects'));return;}
+a.forEach(function(p,i){
+var r=el('div','display:flex;gap:8px;align-items:center;background:#1c2536;border-radius:10px;padding:8px 10px');
+var n=el('div','flex:1;color:#e8ecf3;font-size:14px;cursor:pointer',p.t);
+n.onclick=function(){S.topic=p.t;S.style=p.st;S.ar=AR.test(p.t);S.scenes=p.sc.slice();g('czrStTopic').value=p.t;render();};
+var d=el('span','color:#9aa4b2;font-size:18px;cursor:pointer','✕');
+d.onclick=function(){var b=load();b.splice(i,1);store(b);list();};
+r.appendChild(n);r.appendChild(d);o.appendChild(r);
+});
+}
+window.czrStSave=function(){if(!S.scenes.length)return;var a=load();a.unshift({t:S.topic,st:S.style,sc:S.scenes.slice(),d:Date.now()});store(a);list();toast('تم الحفظ · Saved');};
+function fix(){try{var st=g('tab-studio'),mo=document.getElementById('tab-more');if(st&&mo&&mo.parentNode&&st.parentNode!==mo.parentNode)mo.parentNode.insertBefore(st,mo.nextSibling);}catch(e){}}
+fix();
+list();
+try{fetch('/api/app/version',{credentials:'include'}).then(function(r){return r.json();}).then(function(v){var e=g('czrStVer');if(e)e.textContent='build '+v.build;}).catch(function(){});}catch(e){}
+})();
+</script>
+
+<nav class="bottom">
 
     <button data-tab="wallet" class="active" onclick="switchTab('wallet',this)">
 
@@ -4615,6 +5577,10 @@ window.addEventListener('error',function(e){try{alert('RESOURCE_ERROR: '+(e.mess
 
     </button>
 
+    <button data-tab="studio" onclick="switchTab('studio',this)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="m3 8 3-5h4l-3 5"/><path d="m11 8 3-5h4l-3 5"/></svg>
+      Studio
+    </button>
     <button data-tab="more" onclick="switchTab('more',this)">
 
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
@@ -5288,7 +6254,7 @@ async function mine(){
 
   if(r.status==='ok'){
 
-    toast('Mined! Height: '+r.height);
+    toast('Mined! Height: '+(r.height!=null?r.height:(r.block_height!=null?r.block_height:'new block')));
 
     await refreshWallet();
 
@@ -5864,7 +6830,7 @@ function getMyInviteLink(){
 
   const base = location.origin + location.pathname;
 
-  return 'https://tailscale-termux.tail57075d.ts.net' + '/?ref=' + a;
+  return 'https://zaraiskais-byte.github.io/myminer' + '/?ref=' + a.slice(0,12);
 
 }
 
@@ -8523,7 +9489,7 @@ CZR JS CHECKING
 
 <div id="lock">
 
-  <div class="logo">C</div>
+  <img src="/brand/gold.jpg" alt="Caesar CZR" style="width:210px;height:210px;border-radius:26px;object-fit:cover;display:block;margin:0 auto 14px;box-shadow:0 0 28px #e8c45a59">
 
   <h1>CAESAR CZR</h1>
 
@@ -8544,6 +9510,114 @@ CZR JS CHECKING
 <!-- ============ APP ============ -->
 
 <div id="app">
+<div id='czrUpd' style='display:none;position:fixed;top:0;left:0;right:0;z-index:1000;padding:12px 14px;background:#e8c45a;color:#000;font-weight:700;text-align:center;font-size:14px;cursor:pointer'></div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/.test(navigator.language||'ar')||true;
+function g(i){return document.getElementById(i);}
+setTimeout(function(){try{
+fetch('/api/app/version',{credentials:'include'}).then(function(r){return r.json();}).then(function(v){
+var cur=v&&v.build;if(!cur)return;
+return fetch('https://api.github.com/repos/zaraiskais-byte/myminer/releases?per_page=10').then(function(r){return r.json();}).then(function(rs){
+var best=null,n=0;
+(rs||[]).forEach(function(r){var m=/v3\.0\.(\d+)$/.exec(r.tag_name||'');if(m&&+m[1]>n){n=+m[1];best=r;}});
+if(!best||n<=cur)return;
+var url=best.html_url;
+(best.assets||[]).forEach(function(a){if(/\.apk$/i.test(a.name))url=a.browser_download_url;});
+var b=g('czrUpd');
+b.textContent='تحديث جديد '+n+' · اضغط للتنزيل · Update available, tap to download';
+b.onclick=function(){try{window.open(url,'_blank');}catch(e){location.href=url;}};
+b.style.display='block';document.body.style.paddingTop='46px';
+});
+}).catch(function(){});
+}catch(e){}},4000);
+})();
+</script>
+
+
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/,scenes=[],isAr=true;
+function g(i){return document.getElementById(i);}
+window.czrStOpen=function(){var b=g('czrStBox');b.style.display=b.style.display==='flex'?'none':'flex';};
+window.czrStGen=function(){
+var t=g('czrStTopic').value.trim();if(!t)return;
+isAr=AR.test(t);
+scenes=isAr?[
+'المشهد 1 - الخطاف: '+t+'؟ ثلاث ثوانٍ قد تغيّر نظرتك.',
+'المشهد 2 - المشكلة: كثيرون يريدون دخلًا رقميًا لكن الأدوات معقدة ومكلفة.',
+'المشهد 3 - الحل: Caesar CZR محفظة وتعدين من هاتفك مباشرة.',
+'المشهد 4 - الدليل: افتح التطبيق وشاهد المشاركات تُقبل أمامك.',
+'المشهد 5 - الدعوة: حمّل التطبيق وانضم عبر رابط الدعوة وابدأ التعدين اليوم.'
+]:[
+'Scene 1 - Hook: '+t+'? Three seconds that may change how you see it.',
+'Scene 2 - Problem: many people want digital income but the tools are complex and costly.',
+'Scene 3 - Solution: Caesar CZR is a wallet and miner right on your phone.',
+'Scene 4 - Proof: open the app and watch your shares get accepted live.',
+'Scene 5 - Call to action: download the app, join with the invite link and start mining today.'
+];
+var o=g('czrStOut');o.innerHTML='';
+scenes.forEach(function(x){var d=document.createElement('div');d.textContent=x;d.style.cssText='padding:8px 11px;border-radius:12px;background:#1c2536;color:#e8ecf3;font-size:14px;line-height:1.5';o.appendChild(d);});
+};
+window.czrStPlay=function(){
+if(!scenes.length||!window.speechSynthesis)return;
+try{speechSynthesis.cancel();scenes.forEach(function(x){var u=new SpeechSynthesisUtterance(x);u.lang=isAr?'ar-SA':'en-US';speechSynthesis.speak(u);});}catch(e){}
+};
+function txt(){return scenes.join('\n');}
+window.czrStCopy=function(){if(!scenes.length)return;try{navigator.clipboard.writeText(txt());}catch(e){}};
+window.czrStShare=function(){if(!scenes.length)return;try{if(navigator.share){navigator.share({text:txt()});}else{navigator.clipboard.writeText(txt());}}catch(e){}};
+window.czrStGo=function(u){try{window.open(u,'_blank');}catch(e){}};
+})();
+</script>
+
+
+<div id='czrBot' style='position:fixed;right:14px;bottom:96px;z-index:900'>
+<img id='czrBotBtn' src='/brand/caesar.jpg' alt='Caesar' onclick='czrBotToggle()' style='width:58px;height:58px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;box-shadow:0 0 18px #e8c45a73;display:block;cursor:pointer'>
+<div id='czrBotBox' style='display:none;flex-direction:column;position:fixed;left:10px;right:10px;bottom:164px;max-height:60vh;background:#0f1522;border:1px solid #e8c45a66;border-radius:16px;overflow:hidden;box-shadow:0 8px 30px #000000b3'>
+<div style='display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #ffffff1a'>
+<img src='/brand/caesar.jpg' alt='' style='width:36px;height:36px;border-radius:50%;object-fit:cover'>
+<b style='flex:1;color:#e8c45a'>قيصر · Caesar</b>
+<span id='czrBotVoice' onclick='czrBotVoice()' style='cursor:pointer;font-size:18px'>🔇</span>
+<span onclick='czrBotToggle()' style='cursor:pointer;font-size:18px;color:#9aa4b2'>✕</span>
+</div>
+<div id='czrBotLog' style='flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:120px'></div>
+<div style='display:flex;gap:8px;padding:10px;border-top:1px solid #ffffff1a'>
+<input id='czrBotIn' type='text' placeholder='اسأل · Ask' style='flex:1;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:10px;font-size:15px'>
+<button onclick='czrBotAsk()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 16px;font-weight:700'>➤</button>
+</div></div></div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/,voiceOn=false;
+function g(i){return document.getElementById(i);}
+function add(w,t){var l=g('czrBotLog'),d=document.createElement('div');d.textContent=t;d.style.cssText='white-space:pre-wrap;padding:8px 11px;border-radius:12px;max-width:88%;font-size:14px;line-height:1.5;'+(w==='u'?'align-self:flex-end;background:#e8c45a;color:#000':'align-self:flex-start;background:#1c2536;color:#e8ecf3');l.appendChild(d);l.scrollTop=l.scrollHeight;}
+function say(t,ar){if(!voiceOn)return;if(window.CzrTTS){try{window.CzrTTS.speak(t,ar?'ar':'en');}catch(e){}return;}if(!window.speechSynthesis)return;try{var u=new SpeechSynthesisUtterance(t);u.lang=ar?'ar-SA':'en-US';speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}}
+function jget(p){return fetch(p,{credentials:'include'}).then(function(r){return r.json();});}
+function T(ar,a,e){return Promise.resolve(ar?a:e);}
+function answer(q){
+var ar=AR.test(q),s=q.toLowerCase();
+function h(re){return re.test(s);}
+if(h(/(مرحبا|السلام|أهلا|اهلا|hello|\bhi\b|hey)/))return T(ar,'وعليكم السلام، أنا قيصر. اسألني عن الرصيد أو التعدين أو الإرسال أو رابط الدعوة.','Hello, I am Caesar. Ask me about your balance, mining, sending or your invite link.');
+if(h(/(شكرا|شكراً|thank)/))return T(ar,'على الرحب والسعة.','You are welcome.');
+if(h(/(دعوة|دعوه|إحالة|احالة|رابط|invite|referral|link)/))return T(ar,'رابط الدعوة في الصفحة الرئيسية ضمن بطاقة YOUR INVITE LINK. اضغط Copy وأرسله لأصدقائك، ويُسجَّل كل من ينضم عبره في دائرتك حتى أربعة مستويات.','Your invite link is in the YOUR INVITE LINK card on the main page. Tap Copy and share it. Everyone who joins through it is added to your circle, up to four levels.');
+if(h(/(سحب|دفع|payout|pay out)/))return jget('/api/pool/stats').then(function(j){var f=j.fee_percent;return ar?'من تبويب Pool اضغط Payout Now. يشترط وجود مشاركات معلّقة. رسوم المجمّع الحالية '+f+'٪، ويمكن تفعيل الدفع التلقائي كل 5 أو 10 أو 20 كتلة.':'In the Pool tab tap Payout Now. It needs pending shares. The current pool fee is '+f+'%, and auto-payout can run every 5, 10 or 20 blocks.';});
+if(h(/(رصيد|balance|كم لدي|كم عندي|how much)/))return jget('/api/balance').then(function(j){var v=j&&(j.balance!==undefined?j.balance:j.confirmed);if(v===undefined)throw 0;return ar?'الرصيد كما تعيده العقدة: '+v+'. ويظهر أيضًا في بطاقة BALANCE بالصفحة الرئيسية.':'Balance as returned by the node: '+v+'. It is also shown in the BALANCE card on the main page.';}).catch(function(){return ar?'يظهر رصيدك في بطاقة BALANCE بالصفحة الرئيسية.':'Your balance is shown in the BALANCE card on the main page.';});
+if(h(/(إرسال|ارسال|تحويل|send|transfer)/))return T(ar,'في قسم SEND CZR اكتب عنوان المستلم الذي يبدأ بـ CZ1 والمبلغ بالوحدات الذرية، ثم اضغط Send. تأكد من العنوان قبل الإرسال لأن المعاملات لا تُسترجع.','In the SEND CZR section enter the recipient address starting with CZ1 and the amount in atomic units, then tap Send. Check the address first because transactions cannot be reversed.');
+if(h(/(استلام|عنوان|receive|address|qr)/))return T(ar,'عنوان محفظتك ورمز QR في قسم RECEIVE. اضغط Copy لنسخ العنوان وشاركه مع من يريد إرسال CZR إليك.','Your wallet address and QR code are in the RECEIVE section. Tap Copy and share the address with whoever wants to send you CZR.');
+if(h(/(تعدين|تعدن|مشاركات|هاش|شير|mining|miner|shares|hash)/))return jget('/api/pool/stats').then(function(j){var n=(j.workers||[]).length;return ar?'العمّال المتصلون: '+n+'، وإجمالي المشاركات: '+j.total_shares+'، وارتفاع السلسلة: '+j.current_height+'. تجد سرعتك في بطاقة MINING STATUS.':'Connected workers: '+n+', total shares: '+j.total_shares+', chain height: '+j.current_height+'. Your speed is in the MINING STATUS card.';});
+if(h(/(مستخدم|مجتمع|أعضاء|اعضاء|users|community|members)/))return jget('/api/pool/community').then(function(j){return ar?'عدد المستخدمين: '+j.total_users+'، والنشطون خلال 24 ساعة: '+j.active_24h+'.':'Total users: '+j.total_users+', active in the last 24 hours: '+j.active_24h+'.';});
+if(h(/(كتلة|كتل|ارتفاع|شبكة|block|height|network|peers)/))return jget('/api/status').then(function(j){return ar?'ارتفاع السلسلة: '+j.height+'، وعدد النظراء: '+j.peers+'.':'Chain height: '+j.height+', peers: '+j.peers+'.';});
+if(h(/(pin|رمز|أمان|امان|حماية|security|backup|نسخة)/))return T(ar,'لا تشارك رمز PIN مع أحد. حذف التطبيق يمسح المحفظة من هذا الهاتف، فاحتفظ بنسخة من بياناتها قبل ذلك.','Never share your PIN. Uninstalling the app erases the wallet from this phone, so keep a backup of its data first.');
+if(h(/(ما هي|ما هو|من أنت|من انت|caesar|czr|what is|who are)/))return T(ar,'Caesar CZR عملة رقمية للهاتف المحمول من الطبقة الأولى، فيها مجمّع تعدين ومحفظة ومستكشف كتل وشجرة دعوة من أربعة مستويات. وأنا قيصر، دليلك داخل المحفظة.','Caesar CZR is a mobile-first Layer-1 cryptocurrency with a mining pool, wallet, block explorer and a four-level invite tree. I am Caesar, your guide inside the wallet.');
+return T(ar,'أجيب عن محفظتك: الرصيد والتعدين والإرسال والاستلام والدعوة والسحب والشبكة والأمان. أما الأسئلة العامة فتحتاج ربطي بخدمة ذكاء اصطناعي، وهذا غير مفعّل بعد.','I answer about your wallet: balance, mining, sending, receiving, invites, payouts, the network and security. General questions need an online AI service, which is not connected yet.');
+}
+window.czrBotAsk=function(){var i=g('czrBotIn'),q=i.value.trim();if(!q)return;i.value='';add('u',q);var ar=AR.test(q);answer(q).then(function(a){add('b',a);say(a,ar);}).catch(function(){add('b',ar?'تعذّر الاتصال بالعقدة الآن.':'Could not reach the node right now.');});};
+window.czrBotToggle=function(){var b=g('czrBotBox'),o=b.style.display!=='flex';b.style.display=o?'flex':'none';if(o&&!g('czrBotLog').children.length){add('b','أنا قيصر، دليل محفظتك. اسألني بالعربية أو بالإنجليزية.\nI am Caesar, your wallet guide. Ask me in Arabic or English.');}};
+window.czrBotVoice=function(){voiceOn=!voiceOn;g('czrBotVoice').textContent=voiceOn?'🔊':'🔇';if(!voiceOn&&window.speechSynthesis)speechSynthesis.cancel();};
+g('czrBotIn').addEventListener('keydown',function(e){if(e.key==='Enter')window.czrBotAsk();});
+})();
+</script>
+
+
 
   <header class="app-header">
 
@@ -8996,7 +10070,845 @@ CZR JS CHECKING
 
 
 
-  <nav class="bottom">
+  <style>nav.bottom{grid-template-columns:repeat(5,1fr)!important}nav.bottom button{min-width:0;flex:1 1 0}</style>
+<section class="tab" id="tab-studio"><div style='padding:14px 14px 120px'>
+<h2 style='color:#e8c45a;margin:0 0 4px'>🎬 Studio · استوديو</h2>
+<div style='color:#9aa4b2;font-size:13px;margin-bottom:12px'>اكتب فكرة فيديو لجلب مستخدمين جدد · Write a video idea to attract new users</div>
+<div style='display:flex;gap:8px;margin-bottom:10px'>
+<input id='czrStTopic' type='text' placeholder='فكرة الفيديو · Video idea' style='flex:1;min-width:0;background:#000;color:#fff;border:1px solid #333;border-radius:10px;padding:12px;font-size:15px'>
+<button onclick='czrStGen()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:0 16px;font-weight:700;font-size:18px'>✨</button>
+</div>
+<div style='display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap'>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='promo' style='background:#e8c45a;color:#000;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>ترويج · Promo</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='learn' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>تعليمي · Learn</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='style' data-v='story' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>قصة · Story</button>
+</div>
+<div id='czrStOut' style='display:flex;flex-direction:column;gap:8px;margin-bottom:12px'></div>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px'>
+<button onclick='czrStPreview()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>▶ معاينة بالصوت · Preview</button>
+<button onclick='czrStPlay()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>🔊</button>
+<button onclick='czrStStop()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>⏹</button>
+<button onclick='czrStSave()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>💾</button>
+</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:14px'>لتسجيل فيديو بصوت قيصر: شغّل تسجيل الشاشة في هاتفك ثم اضغط معاينة · To record a video with voice: start your phone screen recorder, then tap Preview</div>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>الوصف والهاشتاغ · Caption</div>
+<div style='display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap'>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='yt' style='background:#e8c45a;color:#000;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>YouTube</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='tt' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>TikTok</button>
+<button onclick='czrStSet(this.dataset.k,this.dataset.v,this)' data-k='plat' data-v='fb' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:8px 12px'>Facebook</button>
+</div>
+<textarea id='czrStCap' style='width:100%;box-sizing:border-box;min-height:110px;background:#000;color:#e8ecf3;border:1px solid #333;border-radius:10px;padding:10px;font-size:14px;line-height:1.5;margin-bottom:10px'></textarea>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px'>
+<button onclick='czrStCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Copy</button>
+<button onclick='czrStShare()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Share</button>
+</div>
+<div style='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px'>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://studio.youtube.com' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>YouTube ↗</button>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://www.tiktok.com/upload' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>TikTok ↗</button>
+<button onclick='czrStGo(this.dataset.u)' data-u='https://www.facebook.com/' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>Facebook ↗</button>
+</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:16px'>يُنسخ الوصف تلقائيًا قبل فتح المنصة · الصق الوصف عند الرفع. لا تَعِد بأرباح مضمونة في الفيديو.</div>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>مشاريعي · My projects</div>
+<div id='czrStList' style='display:flex;flex-direction:column;gap:6px'></div>
+<div id='czrMvBox' style='margin:6px 0 18px;padding:12px;border:1px solid #e8c45a66;border-radius:14px;background:#0f1522'>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:8px'>🎞 فيلم متحرك · Animated movie</div>
+<label style='display:inline-block;background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px;cursor:pointer;margin-bottom:8px'>🖼 اختر صورًا · Pick images<input id='czrMvFiles' type='file' accept='image/*' multiple style='display:none'></label>
+<span id='czrMvCount' style='color:#9aa4b2;font-size:13px;margin:0 8px'></span>
+<div><button onclick='czrMovie()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:12px 16px;font-weight:700;font-size:15px'>🎞 أنشئ الفيلم · Make movie</button></div>
+</div>
+<script>
+(function(){
+var imgs=[],tok=0,AR=/[\u0600-\u06FF]/;
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+if(!g('czrMvCss')){var st=document.createElement('style');st.id='czrMvCss';st.textContent='@keyframes czrKb{from{transform:scale(1) translate(0,0)}to{transform:scale(1.32) translate(-4%,-3%)}}@keyframes czrGl{0%{background-position:0% 50%}100%{background-position:100% 50%}}@keyframes czrPl{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}';document.head.appendChild(st);}
+var f=g('czrMvFiles');
+if(f)f.onchange=function(){imgs=[];for(var i=0;i<f.files.length&&i<12;i++){try{imgs.push(URL.createObjectURL(f.files[i]));}catch(e){}}var c=g('czrMvCount');if(c)c.textContent=imgs.length?imgs.length+' ✓':'';};
+function stop(){tok++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}var o=g('czrMvRoot');if(o)o.remove();}
+window.czrMovie=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),sc=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)sc.push(v);}
+if(!sc.length){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:3000;font-size:14px','اكتب فكرة واضغط ✨ أولًا · Write an idea and tap ✨ first');document.body.appendChild(t);setTimeout(function(){t.remove();},2200);}catch(e){}return;}
+stop();var my=tok;
+var ar=AR.test(sc.join(' '));
+var root=el('div','position:fixed;top:0;left:0;right:0;bottom:0;z-index:2500;background:#05080d;overflow:hidden');root.id='czrMvRoot';
+var bg=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:#05080d');
+var shade=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,0) 35%,rgba(0,0,0,.78) 100%)');
+var badge=el('img','position:absolute;top:22px;left:18px;width:62px;height:62px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;box-shadow:0 0 22px #e8c45a73;animation:czrPl 1.6s infinite');badge.src='/brand/caesar.jpg';
+var title=el('div','position:absolute;top:36px;left:92px;color:#e8c45a;font-weight:700;letter-spacing:2px;font-size:16px','CAESAR CZR');
+var x=el('div','position:absolute;top:22px;right:20px;color:#fff;font-size:30px;cursor:pointer;z-index:5','✕');x.onclick=stop;
+var tx=el('div','position:absolute;left:18px;right:18px;bottom:90px;color:#fff;font-size:27px;line-height:1.6;font-weight:700;text-align:center;text-shadow:0 2px 12px #000');
+tx.dir=ar?'rtl':'ltr';
+var bar=el('div','position:absolute;left:0;bottom:0;height:5px;background:#e8c45a;width:0;transition:width .6s');
+root.appendChild(bg);root.appendChild(shade);root.appendChild(badge);root.appendChild(title);root.appendChild(x);root.appendChild(tx);root.appendChild(bar);
+document.body.appendChild(root);
+function speak(text,cb){
+var done=false,tm;
+function fin(){if(done)return;done=true;clearTimeout(tm);cb();}
+try{if(window.speechSynthesis){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=ar?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}}catch(e){}
+tm=setTimeout(fin,Math.max(4000,text.length*130+2500));
+}
+function show(i){
+if(my!==tok)return;
+var text=sc[i],dur=Math.max(3000,text.length*95);
+bg.style.animation='none';bg.style.backgroundImage='none';void bg.offsetWidth;
+if(imgs.length){bg.style.backgroundImage='url("'+imgs[i%imgs.length]+'")';bg.style.backgroundSize='cover';bg.style.backgroundPosition='center';bg.style.animation='czrKb '+(dur/1000+2)+'s ease-out forwards';}
+else{var gr=['#0a1020,#1a2440,#3a2e10','#101a2e,#2b1f0a,#0a1020','#1a1408,#0a1020,#243252'][i%3];bg.style.backgroundImage='linear-gradient(135deg,'+gr+')';bg.style.backgroundSize='300% 300%';bg.style.animation='czrGl '+(dur/1000+2)+'s ease-in-out forwards';}
+tx.textContent='';
+var ws=text.split(' '),sp=[];
+ws.forEach(function(w){var s=el('span','opacity:0;transition:opacity .35s;display:inline-block;margin:0 5px',w);tx.appendChild(s);sp.push(s);});
+var step=dur/Math.max(1,ws.length);
+sp.forEach(function(s,k){setTimeout(function(){if(my===tok)s.style.opacity='1';},120+k*step*0.8);});
+bar.style.width=((i+1)/sc.length*100)+'%';
+var t0=Date.now();
+speak(text,function(){
+var wait=Math.max(0,dur-(Date.now()-t0))+350;
+setTimeout(function(){if(my!==tok)return;if(i+1<sc.length)show(i+1);else endCard();},wait);
+});
+}
+function endCard(){
+if(my!==tok)return;
+bg.style.animation='none';bg.style.backgroundImage='linear-gradient(135deg,#0a1020,#3a2e10)';
+tx.textContent=ar?'Caesar CZR · الرابط في الوصف':'Caesar CZR · link in the description';
+setTimeout(function(){if(my===tok)stop();},3500);
+}
+show(0);
+};
+})();
+</script>
+<script>
+(function(){
+var czrMovie2=1,tok=0,AR=/[\u0600-\u06FF]/,mus=null,warned=false;
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function toast(m){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4000;font-size:14px;max-width:86%;text-align:center',m);document.body.appendChild(t);setTimeout(function(){t.remove();},3200);}catch(e){}}
+if(!g('czrMv2Css')){var st=document.createElement('style');st.id='czrMv2Css';st.textContent='@keyframes czrZ1{from{transform:scale(1) translate(0,0)}to{transform:scale(1.32) translate(-3%,-2%)}}@keyframes czrZ2{from{transform:scale(1.34)}to{transform:scale(1.02)}}@keyframes czrZ3{from{transform:scale(1.22) translateX(5%)}to{transform:scale(1.22) translateX(-5%)}}@keyframes czrSpin{from{transform:rotateY(0)}to{transform:rotateY(360deg)}}@keyframes czrGlo{0%,100%{box-shadow:0 0 30px #e8c45a73}50%{box-shadow:0 0 70px #e8c45acc}}@keyframes czrGr{0%{background-position:0% 50%}100%{background-position:100% 50%}}@keyframes czrIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}';document.head.appendChild(st);}
+function music(){
+try{
+var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return null;
+var c=new AC();if(c.resume)c.resume();
+var m=c.createGain();m.gain.value=0.55;
+var f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=1500;f.connect(m);m.connect(c.destination);
+var ch=[[220,261.63,329.63],[174.61,220,261.63],[261.63,329.63,392],[196,246.94,293.66]];
+function note(fr,t,v,d,ty){var o=c.createOscillator(),gg=c.createGain();o.type=ty||'triangle';o.frequency.value=fr;gg.gain.setValueAtTime(0.0001,t);gg.gain.linearRampToValueAtTime(v,t+0.04);gg.gain.exponentialRampToValueAtTime(0.0001,t+d);o.connect(gg);gg.connect(f);o.start(t);o.stop(t+d+0.05);}
+var step=0;
+var iv=setInterval(function(){var t=c.currentTime,cc=ch[Math.floor(step/8)%4];note(cc[step%3]*2,t,0.06,0.7);if(step%8===0){cc.forEach(function(x){note(x/2,t,0.05,3.8,'sine');});}step++;},380);
+return {stop:function(){clearInterval(iv);try{m.gain.linearRampToValueAtTime(0,c.currentTime+0.5);}catch(e){}setTimeout(function(){try{c.close();}catch(e){}},700);}};
+}catch(e){return null;}
+}
+function stop(){tok++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}if(mus){mus.stop();mus=null;}var o=g('czrMvRoot');if(o)o.remove();}
+window.czrMovie=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),sc=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)sc.push(v);}
+if(!sc.length){toast('اكتب فكرة واضغط ✨ أولًا · Write an idea and tap ✨ first');return;}
+stop();var my=tok;
+var ar=AR.test(sc.join(' '));
+var imgs=[];try{var fl=g('czrMvFiles').files;for(var k=0;k<fl.length&&k<12;k++)imgs.push(URL.createObjectURL(fl[k]));}catch(e){}
+var W=Math.max(300,window.innerWidth),H=Math.max(500,window.innerHeight);
+var root=el('div','position:fixed;top:0;left:0;right:0;bottom:0;z-index:2500;background:#05080d;overflow:hidden');root.id='czrMvRoot';
+var bg=el('div','position:absolute;top:-4%;left:-4%;right:-4%;bottom:-4%;background:#05080d');
+var cv=el('canvas','position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none');cv.width=W;cv.height=H;
+var shade=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 35%,rgba(0,0,0,.82) 100%)');
+var flash=el('div','position:absolute;top:0;left:0;right:0;bottom:0;background:#000;opacity:0;transition:opacity .35s;pointer-events:none');
+var badge=el('img','position:absolute;top:22px;left:18px;width:58px;height:58px;border-radius:50%;object-fit:cover;border:2px solid #e8c45a;animation:czrGlo 2s infinite;opacity:0;transition:opacity .5s');badge.src='/brand/caesar.jpg';
+var title=el('div','position:absolute;top:38px;left:88px;color:#e8c45a;font-weight:700;letter-spacing:3px;font-size:15px;opacity:0;transition:opacity .5s','CAESAR CZR');
+var big=el('div','position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .6s');
+var coin=el('img','width:190px;height:190px;border-radius:50%;object-fit:cover;border:4px solid #e8c45a;animation:czrSpin 2.6s linear infinite,czrGlo 2s infinite');coin.src='/brand/caesar.jpg';
+var bt=el('div','color:#e8c45a;font-size:30px;font-weight:700;letter-spacing:5px;margin-top:26px;text-shadow:0 0 22px #e8c45a99','CAESAR CZR');
+var bs=el('div','color:#fff;font-size:17px;margin-top:10px;opacity:.85',ar?'قيصر يقدّم لكم':'Caesar presents');
+big.appendChild(coin);big.appendChild(bt);big.appendChild(bs);
+var box=el('div','position:absolute;left:14px;right:14px;bottom:78px;padding:14px 12px;border-radius:18px;background:rgba(0,0,0,.38);text-align:center');
+var tx=el('div','color:#fff;font-size:26px;line-height:1.65;font-weight:700;text-shadow:0 2px 12px #000');tx.dir=ar?'rtl':'ltr';
+box.appendChild(tx);box.style.opacity='0';
+var bar=el('div','position:absolute;left:0;bottom:0;height:5px;background:#e8c45a;width:0;transition:width .6s');
+var x=el('div','position:absolute;top:20px;right:20px;color:#fff;font-size:30px;cursor:pointer;z-index:6','✕');x.onclick=stop;
+[bg,cv,shade,flash,badge,title,big,box,bar,x].forEach(function(n){root.appendChild(n);});
+document.body.appendChild(root);
+var cx=cv.getContext('2d'),P=[];
+for(var q=0;q<48;q++)P.push({x:Math.random()*W,y:Math.random()*H,r:1+Math.random()*2.8,v:.4+Math.random()*1.3,a:Math.random()*6});
+(function loop(){if(my!==tok)return;cx.clearRect(0,0,W,H);for(var j=0;j<P.length;j++){var p=P[j];p.y-=p.v;p.a+=.04;if(p.y<-8){p.y=H+8;p.x=Math.random()*W;}cx.globalAlpha=.3+.4*Math.sin(p.a);cx.fillStyle='#e8c45a';cx.beginPath();cx.arc(p.x,p.y,p.r,0,6.283);cx.fill();}requestAnimationFrame(loop);})();
+mus=music();
+function speak(text,cb){
+var done=false,tm;
+function fin(){if(done)return;done=true;clearTimeout(tm);cb();}
+try{if(window.speechSynthesis){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=ar?'ar-SA':'en-US';u.rate=.95;u.pitch=.9;
+var vs=speechSynthesis.getVoices()||[],pre=ar?'ar':'en',vv=null;
+for(var a=0;a<vs.length;a++){if(vs[a].lang&&vs[a].lang.toLowerCase().indexOf(pre)===0){vv=vs[a];break;}}
+if(vv)u.voice=vv;else if(ar&&vs.length&&!warned){warned=true;toast('لا يوجد صوت عربي في هاتفك: الإعدادات > اللغة > تحويل النص إلى كلام');}
+u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}}catch(e){}
+tm=setTimeout(fin,Math.max(4000,text.length*130+2500));
+}
+var kb=['czrZ1','czrZ2','czrZ3'];
+function show(i){
+if(my!==tok)return;
+var text=sc[i],dur=Math.max(3200,text.length*95);
+flash.style.opacity='1';
+setTimeout(function(){
+if(my!==tok)return;
+bg.style.animation='none';bg.style.backgroundImage='none';void bg.offsetWidth;
+if(imgs.length){bg.style.backgroundImage='url("'+imgs[i%imgs.length]+'")';bg.style.backgroundSize='cover';bg.style.backgroundPosition='center';bg.style.animation=kb[i%3]+' '+(dur/1000+3)+'s ease-out forwards';}
+else{var gr=['#0a1020,#1a2440,#4a3810','#101a2e,#3a2a0a,#0a1020','#2a1c06,#0a1020,#243252'][i%3];bg.style.backgroundImage='linear-gradient(135deg,'+gr+')';bg.style.backgroundSize='300% 300%';bg.style.animation='czrGr '+(dur/1000+3)+'s ease-in-out forwards';}
+flash.style.opacity='0';
+box.style.opacity='1';tx.textContent='';
+var ws=text.split(' '),sp=[];
+ws.forEach(function(w){var s=el('span','opacity:0;display:inline-block;margin:0 5px',w);tx.appendChild(s);sp.push(s);});
+var step=dur/Math.max(1,ws.length);
+sp.forEach(function(s,n){setTimeout(function(){if(my===tok){s.style.animation='czrIn .45s forwards';}},150+n*step*0.78);});
+bar.style.width=((i+1)/sc.length*100)+'%';
+var t0=Date.now();
+speak(text,function(){
+var wait=Math.max(0,dur-(Date.now()-t0))+300;
+setTimeout(function(){if(my!==tok)return;if(i+1<sc.length)show(i+1);else outro();},wait);
+});
+},350);
+}
+function outro(){
+if(my!==tok)return;
+flash.style.opacity='1';box.style.opacity='0';badge.style.opacity='0';title.style.opacity='0';
+setTimeout(function(){
+if(my!==tok)return;
+bg.style.animation='none';bg.style.backgroundImage='linear-gradient(135deg,#0a1020,#4a3810)';
+bs.textContent=ar?'الرابط في الوصف · انضم الآن':'Link in the description · Join now';
+big.style.opacity='1';flash.style.opacity='0';
+setTimeout(function(){if(my===tok)stop();},4200);
+},400);
+}
+big.style.opacity='1';
+setTimeout(function(){
+if(my!==tok)return;
+big.style.opacity='0';badge.style.opacity='1';title.style.opacity='1';
+setTimeout(function(){show(0);},500);
+},2800);
+};
+})();
+</script>
+<div id='czrPrBox' style='margin:6px 0 18px;padding:12px;border:1px solid #e8c45a66;border-radius:14px;background:#0f1522'>
+<div style='color:#e8c45a;font-weight:700;margin-bottom:6px'>🖼 أوامر صور الذكاء الاصطناعي · Image prompts</div>
+<div style='color:#9aa4b2;font-size:12px;margin-bottom:8px'>الصق كل أمر في تطبيق توليد صور على هاتفك (Off Grid أو Local Dream) · Paste each prompt into an on-device image app</div>
+<div style='display:flex;gap:8px;margin-bottom:8px'>
+<button onclick='czrPrompts()' style='background:#e8c45a;color:#000;border:0;border-radius:10px;padding:10px 14px;font-weight:700'>✨ ولّد الأوامر</button>
+<button onclick='czrPrCopy()' style='background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px'>Copy</button>
+</div>
+<textarea id='czrPrOut' style='width:100%;box-sizing:border-box;min-height:150px;background:#000;color:#e8ecf3;border:1px solid #333;border-radius:10px;padding:10px;font-size:13px;line-height:1.5'></textarea>
+</div>
+<script>
+(function(){
+var AR=/[\u0600-\u06FF]/;
+function g(i){return document.getElementById(i);}
+function toast(m){try{var t=document.createElement('div');t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4000;font-size:14px';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove();},2200);}catch(e){}}
+var roles=[
+'dramatic close-up of a curious person looking at a phone, glowing golden light',
+'frustrated person at a desk with complicated charts, dim blue light',
+'hand holding a smartphone with a glowing golden coin on the screen, bright optimistic light',
+'phone screen showing a mining dashboard with green numbers, shallow depth of field',
+'confident smiling person holding a phone, golden hour, welcoming mood'
+];
+window.czrPrompts=function(){
+var tas=document.querySelectorAll('#czrStOut textarea');
+if(!tas.length){toast('اكتب فكرة واضغط ✨ أولًا · Write an idea and tap ✨ first');return;}
+var tp=(g('czrStTopic').value||'').trim();
+var theme=(tp&&!AR.test(tp))?', theme: '+tp:'';
+var out=[];
+for(var i=0;i<tas.length;i++){out.push('Scene '+(i+1)+':\nphotorealistic, cinematic, vertical 9:16, '+roles[i%roles.length]+theme+', highly detailed, sharp focus\n');}
+out.push('Negative prompt:\ntext, watermark, logo, deformed hands, extra fingers, blurry, low quality');
+g('czrPrOut').value=out.join('\n');
+};
+window.czrPrCopy=function(){
+var t=g('czrPrOut').value;if(!t)return;
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t);toast('تم النسخ · Copied');return;}}catch(e){}
+try{var o=g('czrPrOut');o.select();document.execCommand('copy');toast('تم النسخ · Copied');}catch(e){}
+};
+})();
+</script>
+<script>
+(function(){
+var czrAlgo=1;
+function g(i){return document.getElementById(i);}
+var old=window.czrMovie,coins=[];
+function hex(n){var x=((n+3)*2654435761)>>>0,s='';for(var i=0;i<6;i++){s+='0123456789abcdef'.charAt((x>>>(i*4))&15);}return s;}
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function pick(txt,idx){
+var s=txt.toLowerCase();
+if(/(دعوة|انضم|رابط|invite|join|link)/.test(s))return 'net';
+if(/(تعدين|مشاركات|كتلة|mining|shares|block)/.test(s))return 'chain';
+if(/(محفظة|رمز|أمان|wallet|pin|never)/.test(s))return 'shield';
+if(/(دخل|ربح|income|grow|simple|بسيط)/.test(s))return 'chart';
+if(/(عملة|عملات|coin|crypto)/.test(s))return 'coins';
+return ['chart','chain','coins','net','shield'][idx%5];
+}
+var D={};
+D.rings=function(c,W,H,t){
+var X=W/2,Y=H*0.36,u=Math.min(W,H)*0.14;
+for(var j=0;j<3;j++){c.setLineDash([8,10]);c.lineDashOffset=-t*30*(j%2?1:-1);c.strokeStyle='rgba(232,196,90,'+(0.55-j*0.12)+')';c.lineWidth=2;c.beginPath();c.arc(X,Y,u*(1.4+j*0.9),0,6.283);c.stroke();}
+c.setLineDash([]);
+};
+D.coins=function(c,W,H,t,dt){
+if(!coins.length||coins.W!==W){coins=[];coins.W=W;for(var i=0;i<26;i++)coins.push({x:Math.random()*W,y:-Math.random()*H,v:120+Math.random()*180,r:12+Math.random()*16,ph:Math.random()*6.28,sp:2+Math.random()*4});}
+coins.forEach(function(k){
+k.y+=k.v*dt;if(k.y>H+30){k.y=-30;k.x=Math.random()*W;}
+c.save();c.translate(k.x,k.y);
+var w=Math.abs(Math.cos(k.ph+t*k.sp))*k.r+1.5;
+var gr=c.createLinearGradient(-w,0,w,0);gr.addColorStop(0,'#a8821f');gr.addColorStop(0.5,'#ffe27a');gr.addColorStop(1,'#a8821f');
+c.fillStyle=gr;c.beginPath();c.ellipse(0,0,w,k.r,0,0,6.283);c.fill();
+c.strokeStyle='#7a5c10';c.lineWidth=2;c.beginPath();c.ellipse(0,0,w*0.62,k.r*0.62,0,0,6.283);c.stroke();
+c.restore();
+});
+};
+D.chain=function(c,W,H,t,dt,idx){
+var n=4,bw=W*0.19,bh=bw*1.15,gap=W*0.045,x0=(W-(n*bw+(n-1)*gap))/2,y=H*0.32;
+for(var k=0;k<n;k++){
+var st=k*0.7;if(t<st)continue;
+var p=Math.min(1,(t-st)/0.4),sc=0.6+0.4*p+(p<1?0:0.03*Math.sin(t*4+k));
+var x=x0+k*(bw+gap);
+if(k>0){c.strokeStyle='rgba(232,196,90,'+(0.9*p)+')';c.lineWidth=5;c.beginPath();c.moveTo(x-gap,y+bh/2);c.lineTo(x,y+bh/2);c.stroke();}
+c.save();c.translate(x+bw/2,y+bh/2);c.scale(sc,sc);c.globalAlpha=p;
+c.shadowColor='#e8c45a';c.shadowBlur=18;
+c.fillStyle='#14203a';rr(c,-bw/2,-bh/2,bw,bh,10);c.fill();
+c.strokeStyle='#e8c45a';c.lineWidth=3;c.stroke();c.shadowBlur=0;
+c.fillStyle='#e8c45a';c.font='bold '+Math.round(bw*0.17)+'px monospace';c.textAlign='center';
+c.fillText('BLOCK',0,-bh*0.12);
+c.fillStyle='#9fb3d9';c.font=Math.round(bw*0.15)+'px monospace';
+c.fillText('#'+hex(k+idx*4),0,bh*0.16);
+c.restore();
+}
+};
+function npos(k,i,t,W,H){
+var cnt=[4,7,10,14][k],u=Math.min(W,H)*0.115,a=(i/cnt)*6.283+k*0.5+t*0.06*(k%2?1:-1);
+return {x:W/2+Math.cos(a)*u*(k+1)*1.05,y:H*0.36+Math.sin(a)*u*(k+1)*1.05};
+}
+D.net=function(c,W,H,t){
+var cnt=[4,7,10,14],X=W/2,Y=H*0.36;
+for(var k=0;k<4;k++){
+var st=0.5+k*0.8;if(t<st)continue;
+var p=Math.min(1,(t-st)/0.6);
+for(var i=0;i<cnt[k];i++){
+var q=npos(k,i,t,W,H),par=k===0?{x:X,y:Y}:npos(k-1,Math.floor(i*cnt[k-1]/cnt[k]),t,W,H);
+c.strokeStyle='rgba(232,196,90,'+(0.55*p)+')';c.lineWidth=2;c.beginPath();c.moveTo(par.x,par.y);c.lineTo(par.x+(q.x-par.x)*p,par.y+(q.y-par.y)*p);c.stroke();
+c.fillStyle='rgba(232,196,90,'+p+')';c.beginPath();c.arc(q.x,q.y,Math.max(3,8-k*1.2)*p,0,6.283);c.fill();
+}
+}
+c.save();c.shadowColor='#e8c45a';c.shadowBlur=26;c.fillStyle='#ffe27a';c.beginPath();c.arc(X,Y,14+2*Math.sin(t*4),0,6.283);c.fill();c.restore();
+};
+D.shield=function(c,W,H,t){
+var X=W/2,Y=H*0.36,s=Math.min(W,H)*0.2;
+for(var j=0;j<3;j++){var r=(t*0.5+j/3)%1;c.strokeStyle='rgba(232,196,90,'+((1-r)*0.4)+')';c.lineWidth=3;c.beginPath();c.arc(X,Y,s*(1+r*1.3),0,6.283);c.stroke();}
+c.save();c.translate(X,Y);var sc=1+0.03*Math.sin(t*3);c.scale(sc,sc);
+c.shadowColor='#e8c45a';c.shadowBlur=28;
+var gr=c.createLinearGradient(0,-s,0,s);gr.addColorStop(0,'#ffe27a');gr.addColorStop(1,'#8a6a14');
+c.fillStyle=gr;c.beginPath();c.moveTo(0,-s);c.lineTo(s*0.85,-s*0.55);c.lineTo(s*0.85,s*0.1);c.quadraticCurveTo(s*0.85,s*0.7,0,s);c.quadraticCurveTo(-s*0.85,s*0.7,-s*0.85,s*0.1);c.lineTo(-s*0.85,-s*0.55);c.closePath();c.fill();
+c.shadowBlur=0;c.fillStyle='#0a1020';c.beginPath();c.arc(0,-s*0.12,s*0.17,0,6.283);c.fill();
+c.fillRect(-s*0.05,-s*0.12,s*0.1,s*0.4);
+c.restore();
+};
+D.chart=function(c,W,H,t){
+var x0=W*0.1,x1=W*0.9,yb=H*0.5,yt=H*0.18,n=14,pr=Math.min(1,t/2.4);
+c.strokeStyle='rgba(255,255,255,0.12)';c.lineWidth=1;
+for(var g2=0;g2<4;g2++){var gy=yb-(yb-yt)*g2/3;c.beginPath();c.moveTo(x0,gy);c.lineTo(x1,gy);c.stroke();}
+function val(i){return Math.min(1,Math.max(0,0.12+0.8*(i/(n-1))+0.07*Math.sin(i*1.7)));}
+var m=pr*(n-1),pts=[];
+for(var i=0;i<=Math.floor(m);i++)pts.push({x:x0+(x1-x0)*i/(n-1),y:yb-(yb-yt)*val(i)});
+var f=m-Math.floor(m);
+if(Math.floor(m)<n-1){var a=Math.floor(m);pts.push({x:x0+(x1-x0)*(a+f)/(n-1),y:yb-(yb-yt)*(val(a)+(val(a+1)-val(a))*f)});}
+if(pts.length<2)return;
+var gr=c.createLinearGradient(0,yt,0,yb);gr.addColorStop(0,'rgba(232,196,90,0.35)');gr.addColorStop(1,'rgba(232,196,90,0)');
+c.fillStyle=gr;c.beginPath();c.moveTo(pts[0].x,yb);pts.forEach(function(q){c.lineTo(q.x,q.y);});c.lineTo(pts[pts.length-1].x,yb);c.closePath();c.fill();
+c.strokeStyle='#e8c45a';c.lineWidth=4;c.shadowColor='#e8c45a';c.shadowBlur=14;c.beginPath();pts.forEach(function(q,i){if(i)c.lineTo(q.x,q.y);else c.moveTo(q.x,q.y);});c.stroke();
+var e=pts[pts.length-1];c.fillStyle='#fff';c.beginPath();c.arc(e.x,e.y,7+1.5*Math.sin(t*6),0,6.283);c.fill();c.shadowBlur=0;
+};
+window.czrMovie=function(){
+old();
+var root=g('czrMvRoot');if(!root||root.getAttribute('data-algo'))return;
+root.setAttribute('data-algo','1');
+var box=root.children[7];
+var W=Math.max(300,window.innerWidth),H=Math.max(500,window.innerHeight);
+var cv=document.createElement('canvas');cv.width=W;cv.height=H;cv.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none';
+root.insertBefore(cv,root.children[1]||null);
+var cx=cv.getContext('2d'),type='rings',idx=-1,last='',t0=performance.now(),prev=t0;
+(function loop(){
+if(g('czrMvRoot')!==root)return;
+var now=performance.now(),dt=Math.min(0.05,(now-prev)/1000);prev=now;
+var txt=box?(box.textContent||'').trim():'';
+if(box&&box.style.opacity==='0')txt='';
+if(txt!==last){last=txt;t0=now;if(txt){idx++;type=pick(txt,idx);}else type='rings';}
+cx.clearRect(0,0,W,H);
+var fl=g('czrMvFiles'),hasImg=fl&&fl.files&&fl.files.length>0;
+if(!hasImg){var t=(now-t0)/1000;cx.save();cx.globalAlpha=Math.min(1,t*1.6);try{D[type](cx,W,H,t,dt,idx);}catch(e){}cx.restore();}
+requestAnimationFrame(loop);
+})();
+};
+})();
+</script>
+<script>
+(function(){
+var czrStBook=1;
+setTimeout(function(){
+var AR=/[\u0600-\u06FF]/,old=window.czrStGen,off=0,book=[],pt=0,PER=10;
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function chunks(t){
+var ws=t.replace(/\s+/g,' ').trim().split(' '),out=[],cur=[];
+for(var i=0;i<ws.length;i++){cur.push(ws[i]);if(cur.length>=22){out.push(cur.join(' '));cur=[];}}
+if(cur.length)out.push(cur.join(' '));
+return out;
+}
+function helpers(){
+var o=g('czrStOut');if(!o)return;
+if(!g('czrStInfo')){var inf=el('div','color:#e8c45a;font-size:13px;margin:0 0 8px');inf.id='czrStInfo';o.parentNode.insertBefore(inf,o);}
+if(!g('czrStNext')){
+var b=el('button','background:#1c2536;color:#e8c45a;border:1px solid #e8c45a66;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:none','الجزء التالي ➡ · Next part');b.id='czrStNext';
+b.onclick=function(){off+=PER;if(off>=book.length)off=0;show();};
+o.parentNode.insertBefore(b,o.nextSibling);
+}
+}
+function show(){
+helpers();
+var o=g('czrStOut');o.textContent='';
+book.slice(off,off+PER).forEach(function(x){
+o.appendChild(el('textarea','width:100%;box-sizing:border-box;min-height:62px;background:#1c2536;color:#e8ecf3;border:1px solid #2a3550;border-radius:12px;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical',x));
+});
+var total=Math.ceil(book.length/PER),cur=Math.floor(off/PER)+1;
+g('czrStInfo').textContent='الجزء '+cur+' من '+total+' · Part '+cur+' of '+total;
+g('czrStNext').style.display=total>1?'inline-block':'none';
+var first=(book[off]||'').split(' ').slice(0,6).join(' ');
+g('czrStCap').value=first+' ...\n\nCaesar CZR\n#CaesarCZR';
+}
+window.czrStGen=function(){
+var t=(g('czrStTopic').value||'').trim();
+if(t.length<=180){var nx=g('czrStNext'),inf=g('czrStInfo');if(nx)nx.style.display='none';if(inf)inf.textContent='';return old?old():undefined;}
+book=chunks(t);off=0;show();
+};
+var os=window.czrStStop;
+window.czrStStop=function(){pt++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}if(os)os();};
+window.czrStPlay=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),L=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)L.push(v);}
+if(!L.length||!window.speechSynthesis)return;
+var my=++pt;try{speechSynthesis.cancel();}catch(e){}
+(function next(i){
+if(my!==pt||i>=L.length)return;
+var done=false;
+function fin(){if(done)return;done=true;next(i+1);}
+try{var u=new SpeechSynthesisUtterance(L[i]);u.lang=AR.test(L[i])?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}catch(e){}
+setTimeout(fin,Math.max(5000,L[i].length*150+3000));
+})(0);
+};
+},400);
+})();
+</script>
+<script>
+(function(){
+var czrStFull=1;
+setTimeout(function(){
+var AR=/[\u0600-\u06FF]/,full=false,pt=0,base=window.czrStGen,prevMovie=window.czrMovie,em=[];
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function chunks(t,n){var ws=t.replace(/\s+/g,' ').trim().split(' '),out=[],cur=[];for(var i=0;i<ws.length;i++){cur.push(ws[i]);if(cur.length>=n){out.push(cur.join(' '));cur=[];}}if(cur.length)out.push(cur.join(' '));return out;}
+function info(msg){var o=g('czrStOut');if(!o)return;var inf=g('czrStInfo');if(!inf){inf=el('div','color:#e8c45a;font-size:13px;margin:0 0 8px');inf.id='czrStInfo';o.parentNode.insertBefore(inf,o);}inf.textContent=msg;}
+window.czrStGen=function(){
+var t=(g('czrStTopic').value||'').trim();
+var nx=g('czrStNext');
+if(t.length<=180){full=false;if(nx)nx.style.display='none';info('');return base?base():undefined;}
+full=true;if(nx)nx.style.display='none';
+var sc=chunks(t,40),o=g('czrStOut');o.textContent='';
+sc.forEach(function(x){o.appendChild(el('textarea','width:100%;box-sizing:border-box;min-height:88px;background:#1c2536;color:#e8ecf3;border:1px solid #2a3550;border-radius:12px;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical',x));});
+var words=t.split(/\s+/).length;
+info('القصة كاملة: '+sc.length+' مشهد · نحو '+Math.max(1,Math.round(words/130))+' دقيقة · Full story: '+sc.length+' scenes');
+g('czrStCap').value=sc[0].split(' ').slice(0,6).join(' ')+' ...\n\nCaesar CZR\n#CaesarCZR';
+};
+var os=window.czrStStop;
+window.czrStStop=function(){pt++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}if(os)os();};
+window.czrStPlay=function(){
+var tas=document.querySelectorAll('#czrStOut textarea'),L=[];
+for(var i=0;i<tas.length;i++){var v=tas[i].value.trim();if(v)L.push(v);}
+if(!L.length||!window.speechSynthesis)return;
+var my=++pt;try{speechSynthesis.cancel();}catch(e){}
+(function next(i){
+if(my!==pt||i>=L.length)return;
+var done=false;function fin(){if(done)return;done=true;next(i+1);}
+try{var u=new SpeechSynthesisUtterance(L[i]);u.lang=AR.test(L[i])?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}catch(e){}
+setTimeout(fin,Math.max(6000,L[i].length*160+3000));
+})(0);
+};
+var V={};
+V.magic=function(c,W,H,t){
+var X=W/2,Y=H*0.34,u=Math.min(W,H)*0.26;
+c.strokeStyle='rgba(232,196,90,.85)';c.lineWidth=2;c.shadowColor='#e8c45a';c.shadowBlur=14;
+[1,0.78,0.5].forEach(function(f){c.beginPath();c.arc(X,Y,u*f,0,6.283);c.stroke();});
+for(var i=0;i<24;i++){var a=i/24*6.283+t*0.5,r=u*(i%2?0.9:0.96);c.beginPath();c.moveTo(X+Math.cos(a)*u*0.78,Y+Math.sin(a)*u*0.78);c.lineTo(X+Math.cos(a)*r,Y+Math.sin(a)*r);c.stroke();}
+for(var k=0;k<2;k++){c.beginPath();for(var j=0;j<3;j++){var b=j/3*6.283+(k?1.0472:0)-t*0.7*(k?-1:1),px=X+Math.cos(b)*u*0.78,py=Y+Math.sin(b)*u*0.78;if(j)c.lineTo(px,py);else c.moveTo(px,py);}c.closePath();c.stroke();}
+c.shadowBlur=0;
+};
+V.mount=function(c,W,H,t){
+var mx=W*0.72,my=H*0.16,mr=Math.min(W,H)*0.07;
+c.fillStyle='#fff6d8';c.shadowColor='#fff6d8';c.shadowBlur=30;c.beginPath();c.arc(mx,my,mr,0,6.283);c.fill();c.shadowBlur=0;
+for(var i=0;i<30;i++){var sx=(i*97%100)/100*W,sy=(i*53%40)/100*H;c.globalAlpha=0.4+0.4*Math.sin(t*2+i);c.fillStyle='#fff';c.fillRect(sx,sy,2,2);}
+c.globalAlpha=1;
+var cols=['#101a30','#0b1224','#070c18'],base2=[H*0.52,H*0.58,H*0.64];
+for(var l=0;l<3;l++){c.fillStyle=cols[l];c.beginPath();c.moveTo(0,H);for(var x=0;x<=W;x+=12){var y=base2[l]-Math.abs(Math.sin((x/W)*(3+l)*3.14+l*2+t*0.05*(l+1)))*H*(0.14-l*0.02);c.lineTo(x,y);}c.lineTo(W,H);c.closePath();c.fill();}
+};
+V.ember=function(c,W,H,t,dt){
+var gr=c.createLinearGradient(0,H*0.5,0,H);gr.addColorStop(0,'rgba(255,122,47,0)');gr.addColorStop(1,'rgba(255,122,47,0.35)');c.fillStyle=gr;c.fillRect(0,H*0.5,W,H*0.5);
+if(!em.length){for(var i=0;i<60;i++)em.push({x:Math.random()*W,y:H*Math.random(),v:30+Math.random()*80,r:1+Math.random()*3,p:Math.random()*6});}
+em.forEach(function(e){e.y-=e.v*dt;e.x+=Math.sin(t*2+e.p)*0.6;if(e.y<-10){e.y=H+10;e.x=Math.random()*W;}c.globalAlpha=0.5+0.4*Math.sin(t*5+e.p);c.fillStyle=e.r>2.2?'#ffb347':'#ff7a2f';c.beginPath();c.arc(e.x,e.y,e.r,0,6.283);c.fill();});
+c.globalAlpha=1;
+};
+var names=['magic','mount','ember'];
+window.czrMovie=function(){
+prevMovie();
+if(!full)return;
+var root=g('czrMvRoot');if(!root||root.getAttribute('data-story'))return;
+root.setAttribute('data-story','1');
+try{if(navigator.wakeLock)navigator.wakeLock.request('screen');}catch(e){}
+var tx=root.querySelector('[dir]');if(!tx)return;
+tx.style.fontSize='19px';if(tx.parentNode)tx.parentNode.style.maxHeight='48vh';
+var cvs=root.querySelectorAll('canvas');if(cvs.length>=2)cvs[0].style.display='none';
+var W=Math.max(300,window.innerWidth),H=Math.max(500,window.innerHeight);
+var cv=document.createElement('canvas');cv.width=W;cv.height=H;cv.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none';
+root.insertBefore(cv,root.children[1]?root.children[1].nextSibling:null);
+var cx=cv.getContext('2d'),idx=-1,last='',t0=performance.now(),pv=t0;
+(function loop(){
+if(g('czrMvRoot')!==root)return;
+var now=performance.now(),dt=Math.min(0.05,(now-pv)/1000);pv=now;
+var txt=(tx.textContent||'').trim();
+if(txt!==last){last=txt;t0=now;if(txt)idx++;}
+cx.clearRect(0,0,W,H);
+var fl=g('czrMvFiles'),hasImg=fl&&fl.files&&fl.files.length>0;
+if(!hasImg&&txt){var t=(now-t0)/1000;cx.save();cx.globalAlpha=Math.min(1,t*1.2);try{V[names[idx%3]](cx,W,H,t,dt);}catch(e){}cx.restore();}
+requestAnimationFrame(loop);
+})();
+};
+},900);
+})();
+</script>
+<script>
+(function(){
+if(window.__czrVoiceShim)return;
+var V=window.CzrVoice;
+if(!V)return;
+window.__czrVoiceShim=1;
+var tok=0,warned=false;
+function toast(m){try{var t=document.createElement('div');t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4000;font-size:14px;max-width:88%;text-align:center';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove();},4500);}catch(e){}}
+try{V.warm();}catch(e){}
+var sh={speaking:false,pending:false,paused:false,
+getVoices:function(){return [];},
+addEventListener:function(){},removeEventListener:function(){},
+cancel:function(){tok++;sh.speaking=false;try{V.stop();}catch(e){}},
+speak:function(u){
+var my=++tok;sh.speaking=true;
+var txt=String((u&&u.text)||''),ar=/[\u0600-\u06FF]/.test(txt)||/^ar/i.test((u&&u.lang)||'');
+try{V.speak(txt,ar?'ar':'en');}catch(e){}
+setTimeout(function(){if(my!==tok||warned)return;var st='';try{st=V.state();}catch(e){}
+if(st==='nolang'){warned=true;toast('لا يوجد صوت عربي: الإعدادات > اللغة > تحويل النص إلى كلام');}
+if(st==='noengine'){warned=true;toast('لا يوجد محرك نطق في الهاتف');}},900);
+var t0=Date.now();
+function fin(){if(my!==tok)return;sh.speaking=false;try{if(u&&u.onend)u.onend({});}catch(e){}}
+(function poll(){
+if(my!==tok)return;
+var b=true;try{b=V.busy();}catch(e){}
+if(!b){fin();return;}
+if(Date.now()-t0>180000){fin();return;}
+setTimeout(poll,250);
+})();
+}};
+if(!window.SpeechSynthesisUtterance){window.SpeechSynthesisUtterance=function(t){this.text=t;this.lang='';};}
+try{Object.defineProperty(window,'speechSynthesis',{value:sh,configurable:true,writable:true});}catch(e){try{window.speechSynthesis=sh;}catch(e2){}}
+setTimeout(function(){try{var e=document.getElementById('czrStVer');if(e&&e.textContent.indexOf('voice')<0)e.textContent=(e.textContent||'')+' · voice: '+V.state();}catch(e3){}},3000);
+})();
+</script>
+<script>
+(function(){
+if(window.__czrWiz2)return;window.__czrWiz2=1;
+var S={step:1,tab:'pre',niche:0,custom:'',lang:'ar',voice:1,vf:'all',mtab:'pre',msel:[],mfile:null,mname:'',art:0,cap:0,glitch:false,hook:false,pf:{},idea:'',n:6,imgs:[],scenes:[],capt:''};
+var T=['المجال','اللغة والصوت','الموسيقى','النمط الفني','نمط التعليق','التأثيرات','الحسابات','الفكرة والنتيجة'];
+var N=[['😱 Scary stories · قصص مرعبة','horror','قصص تقشعر لها الأبدان · Scary stories that give you goosebumps'],['📜 History · تاريخ','history','مقاطع عن التاريخ من القديم إلى الحديث'],['⚡ Greek Mythology · الأساطير اليونانية','myth','قصص صادمة ومثيرة من الأساطير'],['👑 Historical Figures · شخصيات تاريخية','figures','حياة أهم الشخصيات في دقيقة'],['🔥 Motivation · تحفيز','motivation','إضافة مني · فيديوهات تحفيزية قصيرة'],['🧠 Facts · حقائق','facts','إضافة مني · حقائق مدهشة']];
+var VO=[['Adam','واثق · Confident','low',0.85,1],['Jonah','راوي · Storyteller','low',0.9,0.88],['Jamal','هادئ · Chill','low',0.95,0.85],['Peter','عميق · Deep','low',0.7,0.92],['Brittney','حماسي · Energetic','high',1.3,1.15],['Hope','مشرق · Bright','high',1.2,1.05],['Zara','حواري · Conversational','high',1.1,1],['Jessa','عفوي · Casual','high',1.05,1.08]];
+var MUS=[['Creepy melody','لحن مخيف','Haunting and unsettling melody',[0,1,3,7,8],57,'triangle',520,0.06],['Horror piano','بيانو رعب','Dark and chilling piano keys',[0,3,6,9],48,'sine',700,0.09],['Unsolved mystery','لغز محير','Suspenseful and intriguing atmosphere',[0,2,3,7,10],52,'sawtooth',600,0.03],['8-bit slowed','8-بت بطيء','Eerie chiptune with a haunting retro feel',[0,3,5,7,10],60,'square',380,0.03],['Quiet before storm','هدوء قبل العاصفة','Building tension and anticipation',[0,7,12,5],45,'sine',900,0.08],['Brilliant symphony','سمفونية','Orchestral and majestic for epic reveals',[0,4,7,12,16,19],55,'sawtooth',480,0.03]];
+var ARTS=[['Comic','#1d4e89','#9ad1ff','comic book style, bold ink outlines, vivid colors','💥'],['Creepy Comic','#2b2b2b','#7a8b6f','creepy comic style, dark mood, thick outlines','👁'],['Modern Cartoon','#6b2d5c','#ff9e7a','modern cartoon style, clean lines, vibrant colors','🎨'],['Disney','#7a4b3a','#ffd6a5','3D Disney Pixar style, warm soft lighting','🏰'],['Mythology','#1b2a49','#c9b458','epic greek mythology painting, dramatic lightning','⚡'],['Pixel Art','#2d6a4f','#f4a6c0','detailed 16-bit pixel art, vibrant','👾'],['Ghibli','#3d5a40','#f2e3b3','studio ghibli style, hand-painted, soft light','🍄'],['Anime','#4a2c6b','#e0b7ff','anime style, detailed cel shading','🎌'],['Painting','#6b4a2b','#f0c987','classical oil painting, rich textures','🖼'],['Dark Fantasy','#101018','#5c3a5c','dark fantasy art, gloomy atmosphere, torch light','🕯'],['Lego','#a8321f','#ffd23f','lego minifigure scene, toy bricks, macro photo','🧱'],['Polaroid','#8a6a5a','#f7e1d0','polaroid photo, warm bokeh lights, portrait','📷'],['Realism','#8a5a2b','#ffd9a0','photorealistic, cinematic, golden hour','🌇'],['Fantastic','#0b4a6b','#5ed1e0','fantasy underwater ruins, god rays, epic scale','🌊']];
+var CAPS=['Bold Stroke','Red Highlight','Sleek','Karaoke','Majestic','Beast','Classic','Pixel'];
+var CCSS=['font-weight:900;color:#fff;paint-order:stroke fill;-webkit-text-stroke:6px #000','font-weight:900;color:#ff2d2d;paint-order:stroke fill;-webkit-text-stroke:4px #000','font-weight:700;color:rgba(255,255,255,.7)','font-weight:900;color:#fff;background:#7b2ff7;padding:2px 6px;border-radius:4px','font-style:italic;font-weight:900;color:#fff2c2;text-shadow:0 0 8px #000','font-style:italic;font-weight:900;color:#fff;paint-order:stroke fill;-webkit-text-stroke:8px #000','font-family:serif;color:#fff','font-family:monospace;font-weight:900;color:#fff;paint-order:stroke fill;-webkit-text-stroke:6px #000'];
+var TP=[['في ليلة هادئة بدأ كل شيء بصوت غريب','اقترب الصوت أكثر فأكثر','لم يكن وحيدًا في ذلك المكان','وعندما التفت رأى ما لا يصدق','ولا يزال السر مجهولًا حتى اليوم. تابعنا للمزيد'],['عاد الزمن بنا إلى أحداث غيرت العالم','كانت البداية صغيرة لا يلتفت إليها أحد','ثم تسارعت الأحداث بشكل مذهل','وتغير مصير أمم بأكملها','وما زال أثر تلك الحقبة باقيًا حتى اليوم. تابعنا للمزيد'],['في زمن الآلهة والأبطال بدأت الحكاية','غضبت الآلهة وارتجفت السماء','وخرج البطل لمواجهة قدره','فكان الثمن أغلى مما تخيل','وهكذا خلدت الأسطورة عبر القرون. تابعنا للمزيد'],['ولد في زمن لم يتوقع أحد منه شيئًا','واجه صعوبات كادت تحطمه','لكنه رفض الاستسلام','وبقراراته تغير وجه التاريخ','وما زال اسمه يذكر إلى اليوم. تابعنا للمزيد'],['كان على وشك الاستسلام','لكن فكرة واحدة غيرت كل شيء','بدأ بخطوة صغيرة كل يوم','وبعد أشهر لم يعد يعرف نفسه','ابدأ اليوم ولا تنتظر. تابعنا للمزيد'],['هل تعلم أن هناك حقيقة لا يعرفها أغلب الناس','الأمر يبدو بسيطًا في البداية','لكن العلماء اكتشفوا شيئًا مذهلًا','وهذا يغير نظرتنا لكل شيء','شارك الفيديو مع من يحب المعرفة. تابعنا للمزيد'],['وهنا تبدأ القصة الحقيقية','والتفاصيل التالية مثيرة','لكن المفاجأة كانت في النهاية','هل توقعت ذلك؟','تابعنا للمزيد']];
+var TPE=['Here is where the story begins','What happened next shocked everyone','Nobody saw the ending coming','Did you expect that?','Follow for more'];
+var BT='background:#e8c45a;color:#000;border:0;border-radius:12px;padding:12px 16px;font-weight:700;font-size:15px';
+var GH='background:#141b2d;color:#e8c45a;border:1px solid #3a3320;border-radius:12px;padding:12px 16px;font-size:15px';
+var CD='background:#111a2e;border:1px solid #3a3320;border-radius:14px;padding:14px;margin-bottom:12px';
+var W=360,H=640,cv=null,cx=null,tok=0,AC=null,mG=null,mDr=null,mIv=null,mAu=null,mCur=-1;
+function el(t,c,x,f){var e=document.createElement(t);if(c)e.style.cssText=c;if(x!=null)e.textContent=x;if(f)e.onclick=f;return e;}
+function toast(m){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:100px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4500;font-size:14px;max-width:88%;text-align:center',m);document.body.appendChild(t);setTimeout(function(){t.remove();},2500);}catch(e){}}
+function cp(t){var fb=function(){try{var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast('تم النسخ ✓');}catch(e){toast('تعذر النسخ');}};try{navigator.clipboard.writeText(t).then(function(){toast('تم النسخ ✓');},fb);}catch(e){fb();}}
+function chip(l,on,f){return el('button',(on?BT:GH)+';padding:9px 14px;font-size:14px',l,f);}
+function nkey(){return S.tab==='cus'?'custom':N[S.niche][1];}
+function tpi(){return S.tab==='cus'?6:S.niche;}
+var root=el('div','position:fixed;left:0;right:0;top:0;bottom:0;z-index:3500;background:#0b1020;color:#f3e7c0;display:none;flex-direction:column;font-family:sans-serif;direction:rtl');
+var bar=el('div','display:flex;gap:6px;padding:14px 16px 6px');
+var head=el('div','padding:6px 16px;font-size:19px;font-weight:700;color:#e8c45a');
+var body=el('div','flex:1;overflow-y:auto;padding:8px 16px');
+var foot=el('div','display:flex;gap:10px;padding:12px 16px 18px;border-top:1px solid #2a2a2a');
+root.appendChild(bar);root.appendChild(head);root.appendChild(body);root.appendChild(foot);
+document.body.appendChild(root);
+function open(){S.step=1;root.style.display='flex';render();}
+function close(){stopAll();try{if(window.CzrVoice&&window.CzrVoice.voiceReset)window.CzrVoice.voiceReset();}catch(e){}root.style.display='none';}
+function stopAll(){tok++;stopMusic();try{if(window.CzrVoice)window.CzrVoice.stop();}catch(e){}try{speechSynthesis.cancel();}catch(e){}}
+function speak(t,cb,vi){var my=tok,V=window.CzrVoice,v=VO[vi==null?S.voice:vi],done=false;
+function fin(){if(done)return;done=true;if(cb)cb();}
+if(V&&V.speak2){try{if(V.voiceIndex)V.voiceIndex(vi==null?S.voice:vi);V.speak2(t,S.lang,v[3],v[4]);}catch(e){fin();return;}
+var t0=Date.now();(function poll(){if(my!==tok||done)return;var b=true;try{b=V.busy();}catch(e){}
+if(!b||Date.now()-t0>180000){fin();return;}setTimeout(poll,250);})();return;}
+try{var u=new SpeechSynthesisUtterance(t);u.lang=S.lang==='ar'?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){setTimeout(fin,2500);}}
+function actx(){if(!AC){var C=window.AudioContext||window.webkitAudioContext;AC=new C();}if(AC.state==='suspended')AC.resume();return AC;}
+function hz(m){return 440*Math.pow(2,(m-69)/12);}
+function stopMusic(){mCur=-1;if(mIv){clearInterval(mIv);mIv=null;}try{if(mDr){mDr.stop();mDr=null;}}catch(e){}try{if(mG){mG.disconnect();mG=null;}}catch(e){}try{if(mAu){mAu.pause();mAu=null;}}catch(e){}}
+function startMusic(k){stopMusic();mCur=k;
+if(k==='f'){if(!S.mfile){toast('اختر ملفًا صوتيًا أولًا');mCur=-1;return;}try{mAu=new Audio(S.mfile);mAu.loop=true;mAu.volume=0.3;mAu.play();}catch(e){}return;}
+var a;try{a=actx();}catch(e){toast('الصوت غير مدعوم');mCur=-1;return;}
+var m=MUS[k];mG=a.createGain();mG.gain.value=1;mG.connect(a.destination);
+var d=a.createOscillator(),dg=a.createGain();d.type='sine';d.frequency.value=hz(m[4]-12);dg.gain.value=0.05;d.connect(dg);dg.connect(mG);d.start();mDr=d;
+var g=mG;
+function tick(){if(g!==mG)return;var t=a.currentTime,deg=m[3][Math.floor(Math.random()*m[3].length)],oc=Math.random()<0.3?12:0,o=a.createOscillator(),e=a.createGain(),L=m[6]/1000;
+o.type=m[5];o.frequency.value=hz(m[4]+deg+oc);e.gain.setValueAtTime(0.0001,t);e.gain.exponentialRampToValueAtTime(m[7],t+0.05);e.gain.exponentialRampToValueAtTime(0.0001,t+L*1.8);o.connect(e);e.connect(g);o.start(t);o.stop(t+L*1.9);}
+mIv=setInterval(tick,m[6]);tick();}
+function startSel(){if(!S.msel.length)return;startMusic(S.msel[Math.floor(Math.random()*S.msel.length)]);}
+function gen(){var t=S.idea.trim(),ss=t.split(/[.!?؟\n]+/).map(function(x){return x.trim();}).filter(Boolean);
+if(ss.length>=3)return ss.slice(0,10);
+var B=S.lang==='ar'?TP[tpi()]:TPE,out=[t];for(var i=0;i<S.n-1&&i<B.length;i++)out.push(B[i]);return out;}
+function prompts(){return S.scenes.map(function(x,i){return 'Scene '+(i+1)+': '+x+'. Style: '+ARTS[S.art][3]+', vertical 9:16, cinematic, no text';}).join('\n\n');}
+function render(){stopAll();
+bar.innerHTML='';for(var i=1;i<=8;i++)bar.appendChild(el('div','flex:1;height:5px;border-radius:3px;background:'+(i<=S.step?'#e8c45a':'#2a3148')));
+head.textContent='الخطوة '+S.step+' من 8 · '+T[S.step-1];
+body.innerHTML='';P[S.step-1]();foot.innerHTML='';
+foot.appendChild(el('button',GH+';flex:1',S.step>1?'→ رجوع':'✕ إغلاق',function(){if(S.step>1){S.step--;render();}else close();}));
+if(S.step<8)foot.appendChild(el('button',BT+';flex:1',(S.step===3&&!S.msel.length)?'تخطي ←':'يكمل ←',function(){
+if(S.step===1&&S.tab==='cus'&&!S.custom.trim()){toast('صف مجالك أولًا');return;}
+S.step++;render();}));
+else foot.appendChild(el('button',BT+';flex:1','✓ تم',close));}
+function sec(t,get,set){body.appendChild(el('div','font-weight:700;color:#e8c45a;margin:12px 0 6px',t));var a=el('textarea','width:100%;min-height:110px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:14px;box-sizing:border-box');a.value=get();if(set)a.oninput=function(){set(a.value);};body.appendChild(a);body.appendChild(el('button',GH+';margin-top:6px','نسخ',function(){cp(set?a.value:get());}));}
+function tabs(list,cur,f){var tb=el('div','display:flex;gap:18px;border-bottom:1px solid #2a3148;margin-bottom:12px');list.forEach(function(t){tb.appendChild(el('div','padding:10px 2px;cursor:pointer;font-weight:700;border-bottom:3px solid '+(cur===t[0]?'#e8c45a':'transparent')+';opacity:'+(cur===t[0]?1:0.6),t[1],function(){f(t[0]);}));});body.appendChild(tb);}
+function setFont(st,fs){cx.font=(st===4||st===5?'italic ':'')+(st===6?'':'bold ')+fs+'px '+(st===6?'serif':st===7?'monospace':'sans-serif');}
+function word(wd,x,y,on,st,fs){
+setFont(st,fs);var w=cx.measureText(wd).width;
+if(st===3&&on){cx.fillStyle='#7b2ff7';cx.fillRect(x-6,y-fs,w+12,fs*1.3);}
+cx.lineJoin='round';var sw=(st===0||st===5||st===7)?fs*0.28:(st===1?fs*0.18:0);
+if(sw){cx.lineWidth=sw;cx.strokeStyle='#000';cx.strokeText(wd,x,y);}
+if(st===4){cx.shadowColor='#000';cx.shadowBlur=12;}
+cx.fillStyle=(st===1&&on)?'#ff2d2d':(st===0&&on)?'#ffe14a':st===2?'rgba(255,255,255,0.75)':st===4?'#fff2c2':'#fff';
+cx.fillText(wd,x,y);cx.shadowBlur=0;}
+function caption(words,act){
+var st=S.cap,fs=st===2?30:st===5?44:38,g=Math.floor(act/3)*3,up=S.lang==='en'&&[0,1,3,5].indexOf(st)>=0;
+var gw=words.slice(g,g+3).map(function(x){return up?x.toUpperCase():x;});
+setFont(st,fs);var ws=gw.map(function(x){return cx.measureText(x).width;}),gap=fs*0.35,tot=ws.reduce(function(a,b){return a+b;},0)+gap*(gw.length-1);
+var ar=S.lang==='ar',x=ar?(W+tot)/2:(W-tot)/2,y=H*0.72;cx.textAlign='left';cx.textBaseline='alphabetic';
+for(var j=0;j<gw.length;j++){var on=(g+j===act);if(ar){x-=ws[j];word(gw[j],x,y,on,st,fs);x-=gap;}else{word(gw[j],x,y,on,st,fs);x+=ws[j]+gap;}}}
+function bg(im,i,k){var a=ARTS[S.art],hk=(i===0&&S.hook);
+if(im&&im.complete&&im.naturalWidth){var z=1.05+(hk?0.35:0.1)*k,r=Math.max(W/im.naturalWidth,H/im.naturalHeight)*z,w=im.naturalWidth*r,h=im.naturalHeight*r,pan=hk?(k-0.5)*50:0;cx.drawImage(im,(W-w)/2+pan,(H-h)/2,w,h);}
+else{var g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,a[2]);g.addColorStop(1,a[1]);cx.fillStyle=g;cx.fillRect(0,0,W,H);for(var q=0;q<7;q++){var rr=((i*7+q*13)%10)/10;cx.fillStyle='rgba(255,255,255,'+(0.05+rr*0.08)+')';cx.beginPath();cx.arc((q*97+i*53)%W,(q*151+i*89)%(H*0.7),30+rr*70,0,6.283);cx.fill();}cx.fillStyle='#fff';cx.globalAlpha=0.9;cx.font='140px sans-serif';cx.textAlign='center';cx.fillText(a[4],W/2+Math.sin(k*3)*8,H*0.4+k*10);cx.globalAlpha=1;}
+var s=cx.createLinearGradient(0,H*0.5,0,H);s.addColorStop(0,'rgba(0,0,0,0)');s.addColorStop(1,'rgba(0,0,0,0.65)');cx.fillStyle=s;cx.fillRect(0,0,W,H);}
+function glitch(){if(!S.glitch||Math.random()>0.25)return;for(var j=0;j<4;j++){var y=Math.random()*H,h=10+Math.random()*50,d=(Math.random()-0.5)*40;cx.drawImage(cv,0,y,W,h,d,y,W,h);}cx.fillStyle='rgba(255,0,60,0.12)';cx.fillRect(3,0,W,H);cx.fillStyle='rgba(0,255,255,0.10)';cx.fillRect(-3,0,W,H);}
+function draw(i,words,act,k){bg(S.imgs.length?S.imgs[i%S.imgs.length]:null,i,k);glitch();caption(words,act);}
+function idle(){if(!cx||!S.scenes.length)return;draw(0,S.scenes[0].split(/\s+/),0,0);}
+function play(){stopAll();var my=tok,i=0;startSel();
+function scene(){if(my!==tok)return;if(i>=S.scenes.length){stopMusic();idle();return;}
+var words=S.scenes[i].split(/\s+/),t0=Date.now(),dur=Math.max(2500,words.length*420),done=false,idx=i;
+speak(S.scenes[i],function(){done=true;});
+(function frame(){if(my!==tok)return;var e=Date.now()-t0,k=Math.min(1,e/dur);
+draw(idx,words,Math.min(words.length-1,Math.floor(k*words.length)),k);
+if((done&&e>900)||e>dur+8000){i++;scene();return;}
+requestAnimationFrame(frame);})();}
+scene();}
+function loadImgs(fl){S.imgs=[];Array.prototype.forEach.call(fl,function(f,i){var im=new Image();im.onload=idle;im.src=URL.createObjectURL(f);S.imgs[i]=im;});toast('تم اختيار '+fl.length+' صورة');}
+function tog(arr,k){var p=arr.indexOf(k);if(p>=0)arr.splice(p,1);else arr.push(k);}
+var P=[
+function(){
+tabs([['pre','الإعدادات المسبقة · Presets'],['cus','مخصص · Custom']],S.tab,function(t){S.tab=t;render();});
+if(S.tab==='pre'){N.forEach(function(n,i){var c=el('div',CD+';cursor:pointer;border:'+(S.niche===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.niche=i;render();});c.appendChild(el('div','font-size:17px;font-weight:700',n[0]));c.appendChild(el('div','font-size:13px;opacity:.7;margin-top:4px',n[2]));body.appendChild(c);});}
+else{body.appendChild(el('div','margin-bottom:8px','صف مجالك بنفسك:'));var t=el('textarea','width:100%;min-height:140px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:16px;box-sizing:border-box');t.value=S.custom;t.oninput=function(){S.custom=t.value;};body.appendChild(t);}},
+function(){
+body.appendChild(el('div','margin-bottom:6px','اللغة · Language'));
+var sl=el('select','width:100%;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:12px;font-size:16px;margin-bottom:14px');
+[['ar','🇸🇦 العربية'],['en','🇬🇧 English']].forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];if(S.lang===o[0])op.selected=true;sl.appendChild(op);});
+sl.onchange=function(){S.lang=sl.value;};body.appendChild(sl);
+body.appendChild(el('div','margin-bottom:6px','الصوت · Voice'));
+var fr=el('div','display:flex;gap:8px;margin-bottom:10px');
+[['all','الكل'],['low','غليظ'],['high','رفيع']].forEach(function(f){fr.appendChild(chip(f[1],S.vf===f[0],function(){S.vf=f[0];render();}));});body.appendChild(fr);
+var g=el('div','display:grid;grid-template-columns:1fr 1fr;gap:10px');
+VO.forEach(function(v,i){if(S.vf!=='all'&&v[2]!==S.vf)return;
+var c=el('div',CD+';margin:0;padding:10px;display:flex;align-items:center;gap:8px;cursor:pointer;border:'+(S.voice===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.voice=i;render();});
+c.appendChild(el('button',BT+';padding:8px 11px;border-radius:50%;font-size:13px','▶',function(e){e.stopPropagation();stopAll();speak(S.lang==='ar'?'مرحبًا، هذا اختبار الصوت':'Hello, this is a voice test',null,i);}));
+var tx=el('div','');tx.appendChild(el('div','font-weight:700',v[0]));tx.appendChild(el('div','font-size:11px;opacity:.7',v[1]));c.appendChild(tx);g.appendChild(c);});
+body.appendChild(g);
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:10px','الأصوات نبرات مختلفة لمحرك النطق في هاتفك، وليست 60 صوتًا حقيقيًا.'));},
+function(){
+body.appendChild(el('div','margin-bottom:8px;opacity:.8','اختر ما تشاء من المقطوعات، وسنختار واحدة عشوائيًا لكل فيديو (اختياري).'));
+tabs([['pre','موسيقى جاهزة · Preset'],['cus','مخصص · Custom']],S.mtab,function(t){S.mtab=t;render();});
+if(S.mtab==='pre'){MUS.forEach(function(m,i){var on=S.msel.indexOf(i)>=0;
+var c=el('div',CD+';display:flex;align-items:center;gap:10px;cursor:pointer;border:'+(on?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){tog(S.msel,i);render();});
+var tx=el('div','flex:1');tx.appendChild(el('div','font-weight:700',(on?'✅ ':'')+m[0]+' · '+m[1]));tx.appendChild(el('div','font-size:12px;opacity:.7;margin-top:3px',m[2]));c.appendChild(tx);
+c.appendChild(el('button',GH+';padding:8px 13px','▶',function(e){e.stopPropagation();if(mCur===i){stopMusic();}else{stopAll();startMusic(i);}}));body.appendChild(c);});
+body.appendChild(el('div','font-size:12px;opacity:.7','المقطوعات تُولَّد صوتيًا داخل التطبيق، وليست أغاني مسجلة.'));}
+else{var f=el('input','display:none');f.type='file';f.accept='audio/*';f.onchange=function(){if(f.files&&f.files[0]){S.mfile=URL.createObjectURL(f.files[0]);S.mname=f.files[0].name;if(S.msel.indexOf('f')<0)S.msel.push('f');render();}};body.appendChild(f);
+body.appendChild(el('button',BT+';width:100%','🎵 اختر أغنية من هاتفك',function(){f.click();}));
+if(S.mfile){var c=el('div',CD+';margin-top:12px;display:flex;align-items:center;gap:10px');c.appendChild(el('div','flex:1;font-size:14px','✅ '+S.mname));c.appendChild(el('button',GH+';padding:8px 13px','▶',function(){if(mCur==='f'){stopMusic();}else{stopAll();startMusic('f');}}));body.appendChild(c);}}},
+function(){var r=el('div','display:flex;gap:12px;overflow-x:auto;padding-bottom:8px');
+ARTS.forEach(function(a,i){var c=el('div','min-width:150px;height:240px;border-radius:14px;position:relative;background:linear-gradient(180deg,'+a[2]+','+a[1]+');border:'+(S.art===i?'3px solid #e8c45a':'1px solid #3a3320'),null,function(){S.art=i;render();});
+c.appendChild(el('div','position:absolute;top:70px;left:0;right:0;text-align:center;font-size:56px',a[4]));
+c.appendChild(el('div','position:absolute;bottom:0;left:0;right:0;padding:10px;background:rgba(0,0,0,.55);border-radius:0 0 12px 12px;font-weight:700;text-align:center;color:#fff',(S.art===i?'✓ ':'')+a[0]));r.appendChild(c);});
+body.appendChild(r);body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:8px','يُضاف تلقائيًا إلى أوامر الصور: '+ARTS[S.art][3]));},
+function(){var g=el('div','display:grid;grid-template-columns:1fr 1fr;gap:12px');
+CAPS.forEach(function(n,i){var c=el('div',CD+';margin:0;text-align:center;border:'+(S.cap===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.cap=i;render();});
+var p=el('div','background:#333;border-radius:10px;padding:18px 4px;margin-bottom:8px;direction:ltr;font-size:18px');p.appendChild(el('span',CCSS[i],'NOTEBOOK HIDDEN'));c.appendChild(p);c.appendChild(el('div','font-size:14px',(S.cap===i?'✓ ':'')+n));g.appendChild(c);});body.appendChild(g);},
+function(){
+var c=el('div',CD);c.appendChild(el('div','font-weight:700','Glitch effect · تأثير الخلل'+(S.glitch?' ✅':'')));c.appendChild(el('div','font-size:13px;opacity:.7;margin:6px 0 10px','اهتزاز وتشويه لوني مخيف، مناسب للرعب والإثارة.'));c.appendChild(chip(S.glitch?'مفعّل':'تفعيل',S.glitch,function(){S.glitch=!S.glitch;render();}));body.appendChild(c);
+var k=el('div',CD);k.appendChild(el('div','font-weight:700','حركة كاميرا للمشهد الأول (بديل مجاني)'+(S.hook?' ✅':'')));k.appendChild(el('div','font-size:13px;opacity:.7;margin:6px 0 10px','تقريب وتحريك سينمائي قوي على صورة المشهد الأول ليجذب المشاهد.'));k.appendChild(chip(S.hook?'مفعّل':'تفعيل',S.hook,function(){S.hook=!S.hook;render();}));body.appendChild(k);
+var h=el('div',CD+';opacity:.5');h.appendChild(el('div','font-weight:700','Animated hook · Wan 2.2 · PREMIUM'));h.appendChild(el('div','font-size:13px;margin-top:6px','توليد فيديو بالذكاء الاصطناعي يحتاج خادمًا مدفوعًا، غير متاح داخل التطبيق.'));body.appendChild(h);},
+function(){
+/*pk*/body.appendChild(el('div','margin-bottom:10px;opacity:.8','اربط وحدد الحسابات التي تريد النشر عليها.'));
+var PL=[['tt','TikTok','🎵'],['ig','Instagram','📸'],['yt','YouTube','▶️'],['fb','Facebook','👍']];
+var ks=PL.filter(function(p){return S.pf[p[0]];});
+function pick(){
+var ov=el('div','position:fixed;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.7);z-index:4000;display:flex;align-items:flex-end');
+var sh=el('div','background:#111a2e;width:100%;border-radius:18px 18px 0 0;padding:18px;box-sizing:border-box;direction:rtl');
+ov.onclick=function(e){if(e.target===ov)ov.remove();};
+sh.appendChild(el('div','font-size:18px;font-weight:700;color:#e8c45a;margin-bottom:4px','اربط حساب تواصل اجتماعي'));
+sh.appendChild(el('div','font-size:13px;opacity:.7;margin-bottom:12px','اختر إحدى المنصات المدعومة.'));
+PL.forEach(function(p){sh.appendChild(el('button',GH+';display:block;width:100%;margin-bottom:10px;text-align:right;font-size:16px',(S.pf[p[0]]?'✅ ':'')+p[2]+'  '+p[1],function(){S.pf[p[0]]=1;ov.remove();render();}));});
+sh.appendChild(el('button',GH+';width:100%','إغلاق',function(){ov.remove();}));
+ov.appendChild(sh);document.body.appendChild(ov);}
+if(!ks.length){var e=el('div',CD+';text-align:center;border-style:dashed');e.appendChild(el('div','opacity:.7;margin-bottom:12px','لم تربط أي حساب بعد.'));e.appendChild(el('button',GH,'+ اربط أول حساب',function(){pick();}));body.appendChild(e);}
+else{ks.forEach(function(p){var c=el('div',CD+';display:flex;align-items:center;gap:10px');c.appendChild(el('div','flex:1;font-weight:700','✅ '+p[2]+' '+p[1]));c.appendChild(el('button',GH+';padding:8px 13px','✕',function(){S.pf[p[0]]=0;render();}));body.appendChild(c);});
+body.appendChild(el('button',GH+';width:100%','+ إضافة حساب',function(){pick();}));}
+var nt=el('div','font-size:12px;opacity:.7;text-align:center;margin-top:16px','هذا اختيار للمنصات وليس ربطًا حقيقيًا بحساباتك. يمكنك الربط لاحقًا، وفي الخطوة الأخيرة تنشر على أي منصة.');body.appendChild(nt);},
+function(){
+body.appendChild(el('div','margin-bottom:8px','اكتب فكرة الفيديو أو القصة كاملة (كل جملة تصبح مشهدًا):'));
+var t=el('textarea','width:100%;min-height:130px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:16px;box-sizing:border-box');t.value=S.idea;t.oninput=function(){S.idea=t.value;};body.appendChild(t);
+body.appendChild(el('div','margin:12px 0 6px','عدد المشاهد (للفكرة القصيرة):'));
+var r=el('div','display:flex;gap:8px');[4,5,6].forEach(function(n){r.appendChild(chip(String(n),S.n===n,function(){S.n=n;render();}));});body.appendChild(r);
+body.appendChild(el('button',BT+';width:100%;margin-top:14px','✨ أنشئ الفيديو',function(){if(!S.idea.trim()){toast('اكتب فكرة الفيديو أولًا');return;}S.scenes=gen();S.capt=(S.scenes[0]||'')+'\n\n#shorts #reels #'+nkey()+' #fyp';render();}));
+if(!S.scenes.length)return;
+cv=el('canvas','width:100%;max-width:280px;display:block;margin:16px auto 10px;border-radius:14px;border:1px solid #3a3320;background:#000');cv.width=W;cv.height=H;cx=cv.getContext('2d');body.appendChild(cv);
+var b=el('div','display:flex;gap:8px;margin-bottom:10px');b.appendChild(el('button',BT+';flex:1','▶ معاينة بالصوت',play));b.appendChild(el('button',GH,'⏹',function(){stopAll();idle();}));body.appendChild(b);
+var f=el('input','display:none');f.type='file';f.accept='image/*';f.multiple=true;f.onchange=function(){loadImgs(f.files);};body.appendChild(f);
+body.appendChild(el('button',GH+';width:100%','🖼 اختر صورًا للمشاهد',function(){f.click();}));
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:8px','لتسجيل فيديو بالصوت: شغّل مسجل شاشة الهاتف ثم اضغط معاينة.'));
+sec('المشاهد (سطر لكل مشهد)',function(){return S.scenes.join('\n');},function(v){S.scenes=v.split('\n').map(function(x){return x.trim();}).filter(Boolean);});
+sec('أوامر الصور',prompts);
+sec('الوصف والهاشتاقات',function(){return S.capt;},function(v){S.capt=v;});
+body.appendChild(el('div','font-weight:700;color:#e8c45a;margin:18px 0 6px;font-size:17px','📤 النشر · Publish'));
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-bottom:8px','اختر المنصة: يُنسخ الوصف ثم تُفتح المنصة لترفع الفيديو (سجّل المعاينة بمسجل الشاشة أولًا).'));
+var L=[['yt','YouTube','https://www.youtube.com/upload'],['tt','TikTok','https://www.tiktok.com/upload'],['fb','Facebook','https://www.facebook.com/'],['ig','Instagram','https://www.instagram.com/']],pr=el('div','display:flex;gap:8px;flex-wrap:wrap');
+L.forEach(function(p){pr.appendChild(el('button',S.pf[p[0]]?BT:GH,p[1]+' ↗',function(){cp(S.capt);setTimeout(function(){window.open(p[2],'_blank');},400);}));});body.appendChild(pr);
+idle();}
+];
+function addBtn(){var as=document.querySelectorAll('#czrStVer');Array.prototype.forEach.call(as,function(a){if(a.__w2)return;a.__w2=1;var b=el('button',BT+';display:block;width:100%;margin:12px 0','🎬 استوديو متطور · Pro Studio',open);var p=a.parentNode;p.insertBefore(b,p.firstChild);});}
+setInterval(addBtn,1000);addBtn();
+})();
+</script>
+<div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
+</div></section>
+<script>
+(function(){
+var czrStV2=1;
+var AR=/[\u0600-\u06FF]/;
+var S={style:'promo',plat:'yt',scenes:[],topic:'',ar:true,tok:0};
+function g(i){return document.getElementById(i);}
+function el(t,css,txt){var e=document.createElement(t);if(css)e.style.cssText=css;if(txt!==undefined)e.textContent=txt;return e;}
+function toast(m){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:3000;font-size:14px',m);document.body.appendChild(t);setTimeout(function(){t.remove();},1800);}catch(e){}}
+function inv(){try{var w=g('tab-wallet')||document.body;var m=(w.textContent||'').match(/https?:\/\/[^\s]*\?ref=[A-Za-z0-9_-]+/);return m?m[0]:'';}catch(e){return '';}}
+function build(t,st,ar){
+if(ar){
+if(st==='learn')return [t+': ما الذي يجب أن تعرفه؟','Caesar CZR عملة رقمية للهاتف المحمول من الطبقة الأولى.','التعدين يعني أن هاتفك يساهم في تأمين الشبكة ويسجّل مشاركات.','المحفظة تحفظ رصيدك، ولا تشارك رمز PIN مع أحد.','رابط التطبيق في الوصف، جرّبه بنفسك.'];
+if(st==='story')return ['قصة قصيرة: '+t+'.','بدأت الشبكة صغيرة، وكان كل شيء فيها جديدًا.','ومع كل كتلة جديدة كبرت الدائرة.','اليوم يمكنك أن تنضم إليها من هاتفك.','رابط الدعوة في الوصف.'];
+return [t+'؟ لن تصدّق كم هو بسيط.','كثيرون يريدون دخول عالم العملات الرقمية، لكن الطرق معقدة أو مكلفة.','Caesar CZR محفظة وتعدين على هاتفك مباشرة، دون أجهزة ضخمة.','افتح التطبيق وشاهد المشاركات تُقبل أمامك لحظة بلحظة.','حمّل التطبيق وانضم عبر رابط الدعوة في الوصف.'];
+}
+if(st==='learn')return [t+': what should you know?','Caesar CZR is a mobile-first Layer-1 cryptocurrency.','Mining means your phone helps secure the network and records shares.','The wallet keeps your balance. Never share your PIN with anyone.','The app link is in the description. Try it yourself.'];
+if(st==='story')return ['A short story: '+t+'.','The network started small and everything in it was new.','With every new block the circle grew.','Today you can join it from your phone.','The invite link is in the description.'];
+return [t+'? You will not believe how simple it is.','Many people want to enter crypto, but the ways in are complex or costly.','Caesar CZR is a wallet and miner right on your phone, no heavy hardware.','Open the app and watch your shares get accepted live.','Download the app and join with the invite link in the description.'];
+}
+function cap(){
+var t=S.topic||'Caesar CZR',ar=S.ar,l=inv(),p=S.plat;
+var tags={yt:'#Shorts #CaesarCZR #Crypto #Mining',tt:'#fyp #CaesarCZR #Crypto #Mining',fb:'#CaesarCZR #Crypto #Mining'}[p];
+var body=ar?'جرّب Caesar CZR: محفظة وتعدين من هاتفك.':'Try Caesar CZR: a wallet and miner on your phone.';
+var link=l?(ar?'\nرابط الدعوة: ':'\nInvite link: ')+l:'';
+if(p==='yt')return t+' | Caesar CZR\n\n'+body+link+'\n\n'+tags;
+if(p==='tt')return t+' '+body+link+'\n'+tags;
+return t+'\n\n'+body+link+'\n\n'+tags;
+}
+function render(){
+var o=g('czrStOut');o.textContent='';
+S.scenes.forEach(function(x,i){var ta=el('textarea','width:100%;box-sizing:border-box;min-height:62px;background:#1c2536;color:#e8ecf3;border:1px solid #2a3550;border-radius:12px;padding:9px 11px;font-size:14px;line-height:1.5;resize:vertical',x);ta.oninput=function(){S.scenes[i]=ta.value;};o.appendChild(ta);});
+g('czrStCap').value=S.scenes.length?cap():'';
+}
+window.czrStGen=function(){var t=g('czrStTopic').value.trim();if(!t)return;S.topic=t;S.ar=AR.test(t);S.scenes=build(t,S.style,S.ar);render();};
+window.czrStSet=function(k,v,b){
+S[k]=v;
+var kids=b.parentNode.children;
+for(var i=0;i<kids.length;i++){kids[i].style.background='#1c2536';kids[i].style.color='#e8c45a';}
+b.style.background='#e8c45a';b.style.color='#000';
+if(k==='style'&&S.topic){S.scenes=build(S.topic,S.style,S.ar);render();}
+if(k==='plat'&&S.scenes.length){g('czrStCap').value=cap();}
+};
+function stop(){S.tok++;try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}var o=g('czrStPv');if(o)o.remove();}
+window.czrStStop=stop;
+function speak(text,ar,cb){
+var done=false,tm;
+function fin(){if(done)return;done=true;clearTimeout(tm);if(cb)cb();}
+try{if(window.speechSynthesis){speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(text);u.lang=ar?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);}}catch(e){}
+tm=setTimeout(fin,Math.max(4000,text.length*120+2500));
+}
+function seq(i,tok,show,end){
+if(tok!==S.tok)return;
+if(i>=S.scenes.length){if(end)end();return;}
+if(show)show(i);
+speak(S.scenes[i],S.ar,function(){setTimeout(function(){seq(i+1,tok,show,end);},500);});
+}
+window.czrStPlay=function(){if(!S.scenes.length)return;stop();seq(0,S.tok,null,null);};
+window.czrStPreview=function(){
+if(!S.scenes.length)return;
+stop();var tok=S.tok;
+var o=el('div','position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;background:#05080d;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center');o.id='czrStPv';
+var im=el('img','width:120px;height:120px;border-radius:50%;object-fit:cover;border:3px solid #e8c45a;box-shadow:0 0 30px #e8c45a73;margin-bottom:28px');im.src='/brand/caesar.jpg';
+var tx=el('div','color:#fff;font-size:26px;line-height:1.6;font-weight:700;max-width:92%;opacity:0;transition:opacity .4s');
+tx.dir=S.ar?'rtl':'ltr';
+var dots=el('div','display:flex;gap:6px;margin-top:28px');
+var ds=S.scenes.map(function(){var d=el('div','width:9px;height:9px;border-radius:50%;background:#2a3550');dots.appendChild(d);return d;});
+var x=el('div','position:absolute;top:18px;right:20px;color:#9aa4b2;font-size:28px;cursor:pointer','✕');x.onclick=stop;
+var br=el('div','position:absolute;bottom:22px;color:#e8c45a;font-size:15px;letter-spacing:2px','CAESAR CZR');
+o.appendChild(x);o.appendChild(im);o.appendChild(tx);o.appendChild(dots);o.appendChild(br);
+document.body.appendChild(o);
+seq(0,tok,function(i){
+tx.style.opacity='0';
+setTimeout(function(){if(tok!==S.tok)return;tx.textContent=S.scenes[i];tx.style.opacity='1';},200);
+ds.forEach(function(d,k){d.style.background=k===i?'#e8c45a':'#2a3550';});
+},function(){tx.style.opacity='0';setTimeout(function(){if(tok!==S.tok)return;tx.textContent=S.ar?'Caesar CZR · الرابط في الوصف':'Caesar CZR · link in description';tx.style.opacity='1';},300);setTimeout(function(){if(tok===S.tok)stop();},3500);});
+};
+function copy(t){
+try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t);return;}}catch(e){}
+try{var a=el('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();}catch(e){}
+}
+window.czrStCopy=function(){copy(g('czrStCap').value);toast('تم النسخ · Copied');};
+window.czrStShare=function(){var t=g('czrStCap').value;try{if(navigator.share){navigator.share({text:t});return;}}catch(e){}copy(t);toast('تم النسخ · Copied');};
+window.czrStGo=function(u){copy(g('czrStCap').value);toast('تم نسخ الوصف · Caption copied');setTimeout(function(){try{window.open(u,'_blank');}catch(e){location.href=u;}},900);};
+function load(){try{return JSON.parse(localStorage.getItem('czrStudio')||'[]');}catch(e){return [];}}
+function store(a){try{localStorage.setItem('czrStudio',JSON.stringify(a.slice(0,20)));}catch(e){}}
+function list(){
+var o=g('czrStList');if(!o)return;o.textContent='';
+var a=load();
+if(!a.length){o.appendChild(el('div','color:#9aa4b2;font-size:13px','لا مشاريع محفوظة · No saved projects'));return;}
+a.forEach(function(p,i){
+var r=el('div','display:flex;gap:8px;align-items:center;background:#1c2536;border-radius:10px;padding:8px 10px');
+var n=el('div','flex:1;color:#e8ecf3;font-size:14px;cursor:pointer',p.t);
+n.onclick=function(){S.topic=p.t;S.style=p.st;S.ar=AR.test(p.t);S.scenes=p.sc.slice();g('czrStTopic').value=p.t;render();};
+var d=el('span','color:#9aa4b2;font-size:18px;cursor:pointer','✕');
+d.onclick=function(){var b=load();b.splice(i,1);store(b);list();};
+r.appendChild(n);r.appendChild(d);o.appendChild(r);
+});
+}
+window.czrStSave=function(){if(!S.scenes.length)return;var a=load();a.unshift({t:S.topic,st:S.style,sc:S.scenes.slice(),d:Date.now()});store(a);list();toast('تم الحفظ · Saved');};
+function fix(){try{var st=g('tab-studio'),mo=document.getElementById('tab-more');if(st&&mo&&mo.parentNode&&st.parentNode!==mo.parentNode)mo.parentNode.insertBefore(st,mo.nextSibling);}catch(e){}}
+fix();
+list();
+try{fetch('/api/app/version',{credentials:'include'}).then(function(r){return r.json();}).then(function(v){var e=g('czrStVer');if(e)e.textContent='build '+v.build;}).catch(function(){});}catch(e){}
+})();
+</script>
+
+<nav class="bottom">
 
     <button data-tab="wallet" class="active" onclick="switchTab('wallet',this)">
 
@@ -9022,6 +10934,10 @@ CZR JS CHECKING
 
     </button>
 
+    <button data-tab="studio" onclick="switchTab('studio',this)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="m3 8 3-5h4l-3 5"/><path d="m11 8 3-5h4l-3 5"/></svg>
+      Studio
+    </button>
     <button data-tab="more" onclick="switchTab('more',this)">
 
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
@@ -9436,7 +11352,7 @@ async function mine(){
 
   const r=await api('/api/mine_default',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address:(localStorage.getItem('czr_address')||'')})});
 
-  if(r.status==='ok'){toast('Mined! Height: '+r.height);await refreshWallet()}
+  if(r.status==='ok'){toast('Mined! Height: '+(r.height!=null?r.height:(r.block_height!=null?r.block_height:'new block')));await refreshWallet()}
 
   else toast('Failed: '+(r.error||'unknown'));
 
@@ -10047,11 +11963,11 @@ function confirmMnemonic(){
 
     var il = document.getElementById('circleLink');
 
-    if (il && !il.value) il.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr;
+    if (il && !il.value) il.value = 'https://zaraiskais-byte.github.io/myminer/?ref=' + addr.slice(0,12);
 
     var wl = document.getElementById('welcomeLink');
 
-    if (wl && !wl.value) wl.value = 'https://tailscale-termux.tail57075d.ts.net/?ref=' + addr;
+    if (wl && !wl.value) wl.value = 'https://zaraiskais-byte.github.io/myminer/?ref=' + addr.slice(0,12);
 
   }
 
@@ -10459,6 +12375,21 @@ document.addEventListener('DOMContentLoaded', function() {
             std::string pin = gs("pin");
 
             std::string parent = gs("parent");
+            if (!parent.empty() && parent.size() < 40) {
+                std::lock_guard<std::mutex> czr_lk(g_pool_mutex);
+                if (!g_pool_state_loaded.exchange(true)) {
+                    pool_load_state_unlocked(wallet_path_.parent_path() / "pool_state.txt");
+                }
+                if (!g_pool_users.count(parent)) {
+                    std::string czr_hit;
+                    int czr_n = 0;
+                    for (const auto& czr_kv : g_pool_users) {
+                        if (czr_kv.first.compare(0, parent.size(), parent) == 0) { czr_hit = czr_kv.first; ++czr_n; }
+                    }
+                    if (czr_n == 1) parent = czr_hit;
+                }
+            }
+
 
             std::string legacy_addr = gs("address");
 

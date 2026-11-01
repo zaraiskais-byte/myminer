@@ -24,10 +24,36 @@ public class MainActivity extends Activity {
     private static final String URL = "http://127.0.0.1:" + NodeService.RPC_PORT;
     private FrameLayout root;
     private TextView status;
+    private TextView dbg;
     private WebView webView;
     private Handler ui;
     private boolean waiting = false;
     private boolean pageLoaded = false;
+
+    private final Runnable minerTick = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                if (pageLoaded && webView != null && NodeService.portOpen()) {
+                    webView.evaluateJavascript(
+                        "(function(){try{var l=document.getElementById('lock');var a=document.getElementById('app');if(!a||getComputedStyle(a).display==='none')return '';if(l&&getComputedStyle(l).display!=='none')return '';return localStorage.getItem('czr_address')||''}catch(e){return ''}})()",
+                        new ValueCallback<String>() {
+                            @Override
+                            public void onReceiveValue(String v) {
+                                if (v == null) return;
+                                final String a = v.replace("\"", "").trim();
+                                if (a.length() == 0) return;
+                                new Thread(new Runnable() {
+                                    public void run() { NodeService.ensureWorker(MainActivity.this, a); }
+                                }).start();
+                            }
+                        });
+                }
+            } catch (Exception ignored) {}
+            if (dbg != null) dbg.setText(NodeService.debugState(MainActivity.this));
+            ui.postDelayed(this, 5000);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,17 +65,282 @@ public class MainActivity extends Activity {
         status.setTextSize(14);
         status.setPadding(32, 32, 32, 32);
         status.setGravity(Gravity.CENTER);
-        status.setBackgroundColor(0xFFFFFFFF);
+        status.setBackgroundColor(0xFF0A1020);
+        status.setTextColor(0xFFE8C45A);
+        status.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.splash_logo, 0, 0);
+        status.setCompoundDrawablePadding(24);
         status.setText("Starting Caesar node...");
         attachNewWebView();
         root.addView(status, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         setContentView(root);
+        dbg = new TextView(this);
+        dbg.setTextSize(10);
+        dbg.setTextColor(0xFFFFFF00);
+        dbg.setBackgroundColor(0xCC000000);
+        dbg.setPadding(8, 4, 8, 4);
+        root.addView(dbg, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1);
         }
         startNode();
+    }
+
+    private static final boolean AUTO_UPDATE = true;
+    private boolean installing = false;
+
+    private void installUpdate(final String url) {
+        if (installing) return;
+        try {
+            if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+                startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    android.net.Uri.parse("package:" + getPackageName())));
+                return;
+            }
+        } catch (Exception ignored) {}
+        installing = true;
+        new Thread(new Runnable() {
+            public void run() {
+                java.net.HttpURLConnection c = null;
+                try {
+                    c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                    c.setInstanceFollowRedirects(true);
+                    c.setConnectTimeout(10000);
+                    c.setReadTimeout(30000);
+                    if (c.getResponseCode() != 200) return;
+                    android.content.pm.PackageInstaller pi = getPackageManager().getPackageInstaller();
+                    android.content.pm.PackageInstaller.SessionParams sp =
+                        new android.content.pm.PackageInstaller.SessionParams(
+                            android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+                    if (Build.VERSION.SDK_INT >= 31) {
+                        sp.setRequireUserAction(android.content.pm.PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED);
+                    }
+                    int id = pi.createSession(sp);
+                    android.content.pm.PackageInstaller.Session ses = pi.openSession(id);
+                    try {
+                        java.io.OutputStream os = ses.openWrite("caesar.apk", 0, -1);
+                        java.io.InputStream in = c.getInputStream();
+                        byte[] buf = new byte[65536];
+                        int n;
+                        while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+                        ses.fsync(os);
+                        os.close();
+                        in.close();
+                        Intent it = new Intent(MainActivity.this, UpdateReceiver.class);
+                        int fl = android.app.PendingIntent.FLAG_UPDATE_CURRENT;
+                        if (Build.VERSION.SDK_INT >= 31) fl |= android.app.PendingIntent.FLAG_MUTABLE;
+                        android.app.PendingIntent pend = android.app.PendingIntent.getBroadcast(MainActivity.this, id, it, fl);
+                        ses.commit(pend.getIntentSender());
+                    } finally {
+                        ses.close();
+                    }
+                } catch (Exception ignored) {
+                } finally {
+                    installing = false;
+                    if (c != null) c.disconnect();
+                }
+            }
+        }).start();
+    }
+
+    private long lastUpdateCheck = 0;
+
+    private void checkUpdate() {
+        final long now = System.currentTimeMillis();
+        if (now - lastUpdateCheck < 6L * 3600L * 1000L) return;
+        lastUpdateCheck = now;
+        new Thread(new Runnable() {
+            public void run() {
+                java.net.HttpURLConnection c = null;
+                try {
+                    c = (java.net.HttpURLConnection) new java.net.URL(
+                        "https://api.github.com/repos/zaraiskais-byte/myminer/releases/latest").openConnection();
+                    c.setConnectTimeout(5000);
+                    c.setReadTimeout(8000);
+                    c.setRequestProperty("Accept", "application/vnd.github+json");
+                    if (c.getResponseCode() != 200) return;
+                    java.io.BufferedReader r = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(c.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = r.readLine()) != null && sb.length() < 200000) sb.append(line);
+                    r.close();
+                    java.util.regex.Matcher t = java.util.regex.Pattern
+                        .compile("\"tag_name\"\\s*:\\s*\"[^\"]*?(\\d+)\"").matcher(sb);
+                    java.util.regex.Matcher u = java.util.regex.Pattern
+                        .compile("\"browser_download_url\"\\s*:\\s*\"([^\"]+\\.apk)\"").matcher(sb);
+                    if (!t.find() || !u.find()) return;
+                    final int latest = Integer.parseInt(t.group(1));
+                    final String url = u.group(1);
+                    String vn = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+                    int cur = Integer.parseInt(vn.substring(vn.lastIndexOf('.') + 1));
+                    if (latest <= cur) return;
+                    if (AUTO_UPDATE) { installUpdate(url); return; }
+                    ui.post(new Runnable() {
+                        public void run() {
+                            try {
+                                new android.app.AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("Caesar CZR")
+                                    .setMessage("New version 3.0." + latest + " is available.")
+                                    .setPositiveButton("Update", new android.content.DialogInterface.OnClickListener() {
+                                        public void onClick(android.content.DialogInterface d, int w) {
+                                            startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+                                        }
+                                    })
+                                    .setNegativeButton("Later", null)
+                                    .show();
+                            } catch (Exception ignored) {}
+                        }
+                    });
+                } catch (Exception ignored) {
+                } finally {
+                    if (c != null) c.disconnect();
+                }
+            }
+        }).start();
+    }
+
+    private android.speech.tts.TextToSpeech czrTts;
+    private boolean czrTtsReady = false;
+
+    public class CzrTtsBridge {
+        @android.webkit.JavascriptInterface
+        public void speak(final String text, final String lang) {
+            ui.post(new Runnable() {
+                public void run() {
+                    try {
+                        if (czrTts == null) {
+                            czrTts = new android.speech.tts.TextToSpeech(MainActivity.this,
+                                new android.speech.tts.TextToSpeech.OnInitListener() {
+                                    public void onInit(int st) {
+                                        czrTtsReady = (st == android.speech.tts.TextToSpeech.SUCCESS);
+                                        czrSpeakNow(text, lang);
+                                    }
+                                });
+                        } else {
+                            czrSpeakNow(text, lang);
+                        }
+                    } catch (Exception ignored) {}
+                }
+            });
+        }
+    }
+
+    private void czrSpeakNow(String text, String lang) {
+        if (czrTts == null || !czrTtsReady) return;
+        java.util.Locale loc = "ar".equals(lang) ? new java.util.Locale("ar") : java.util.Locale.US;
+        int r = czrTts.setLanguage(loc);
+        if (r == android.speech.tts.TextToSpeech.LANG_MISSING_DATA
+                || r == android.speech.tts.TextToSpeech.LANG_NOT_SUPPORTED) return;
+        czrTts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "czr");
+    }
+
+    
+private android.speech.tts.TextToSpeech czrV;
+    private boolean czrVReady = false;
+    private volatile boolean czrVBusy = false;
+    private volatile String czrVState = "init";
+    private volatile String czrVPendingText = null;
+    private volatile String czrVPendingLang = null;
+    private final java.util.concurrent.atomic.AtomicInteger czrVSeq = new java.util.concurrent.atomic.AtomicInteger(0);
+
+    private volatile float czrVPitch = 1.0f;
+    private volatile int czrVIdx = 0;
+    private volatile float czrVRate = 0.95f;
+
+    public class CzrVoiceBridge {
+        @android.webkit.JavascriptInterface
+        public void warm() {
+            ui.post(new Runnable() { public void run() { czrVEnsure(); } });
+        }
+        @android.webkit.JavascriptInterface
+        public void speak(final String text, final String lang) {
+            czrVBusy = true;
+            final int my = czrVSeq.incrementAndGet();
+            ui.post(new Runnable() { public void run() { czrVSay(text, lang, my); } });
+        }
+        @android.webkit.JavascriptInterface
+        public void stop() {
+            czrVSeq.incrementAndGet();
+            czrVBusy = false;
+            czrVPendingText = null;
+            ui.post(new Runnable() {
+                public void run() { try { if (czrV != null) czrV.stop(); } catch (Exception ignored) {} }
+            });
+        }
+        @android.webkit.JavascriptInterface
+        public boolean busy() { return czrVBusy; }
+        @android.webkit.JavascriptInterface
+        public void voiceIndex(int i) { czrVIdx = i < 0 ? 0 : i; }
+        @android.webkit.JavascriptInterface
+        public void speak2(final String text, final String lang, final double pitch, final double rate) {
+            czrVPitch = (float) pitch;
+            czrVRate = (float) rate;
+            speak(text, lang);
+        }
+        @android.webkit.JavascriptInterface
+        public void voiceReset() {
+            czrVPitch = 1.0f;
+            czrVRate = 0.95f;
+        }
+        @android.webkit.JavascriptInterface
+        public String state() { return czrVState; }
+    }
+
+    private void czrVEnsure() {
+        if (czrV != null) return;
+        czrV = new android.speech.tts.TextToSpeech(this, new android.speech.tts.TextToSpeech.OnInitListener() {
+            public void onInit(int st) {
+                czrVReady = (st == android.speech.tts.TextToSpeech.SUCCESS);
+                if (!czrVReady) { czrVState = "noengine"; czrVBusy = false; return; }
+                czrVState = "ok";
+                try { czrV.setSpeechRate(0.95f); } catch (Exception ignored) {}
+                czrV.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
+                    public void onStart(String id) {}
+                    public void onDone(String id) { if (("czr" + czrVSeq.get()).equals(id)) czrVBusy = false; }
+                    public void onError(String id) { if (("czr" + czrVSeq.get()).equals(id)) czrVBusy = false; }
+                });
+                String t = czrVPendingText, l = czrVPendingLang;
+                if (t != null) { czrVPendingText = null; czrVSay(t, l, czrVSeq.get()); }
+            }
+        });
+    }
+
+    private void czrVSay(String text, String lang, int my) {
+        if (my != czrVSeq.get()) return;
+        if (czrV == null) { czrVPendingText = text; czrVPendingLang = lang; czrVEnsure(); return; }
+        if (!czrVReady) {
+            if ("init".equals(czrVState)) { czrVPendingText = text; czrVPendingLang = lang; }
+            else czrVBusy = false;
+            return;
+        }
+        java.util.Locale[] opts = "ar".equals(lang)
+            ? new java.util.Locale[]{ new java.util.Locale("ar"), new java.util.Locale("ar", "SA"), new java.util.Locale("ar", "EG") }
+            : new java.util.Locale[]{ java.util.Locale.US, java.util.Locale.ENGLISH };
+        boolean ok = false;
+        for (java.util.Locale l : opts) {
+            int r = czrV.setLanguage(l);
+            if (r >= android.speech.tts.TextToSpeech.LANG_AVAILABLE) { ok = true; break; }
+        }
+        if (!ok) { czrVState = "nolang"; czrVBusy = false; return; }
+        czrVState = "ok";
+        try {
+            final String lc = "ar".equals(lang) ? "ar" : "en";
+            java.util.List<android.speech.tts.Voice> vs = new java.util.ArrayList<android.speech.tts.Voice>();
+            for (android.speech.tts.Voice vv : czrV.getVoices()) {
+                if (vv.getLocale().getLanguage().equals(lc) && !vv.isNetworkConnectionRequired()) vs.add(vv);
+            }
+            if (!vs.isEmpty()) {
+                java.util.Collections.sort(vs, new java.util.Comparator<android.speech.tts.Voice>() {
+                    public int compare(android.speech.tts.Voice x, android.speech.tts.Voice y) { return x.getName().compareTo(y.getName()); }
+                });
+                czrV.setVoice(vs.get(czrVIdx % vs.size()));
+            }
+        } catch (Exception ignored) {}
+        try { czrV.setPitch(czrVPitch); czrV.setSpeechRate(czrVRate); } catch (Exception ignored) {}
+        czrV.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "czr" + my);
     }
 
     private void attachNewWebView() {
@@ -58,9 +349,12 @@ public class MainActivity extends Activity {
             try { webView.destroy(); } catch (Exception ignored) {}
         }
         webView = new WebView(this);
+        webView.addJavascriptInterface(new CzrTtsBridge(), "CzrTTS");
+        webView.addJavascriptInterface(new CzrVoiceBridge(), "CzrVoice");
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false);
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
@@ -141,8 +435,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        checkUpdate();
         webView.onResume();
         webView.resumeTimers();
+        ui.removeCallbacks(minerTick);
+        ui.postDelayed(minerTick, 5000);
         if (!NodeService.portOpen()) {
             if (!waiting) startNode();
         } else if (pageLoaded) {
