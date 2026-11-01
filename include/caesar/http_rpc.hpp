@@ -5261,7 +5261,7 @@ setTimeout(function(){try{var e=document.getElementById('czrStVer');if(e&&e.text
 <script>
 (function(){
 if(window.__czrWiz2)return;window.__czrWiz2=1;
-var S={step:1,tab:'pre',niche:0,custom:'',lang:'ar',voice:1,vf:'all',mtab:'pre',msel:[],mfile:null,mname:'',art:0,cap:0,glitch:false,hook:false,pf:{yt:1,tt:1,fb:1},idea:'',n:6,imgs:[],scenes:[],capt:''};
+var S={step:1,tab:'pre',niche:0,custom:'',lang:'ar',voice:1,vf:'all',mtab:'pre',msel:[],mfile:null,mname:'',art:0,cap:0,glitch:false,hook:false,pf:{},idea:'',n:6,imgs:[],scenes:[],capt:''};
 var T=['المجال','اللغة والصوت','الموسيقى','النمط الفني','نمط التعليق','التأثيرات','الحسابات','الفكرة والنتيجة'];
 var N=[['😱 Scary stories · قصص مرعبة','horror','قصص تقشعر لها الأبدان · Scary stories that give you goosebumps'],['📜 History · تاريخ','history','مقاطع عن التاريخ من القديم إلى الحديث'],['⚡ Greek Mythology · الأساطير اليونانية','myth','قصص صادمة ومثيرة من الأساطير'],['👑 Historical Figures · شخصيات تاريخية','figures','حياة أهم الشخصيات في دقيقة'],['🔥 Motivation · تحفيز','motivation','إضافة مني · فيديوهات تحفيزية قصيرة'],['🧠 Facts · حقائق','facts','إضافة مني · حقائق مدهشة']];
 var VO=[['Adam','واثق · Confident','low',0.85,1],['Jonah','راوي · Storyteller','low',0.9,0.88],['Jamal','هادئ · Chill','low',0.95,0.85],['Peter','عميق · Deep','low',0.7,0.92],['Brittney','حماسي · Energetic','high',1.3,1.15],['Hope','مشرق · Bright','high',1.2,1.05],['Zara','حواري · Conversational','high',1.1,1],['Jessa','عفوي · Casual','high',1.05,1.08]];
@@ -5402,9 +5402,22 @@ var c=el('div',CD);c.appendChild(el('div','font-weight:700','Glitch effect · ت
 var k=el('div',CD);k.appendChild(el('div','font-weight:700','حركة كاميرا للمشهد الأول (بديل مجاني)'+(S.hook?' ✅':'')));k.appendChild(el('div','font-size:13px;opacity:.7;margin:6px 0 10px','تقريب وتحريك سينمائي قوي على صورة المشهد الأول ليجذب المشاهد.'));k.appendChild(chip(S.hook?'مفعّل':'تفعيل',S.hook,function(){S.hook=!S.hook;render();}));body.appendChild(k);
 var h=el('div',CD+';opacity:.5');h.appendChild(el('div','font-weight:700','Animated hook · Wan 2.2 · PREMIUM'));h.appendChild(el('div','font-size:13px;margin-top:6px','توليد فيديو بالذكاء الاصطناعي يحتاج خادمًا مدفوعًا، غير متاح داخل التطبيق.'));body.appendChild(h);},
 function(){
-body.appendChild(el('div','margin-bottom:10px','اختر المنصات التي ستنشر عليها:'));
-var r=el('div','display:flex;gap:8px;flex-wrap:wrap');[['yt','YouTube'],['tt','TikTok'],['fb','Facebook']].forEach(function(p){r.appendChild(chip(p[1],!!S.pf[p[0]],function(){S.pf[p[0]]=S.pf[p[0]]?0:1;render();}));});body.appendChild(r);
-var c=el('div',CD+';margin-top:16px;opacity:.6;text-align:center');c.appendChild(el('div','','ربط الحسابات تلقائيًا غير متاح (يحتاج موافقات المنصات).'));c.appendChild(el('div','font-size:13px;margin-top:6px','يُنسخ الوصف ثم تُفتح المنصة لترفع الفيديو بنفسك.'));body.appendChild(c);},
+/*pk*/body.appendChild(el('div','margin-bottom:10px;opacity:.8','اربط وحدد الحسابات التي تريد النشر عليها.'));
+var PL=[['tt','TikTok','🎵'],['ig','Instagram','📸'],['yt','YouTube','▶️'],['fb','Facebook','👍']];
+var ks=PL.filter(function(p){return S.pf[p[0]];});
+function pick(){
+var ov=el('div','position:fixed;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.7);z-index:4000;display:flex;align-items:flex-end');
+var sh=el('div','background:#111a2e;width:100%;border-radius:18px 18px 0 0;padding:18px;box-sizing:border-box;direction:rtl');
+ov.onclick=function(e){if(e.target===ov)ov.remove();};
+sh.appendChild(el('div','font-size:18px;font-weight:700;color:#e8c45a;margin-bottom:4px','اربط حساب تواصل اجتماعي'));
+sh.appendChild(el('div','font-size:13px;opacity:.7;margin-bottom:12px','اختر إحدى المنصات المدعومة.'));
+PL.forEach(function(p){sh.appendChild(el('button',GH+';display:block;width:100%;margin-bottom:10px;text-align:right;font-size:16px',(S.pf[p[0]]?'✅ ':'')+p[2]+'  '+p[1],function(){S.pf[p[0]]=1;ov.remove();render();}));});
+sh.appendChild(el('button',GH+';width:100%','إغلاق',function(){ov.remove();}));
+ov.appendChild(sh);document.body.appendChild(ov);}
+if(!ks.length){var e=el('div',CD+';text-align:center;border-style:dashed');e.appendChild(el('div','opacity:.7;margin-bottom:12px','لم تربط أي حساب بعد.'));e.appendChild(el('button',GH,'+ اربط أول حساب',function(){pick();}));body.appendChild(e);}
+else{ks.forEach(function(p){var c=el('div',CD+';display:flex;align-items:center;gap:10px');c.appendChild(el('div','flex:1;font-weight:700','✅ '+p[2]+' '+p[1]));c.appendChild(el('button',GH+';padding:8px 13px','✕',function(){S.pf[p[0]]=0;render();}));body.appendChild(c);});
+body.appendChild(el('button',GH+';width:100%','+ إضافة حساب',function(){pick();}));}
+var nt=el('div','font-size:12px;opacity:.7;text-align:center;margin-top:16px','هذا اختيار للمنصات وليس ربطًا حقيقيًا بحساباتك. يمكنك الربط لاحقًا، وفي الخطوة الأخيرة تنشر على أي منصة.');body.appendChild(nt);},
 function(){
 body.appendChild(el('div','margin-bottom:8px','اكتب فكرة الفيديو أو القصة كاملة (كل جملة تصبح مشهدًا):'));
 var t=el('textarea','width:100%;min-height:130px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:16px;box-sizing:border-box');t.value=S.idea;t.oninput=function(){S.idea=t.value;};body.appendChild(t);
@@ -5420,8 +5433,10 @@ body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:8px','لتسجي
 sec('المشاهد (سطر لكل مشهد)',function(){return S.scenes.join('\n');},function(v){S.scenes=v.split('\n').map(function(x){return x.trim();}).filter(Boolean);});
 sec('أوامر الصور',prompts);
 sec('الوصف والهاشتاقات',function(){return S.capt;},function(v){S.capt=v;});
-var L=[['yt','YouTube','https://www.youtube.com/upload'],['tt','TikTok','https://www.tiktok.com/upload'],['fb','Facebook','https://www.facebook.com/']],pr=el('div','display:flex;gap:8px;flex-wrap:wrap;margin-top:14px');
-L.forEach(function(p){if(S.pf[p[0]])pr.appendChild(el('button',BT,p[1]+' ↗',function(){cp(S.capt);setTimeout(function(){window.open(p[2],'_blank');},400);}));});body.appendChild(pr);
+body.appendChild(el('div','font-weight:700;color:#e8c45a;margin:18px 0 6px;font-size:17px','📤 النشر · Publish'));
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-bottom:8px','اختر المنصة: يُنسخ الوصف ثم تُفتح المنصة لترفع الفيديو (سجّل المعاينة بمسجل الشاشة أولًا).'));
+var L=[['yt','YouTube','https://www.youtube.com/upload'],['tt','TikTok','https://www.tiktok.com/upload'],['fb','Facebook','https://www.facebook.com/'],['ig','Instagram','https://www.instagram.com/']],pr=el('div','display:flex;gap:8px;flex-wrap:wrap');
+L.forEach(function(p){pr.appendChild(el('button',S.pf[p[0]]?BT:GH,p[1]+' ↗',function(){cp(S.capt);setTimeout(function(){window.open(p[2],'_blank');},400);}));});body.appendChild(pr);
 idle();}
 ];
 function addBtn(){var as=document.querySelectorAll('#czrStVer');Array.prototype.forEach.call(as,function(a){if(a.__w2)return;a.__w2=1;var b=el('button',BT+';display:block;width:100%;margin:12px 0','🎬 استوديو متطور · Pro Studio',open);var p=a.parentNode;p.insertBefore(b,p.firstChild);});}
@@ -10603,7 +10618,7 @@ setTimeout(function(){try{var e=document.getElementById('czrStVer');if(e&&e.text
 <script>
 (function(){
 if(window.__czrWiz2)return;window.__czrWiz2=1;
-var S={step:1,tab:'pre',niche:0,custom:'',lang:'ar',voice:1,vf:'all',mtab:'pre',msel:[],mfile:null,mname:'',art:0,cap:0,glitch:false,hook:false,pf:{yt:1,tt:1,fb:1},idea:'',n:6,imgs:[],scenes:[],capt:''};
+var S={step:1,tab:'pre',niche:0,custom:'',lang:'ar',voice:1,vf:'all',mtab:'pre',msel:[],mfile:null,mname:'',art:0,cap:0,glitch:false,hook:false,pf:{},idea:'',n:6,imgs:[],scenes:[],capt:''};
 var T=['المجال','اللغة والصوت','الموسيقى','النمط الفني','نمط التعليق','التأثيرات','الحسابات','الفكرة والنتيجة'];
 var N=[['😱 Scary stories · قصص مرعبة','horror','قصص تقشعر لها الأبدان · Scary stories that give you goosebumps'],['📜 History · تاريخ','history','مقاطع عن التاريخ من القديم إلى الحديث'],['⚡ Greek Mythology · الأساطير اليونانية','myth','قصص صادمة ومثيرة من الأساطير'],['👑 Historical Figures · شخصيات تاريخية','figures','حياة أهم الشخصيات في دقيقة'],['🔥 Motivation · تحفيز','motivation','إضافة مني · فيديوهات تحفيزية قصيرة'],['🧠 Facts · حقائق','facts','إضافة مني · حقائق مدهشة']];
 var VO=[['Adam','واثق · Confident','low',0.85,1],['Jonah','راوي · Storyteller','low',0.9,0.88],['Jamal','هادئ · Chill','low',0.95,0.85],['Peter','عميق · Deep','low',0.7,0.92],['Brittney','حماسي · Energetic','high',1.3,1.15],['Hope','مشرق · Bright','high',1.2,1.05],['Zara','حواري · Conversational','high',1.1,1],['Jessa','عفوي · Casual','high',1.05,1.08]];
@@ -10744,9 +10759,22 @@ var c=el('div',CD);c.appendChild(el('div','font-weight:700','Glitch effect · ت
 var k=el('div',CD);k.appendChild(el('div','font-weight:700','حركة كاميرا للمشهد الأول (بديل مجاني)'+(S.hook?' ✅':'')));k.appendChild(el('div','font-size:13px;opacity:.7;margin:6px 0 10px','تقريب وتحريك سينمائي قوي على صورة المشهد الأول ليجذب المشاهد.'));k.appendChild(chip(S.hook?'مفعّل':'تفعيل',S.hook,function(){S.hook=!S.hook;render();}));body.appendChild(k);
 var h=el('div',CD+';opacity:.5');h.appendChild(el('div','font-weight:700','Animated hook · Wan 2.2 · PREMIUM'));h.appendChild(el('div','font-size:13px;margin-top:6px','توليد فيديو بالذكاء الاصطناعي يحتاج خادمًا مدفوعًا، غير متاح داخل التطبيق.'));body.appendChild(h);},
 function(){
-body.appendChild(el('div','margin-bottom:10px','اختر المنصات التي ستنشر عليها:'));
-var r=el('div','display:flex;gap:8px;flex-wrap:wrap');[['yt','YouTube'],['tt','TikTok'],['fb','Facebook']].forEach(function(p){r.appendChild(chip(p[1],!!S.pf[p[0]],function(){S.pf[p[0]]=S.pf[p[0]]?0:1;render();}));});body.appendChild(r);
-var c=el('div',CD+';margin-top:16px;opacity:.6;text-align:center');c.appendChild(el('div','','ربط الحسابات تلقائيًا غير متاح (يحتاج موافقات المنصات).'));c.appendChild(el('div','font-size:13px;margin-top:6px','يُنسخ الوصف ثم تُفتح المنصة لترفع الفيديو بنفسك.'));body.appendChild(c);},
+/*pk*/body.appendChild(el('div','margin-bottom:10px;opacity:.8','اربط وحدد الحسابات التي تريد النشر عليها.'));
+var PL=[['tt','TikTok','🎵'],['ig','Instagram','📸'],['yt','YouTube','▶️'],['fb','Facebook','👍']];
+var ks=PL.filter(function(p){return S.pf[p[0]];});
+function pick(){
+var ov=el('div','position:fixed;left:0;right:0;top:0;bottom:0;background:rgba(0,0,0,.7);z-index:4000;display:flex;align-items:flex-end');
+var sh=el('div','background:#111a2e;width:100%;border-radius:18px 18px 0 0;padding:18px;box-sizing:border-box;direction:rtl');
+ov.onclick=function(e){if(e.target===ov)ov.remove();};
+sh.appendChild(el('div','font-size:18px;font-weight:700;color:#e8c45a;margin-bottom:4px','اربط حساب تواصل اجتماعي'));
+sh.appendChild(el('div','font-size:13px;opacity:.7;margin-bottom:12px','اختر إحدى المنصات المدعومة.'));
+PL.forEach(function(p){sh.appendChild(el('button',GH+';display:block;width:100%;margin-bottom:10px;text-align:right;font-size:16px',(S.pf[p[0]]?'✅ ':'')+p[2]+'  '+p[1],function(){S.pf[p[0]]=1;ov.remove();render();}));});
+sh.appendChild(el('button',GH+';width:100%','إغلاق',function(){ov.remove();}));
+ov.appendChild(sh);document.body.appendChild(ov);}
+if(!ks.length){var e=el('div',CD+';text-align:center;border-style:dashed');e.appendChild(el('div','opacity:.7;margin-bottom:12px','لم تربط أي حساب بعد.'));e.appendChild(el('button',GH,'+ اربط أول حساب',function(){pick();}));body.appendChild(e);}
+else{ks.forEach(function(p){var c=el('div',CD+';display:flex;align-items:center;gap:10px');c.appendChild(el('div','flex:1;font-weight:700','✅ '+p[2]+' '+p[1]));c.appendChild(el('button',GH+';padding:8px 13px','✕',function(){S.pf[p[0]]=0;render();}));body.appendChild(c);});
+body.appendChild(el('button',GH+';width:100%','+ إضافة حساب',function(){pick();}));}
+var nt=el('div','font-size:12px;opacity:.7;text-align:center;margin-top:16px','هذا اختيار للمنصات وليس ربطًا حقيقيًا بحساباتك. يمكنك الربط لاحقًا، وفي الخطوة الأخيرة تنشر على أي منصة.');body.appendChild(nt);},
 function(){
 body.appendChild(el('div','margin-bottom:8px','اكتب فكرة الفيديو أو القصة كاملة (كل جملة تصبح مشهدًا):'));
 var t=el('textarea','width:100%;min-height:130px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:16px;box-sizing:border-box');t.value=S.idea;t.oninput=function(){S.idea=t.value;};body.appendChild(t);
@@ -10762,8 +10790,10 @@ body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:8px','لتسجي
 sec('المشاهد (سطر لكل مشهد)',function(){return S.scenes.join('\n');},function(v){S.scenes=v.split('\n').map(function(x){return x.trim();}).filter(Boolean);});
 sec('أوامر الصور',prompts);
 sec('الوصف والهاشتاقات',function(){return S.capt;},function(v){S.capt=v;});
-var L=[['yt','YouTube','https://www.youtube.com/upload'],['tt','TikTok','https://www.tiktok.com/upload'],['fb','Facebook','https://www.facebook.com/']],pr=el('div','display:flex;gap:8px;flex-wrap:wrap;margin-top:14px');
-L.forEach(function(p){if(S.pf[p[0]])pr.appendChild(el('button',BT,p[1]+' ↗',function(){cp(S.capt);setTimeout(function(){window.open(p[2],'_blank');},400);}));});body.appendChild(pr);
+body.appendChild(el('div','font-weight:700;color:#e8c45a;margin:18px 0 6px;font-size:17px','📤 النشر · Publish'));
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-bottom:8px','اختر المنصة: يُنسخ الوصف ثم تُفتح المنصة لترفع الفيديو (سجّل المعاينة بمسجل الشاشة أولًا).'));
+var L=[['yt','YouTube','https://www.youtube.com/upload'],['tt','TikTok','https://www.tiktok.com/upload'],['fb','Facebook','https://www.facebook.com/'],['ig','Instagram','https://www.instagram.com/']],pr=el('div','display:flex;gap:8px;flex-wrap:wrap');
+L.forEach(function(p){pr.appendChild(el('button',S.pf[p[0]]?BT:GH,p[1]+' ↗',function(){cp(S.capt);setTimeout(function(){window.open(p[2],'_blank');},400);}));});body.appendChild(pr);
 idle();}
 ];
 function addBtn(){var as=document.querySelectorAll('#czrStVer');Array.prototype.forEach.call(as,function(a){if(a.__w2)return;a.__w2=1;var b=el('button',BT+';display:block;width:100%;margin:12px 0','🎬 استوديو متطور · Pro Studio',open);var p=a.parentNode;p.insertBefore(b,p.firstChild);});}
