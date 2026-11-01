@@ -238,16 +238,92 @@ public class MainActivity extends Activity {
     }
 
     
-private void attachNewWebView() {
+private android.speech.tts.TextToSpeech czrV;
+    private boolean czrVReady = false;
+    private volatile boolean czrVBusy = false;
+    private volatile String czrVState = "init";
+    private volatile String czrVPendingText = null;
+    private volatile String czrVPendingLang = null;
+    private final java.util.concurrent.atomic.AtomicInteger czrVSeq = new java.util.concurrent.atomic.AtomicInteger(0);
+
+    public class CzrVoiceBridge {
+        @android.webkit.JavascriptInterface
+        public void warm() {
+            ui.post(new Runnable() { public void run() { czrVEnsure(); } });
+        }
+        @android.webkit.JavascriptInterface
+        public void speak(final String text, final String lang) {
+            czrVBusy = true;
+            final int my = czrVSeq.incrementAndGet();
+            ui.post(new Runnable() { public void run() { czrVSay(text, lang, my); } });
+        }
+        @android.webkit.JavascriptInterface
+        public void stop() {
+            czrVSeq.incrementAndGet();
+            czrVBusy = false;
+            czrVPendingText = null;
+            ui.post(new Runnable() {
+                public void run() { try { if (czrV != null) czrV.stop(); } catch (Exception ignored) {} }
+            });
+        }
+        @android.webkit.JavascriptInterface
+        public boolean busy() { return czrVBusy; }
+        @android.webkit.JavascriptInterface
+        public String state() { return czrVState; }
+    }
+
+    private void czrVEnsure() {
+        if (czrV != null) return;
+        czrV = new android.speech.tts.TextToSpeech(this, new android.speech.tts.TextToSpeech.OnInitListener() {
+            public void onInit(int st) {
+                czrVReady = (st == android.speech.tts.TextToSpeech.SUCCESS);
+                if (!czrVReady) { czrVState = "noengine"; czrVBusy = false; return; }
+                czrVState = "ok";
+                try { czrV.setSpeechRate(0.95f); } catch (Exception ignored) {}
+                czrV.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
+                    public void onStart(String id) {}
+                    public void onDone(String id) { if (("czr" + czrVSeq.get()).equals(id)) czrVBusy = false; }
+                    public void onError(String id) { if (("czr" + czrVSeq.get()).equals(id)) czrVBusy = false; }
+                });
+                String t = czrVPendingText, l = czrVPendingLang;
+                if (t != null) { czrVPendingText = null; czrVSay(t, l, czrVSeq.get()); }
+            }
+        });
+    }
+
+    private void czrVSay(String text, String lang, int my) {
+        if (my != czrVSeq.get()) return;
+        if (czrV == null) { czrVPendingText = text; czrVPendingLang = lang; czrVEnsure(); return; }
+        if (!czrVReady) {
+            if ("init".equals(czrVState)) { czrVPendingText = text; czrVPendingLang = lang; }
+            else czrVBusy = false;
+            return;
+        }
+        java.util.Locale[] opts = "ar".equals(lang)
+            ? new java.util.Locale[]{ new java.util.Locale("ar"), new java.util.Locale("ar", "SA"), new java.util.Locale("ar", "EG") }
+            : new java.util.Locale[]{ java.util.Locale.US, java.util.Locale.ENGLISH };
+        boolean ok = false;
+        for (java.util.Locale l : opts) {
+            int r = czrV.setLanguage(l);
+            if (r >= android.speech.tts.TextToSpeech.LANG_AVAILABLE) { ok = true; break; }
+        }
+        if (!ok) { czrVState = "nolang"; czrVBusy = false; return; }
+        czrVState = "ok";
+        czrV.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "czr" + my);
+    }
+
+    private void attachNewWebView() {
         if (webView != null) {
             root.removeView(webView);
             try { webView.destroy(); } catch (Exception ignored) {}
         }
         webView = new WebView(this);
         webView.addJavascriptInterface(new CzrTtsBridge(), "CzrTTS");
+        webView.addJavascriptInterface(new CzrVoiceBridge(), "CzrVoice");
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
+        s.setMediaPlaybackRequiresUserGesture(false);
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);

@@ -5223,6 +5223,41 @@ requestAnimationFrame(loop);
 },900);
 })();
 </script>
+<script>
+(function(){
+if(window.__czrVoiceShim)return;
+var V=window.CzrVoice;
+if(!V)return;
+window.__czrVoiceShim=1;
+var tok=0,warned=false;
+function toast(m){try{var t=document.createElement('div');t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4000;font-size:14px;max-width:88%;text-align:center';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove();},4500);}catch(e){}}
+try{V.warm();}catch(e){}
+var sh={speaking:false,pending:false,paused:false,
+getVoices:function(){return [];},
+addEventListener:function(){},removeEventListener:function(){},
+cancel:function(){tok++;sh.speaking=false;try{V.stop();}catch(e){}},
+speak:function(u){
+var my=++tok;sh.speaking=true;
+var txt=String((u&&u.text)||''),ar=/[\u0600-\u06FF]/.test(txt)||/^ar/i.test((u&&u.lang)||'');
+try{V.speak(txt,ar?'ar':'en');}catch(e){}
+setTimeout(function(){if(my!==tok||warned)return;var st='';try{st=V.state();}catch(e){}
+if(st==='nolang'){warned=true;toast('لا يوجد صوت عربي: الإعدادات > اللغة > تحويل النص إلى كلام');}
+if(st==='noengine'){warned=true;toast('لا يوجد محرك نطق في الهاتف');}},900);
+var t0=Date.now();
+function fin(){if(my!==tok)return;sh.speaking=false;try{if(u&&u.onend)u.onend({});}catch(e){}}
+(function poll(){
+if(my!==tok)return;
+var b=true;try{b=V.busy();}catch(e){}
+if(!b){fin();return;}
+if(Date.now()-t0>180000){fin();return;}
+setTimeout(poll,250);
+})();
+}};
+if(!window.SpeechSynthesisUtterance){window.SpeechSynthesisUtterance=function(t){this.text=t;this.lang='';};}
+try{Object.defineProperty(window,'speechSynthesis',{value:sh,configurable:true,writable:true});}catch(e){try{window.speechSynthesis=sh;}catch(e2){}}
+setTimeout(function(){try{var e=document.getElementById('czrStVer');if(e&&e.textContent.indexOf('voice')<0)e.textContent=(e.textContent||'')+' · voice: '+V.state();}catch(e3){}},3000);
+})();
+</script>
 <div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
 </div></section>
 <script>
@@ -10358,6 +10393,41 @@ requestAnimationFrame(loop);
 })();
 };
 },900);
+})();
+</script>
+<script>
+(function(){
+if(window.__czrVoiceShim)return;
+var V=window.CzrVoice;
+if(!V)return;
+window.__czrVoiceShim=1;
+var tok=0,warned=false;
+function toast(m){try{var t=document.createElement('div');t.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:130px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4000;font-size:14px;max-width:88%;text-align:center';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove();},4500);}catch(e){}}
+try{V.warm();}catch(e){}
+var sh={speaking:false,pending:false,paused:false,
+getVoices:function(){return [];},
+addEventListener:function(){},removeEventListener:function(){},
+cancel:function(){tok++;sh.speaking=false;try{V.stop();}catch(e){}},
+speak:function(u){
+var my=++tok;sh.speaking=true;
+var txt=String((u&&u.text)||''),ar=/[\u0600-\u06FF]/.test(txt)||/^ar/i.test((u&&u.lang)||'');
+try{V.speak(txt,ar?'ar':'en');}catch(e){}
+setTimeout(function(){if(my!==tok||warned)return;var st='';try{st=V.state();}catch(e){}
+if(st==='nolang'){warned=true;toast('لا يوجد صوت عربي: الإعدادات > اللغة > تحويل النص إلى كلام');}
+if(st==='noengine'){warned=true;toast('لا يوجد محرك نطق في الهاتف');}},900);
+var t0=Date.now();
+function fin(){if(my!==tok)return;sh.speaking=false;try{if(u&&u.onend)u.onend({});}catch(e){}}
+(function poll(){
+if(my!==tok)return;
+var b=true;try{b=V.busy();}catch(e){}
+if(!b){fin();return;}
+if(Date.now()-t0>180000){fin();return;}
+setTimeout(poll,250);
+})();
+}};
+if(!window.SpeechSynthesisUtterance){window.SpeechSynthesisUtterance=function(t){this.text=t;this.lang='';};}
+try{Object.defineProperty(window,'speechSynthesis',{value:sh,configurable:true,writable:true});}catch(e){try{window.speechSynthesis=sh;}catch(e2){}}
+setTimeout(function(){try{var e=document.getElementById('czrStVer');if(e&&e.textContent.indexOf('voice')<0)e.textContent=(e.textContent||'')+' · voice: '+V.state();}catch(e3){}},3000);
 })();
 </script>
 <div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
