@@ -246,6 +246,9 @@ private android.speech.tts.TextToSpeech czrV;
     private volatile String czrVPendingLang = null;
     private final java.util.concurrent.atomic.AtomicInteger czrVSeq = new java.util.concurrent.atomic.AtomicInteger(0);
 
+    private volatile float czrVPitch = 1.0f;
+    private volatile float czrVRate = 0.95f;
+
     public class CzrVoiceBridge {
         @android.webkit.JavascriptInterface
         public void warm() {
@@ -268,6 +271,17 @@ private android.speech.tts.TextToSpeech czrV;
         }
         @android.webkit.JavascriptInterface
         public boolean busy() { return czrVBusy; }
+        @android.webkit.JavascriptInterface
+        public void speak2(final String text, final String lang, final double pitch, final double rate) {
+            czrVPitch = (float) pitch;
+            czrVRate = (float) rate;
+            speak(text, lang);
+        }
+        @android.webkit.JavascriptInterface
+        public void voiceReset() {
+            czrVPitch = 1.0f;
+            czrVRate = 0.95f;
+        }
         @android.webkit.JavascriptInterface
         public String state() { return czrVState; }
     }
@@ -309,6 +323,7 @@ private android.speech.tts.TextToSpeech czrV;
         }
         if (!ok) { czrVState = "nolang"; czrVBusy = false; return; }
         czrVState = "ok";
+        try { czrV.setPitch(czrVPitch); czrV.setSpeechRate(czrVRate); } catch (Exception ignored) {}
         czrV.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "czr" + my);
     }
 

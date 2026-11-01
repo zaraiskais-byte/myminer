@@ -5258,6 +5258,176 @@ try{Object.defineProperty(window,'speechSynthesis',{value:sh,configurable:true,w
 setTimeout(function(){try{var e=document.getElementById('czrStVer');if(e&&e.textContent.indexOf('voice')<0)e.textContent=(e.textContent||'')+' · voice: '+V.state();}catch(e3){}},3000);
 })();
 </script>
+<script>
+(function(){
+if(window.__czrWiz2)return;window.__czrWiz2=1;
+var S={step:1,tab:'pre',niche:0,custom:'',lang:'ar',voice:1,vf:'all',mtab:'pre',msel:[],mfile:null,mname:'',art:0,cap:0,glitch:false,hook:false,pf:{yt:1,tt:1,fb:1},idea:'',n:6,imgs:[],scenes:[],capt:''};
+var T=['المجال','اللغة والصوت','الموسيقى','النمط الفني','نمط التعليق','التأثيرات','الحسابات','الفكرة والنتيجة'];
+var N=[['😱 Scary stories · قصص مرعبة','horror','قصص تقشعر لها الأبدان · Scary stories that give you goosebumps'],['📜 History · تاريخ','history','مقاطع عن التاريخ من القديم إلى الحديث'],['⚡ Greek Mythology · الأساطير اليونانية','myth','قصص صادمة ومثيرة من الأساطير'],['👑 Historical Figures · شخصيات تاريخية','figures','حياة أهم الشخصيات في دقيقة'],['🔥 Motivation · تحفيز','motivation','إضافة مني · فيديوهات تحفيزية قصيرة'],['🧠 Facts · حقائق','facts','إضافة مني · حقائق مدهشة']];
+var VO=[['Adam','واثق · Confident','low',0.85,1],['Jonah','راوي · Storyteller','low',0.9,0.88],['Jamal','هادئ · Chill','low',0.95,0.85],['Peter','عميق · Deep','low',0.7,0.92],['Brittney','حماسي · Energetic','high',1.3,1.15],['Hope','مشرق · Bright','high',1.2,1.05],['Zara','حواري · Conversational','high',1.1,1],['Jessa','عفوي · Casual','high',1.05,1.08]];
+var MUS=[['Creepy melody','لحن مخيف','Haunting and unsettling melody',[0,1,3,7,8],57,'triangle',520,0.06],['Horror piano','بيانو رعب','Dark and chilling piano keys',[0,3,6,9],48,'sine',700,0.09],['Unsolved mystery','لغز محير','Suspenseful and intriguing atmosphere',[0,2,3,7,10],52,'sawtooth',600,0.03],['8-bit slowed','8-بت بطيء','Eerie chiptune with a haunting retro feel',[0,3,5,7,10],60,'square',380,0.03],['Quiet before storm','هدوء قبل العاصفة','Building tension and anticipation',[0,7,12,5],45,'sine',900,0.08],['Brilliant symphony','سمفونية','Orchestral and majestic for epic reveals',[0,4,7,12,16,19],55,'sawtooth',480,0.03]];
+var ARTS=[['Comic','#1d4e89','#9ad1ff','comic book style, bold ink outlines, vivid colors','💥'],['Creepy Comic','#2b2b2b','#7a8b6f','creepy comic style, dark mood, thick outlines','👁'],['Modern Cartoon','#6b2d5c','#ff9e7a','modern cartoon style, clean lines, vibrant colors','🎨'],['Disney','#7a4b3a','#ffd6a5','3D Disney Pixar style, warm soft lighting','🏰'],['Mythology','#1b2a49','#c9b458','epic greek mythology painting, dramatic lightning','⚡'],['Pixel Art','#2d6a4f','#f4a6c0','detailed 16-bit pixel art, vibrant','👾'],['Ghibli','#3d5a40','#f2e3b3','studio ghibli style, hand-painted, soft light','🍄'],['Anime','#4a2c6b','#e0b7ff','anime style, detailed cel shading','🎌'],['Painting','#6b4a2b','#f0c987','classical oil painting, rich textures','🖼'],['Dark Fantasy','#101018','#5c3a5c','dark fantasy art, gloomy atmosphere, torch light','🕯'],['Lego','#a8321f','#ffd23f','lego minifigure scene, toy bricks, macro photo','🧱'],['Polaroid','#8a6a5a','#f7e1d0','polaroid photo, warm bokeh lights, portrait','📷'],['Realism','#8a5a2b','#ffd9a0','photorealistic, cinematic, golden hour','🌇'],['Fantastic','#0b4a6b','#5ed1e0','fantasy underwater ruins, god rays, epic scale','🌊']];
+var CAPS=['Bold Stroke','Red Highlight','Sleek','Karaoke','Majestic','Beast','Classic','Pixel'];
+var CCSS=['font-weight:900;color:#fff;-webkit-text-stroke:2px #000','font-weight:900;color:#ff2d2d;-webkit-text-stroke:1px #000','font-weight:700;color:rgba(255,255,255,.7)','font-weight:900;color:#fff;background:#7b2ff7;padding:2px 6px;border-radius:4px','font-style:italic;font-weight:900;color:#fff2c2;text-shadow:0 0 8px #000','font-style:italic;font-weight:900;color:#fff;-webkit-text-stroke:3px #000','font-family:serif;color:#fff','font-family:monospace;font-weight:900;color:#fff;-webkit-text-stroke:2px #000'];
+var TP=[['في ليلة هادئة بدأ كل شيء بصوت غريب','اقترب الصوت أكثر فأكثر','لم يكن وحيدًا في ذلك المكان','وعندما التفت رأى ما لا يصدق','ولا يزال السر مجهولًا حتى اليوم. تابعنا للمزيد'],['عاد الزمن بنا إلى أحداث غيرت العالم','كانت البداية صغيرة لا يلتفت إليها أحد','ثم تسارعت الأحداث بشكل مذهل','وتغير مصير أمم بأكملها','وما زال أثر تلك الحقبة باقيًا حتى اليوم. تابعنا للمزيد'],['في زمن الآلهة والأبطال بدأت الحكاية','غضبت الآلهة وارتجفت السماء','وخرج البطل لمواجهة قدره','فكان الثمن أغلى مما تخيل','وهكذا خلدت الأسطورة عبر القرون. تابعنا للمزيد'],['ولد في زمن لم يتوقع أحد منه شيئًا','واجه صعوبات كادت تحطمه','لكنه رفض الاستسلام','وبقراراته تغير وجه التاريخ','وما زال اسمه يذكر إلى اليوم. تابعنا للمزيد'],['كان على وشك الاستسلام','لكن فكرة واحدة غيرت كل شيء','بدأ بخطوة صغيرة كل يوم','وبعد أشهر لم يعد يعرف نفسه','ابدأ اليوم ولا تنتظر. تابعنا للمزيد'],['هل تعلم أن هناك حقيقة لا يعرفها أغلب الناس','الأمر يبدو بسيطًا في البداية','لكن العلماء اكتشفوا شيئًا مذهلًا','وهذا يغير نظرتنا لكل شيء','شارك الفيديو مع من يحب المعرفة. تابعنا للمزيد'],['وهنا تبدأ القصة الحقيقية','والتفاصيل التالية مثيرة','لكن المفاجأة كانت في النهاية','هل توقعت ذلك؟','تابعنا للمزيد']];
+var TPE=['Here is where the story begins','What happened next shocked everyone','Nobody saw the ending coming','Did you expect that?','Follow for more'];
+var BT='background:#e8c45a;color:#000;border:0;border-radius:12px;padding:12px 16px;font-weight:700;font-size:15px';
+var GH='background:#141b2d;color:#e8c45a;border:1px solid #3a3320;border-radius:12px;padding:12px 16px;font-size:15px';
+var CD='background:#111a2e;border:1px solid #3a3320;border-radius:14px;padding:14px;margin-bottom:12px';
+var W=360,H=640,cv=null,cx=null,tok=0,AC=null,mG=null,mDr=null,mIv=null,mAu=null,mCur=-1;
+function el(t,c,x,f){var e=document.createElement(t);if(c)e.style.cssText=c;if(x!=null)e.textContent=x;if(f)e.onclick=f;return e;}
+function toast(m){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:100px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4500;font-size:14px;max-width:88%;text-align:center',m);document.body.appendChild(t);setTimeout(function(){t.remove();},2500);}catch(e){}}
+function cp(t){var fb=function(){try{var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast('تم النسخ ✓');}catch(e){toast('تعذر النسخ');}};try{navigator.clipboard.writeText(t).then(function(){toast('تم النسخ ✓');},fb);}catch(e){fb();}}
+function chip(l,on,f){return el('button',(on?BT:GH)+';padding:9px 14px;font-size:14px',l,f);}
+function nkey(){return S.tab==='cus'?'custom':N[S.niche][1];}
+function tpi(){return S.tab==='cus'?6:S.niche;}
+var root=el('div','position:fixed;left:0;right:0;top:0;bottom:0;z-index:3500;background:#0b1020;color:#f3e7c0;display:none;flex-direction:column;font-family:sans-serif;direction:rtl');
+var bar=el('div','display:flex;gap:6px;padding:14px 16px 6px');
+var head=el('div','padding:6px 16px;font-size:19px;font-weight:700;color:#e8c45a');
+var body=el('div','flex:1;overflow-y:auto;padding:8px 16px');
+var foot=el('div','display:flex;gap:10px;padding:12px 16px 18px;border-top:1px solid #2a2a2a');
+root.appendChild(bar);root.appendChild(head);root.appendChild(body);root.appendChild(foot);
+document.body.appendChild(root);
+function open(){S.step=1;root.style.display='flex';render();}
+function close(){stopAll();try{if(window.CzrVoice&&window.CzrVoice.voiceReset)window.CzrVoice.voiceReset();}catch(e){}root.style.display='none';}
+function stopAll(){tok++;stopMusic();try{if(window.CzrVoice)window.CzrVoice.stop();}catch(e){}try{speechSynthesis.cancel();}catch(e){}}
+function speak(t,cb,vi){var my=tok,V=window.CzrVoice,v=VO[vi==null?S.voice:vi],done=false;
+function fin(){if(done)return;done=true;if(cb)cb();}
+if(V&&V.speak2){try{V.speak2(t,S.lang,v[3],v[4]);}catch(e){fin();return;}
+var t0=Date.now();(function poll(){if(my!==tok||done)return;var b=true;try{b=V.busy();}catch(e){}
+if(!b||Date.now()-t0>180000){fin();return;}setTimeout(poll,250);})();return;}
+try{var u=new SpeechSynthesisUtterance(t);u.lang=S.lang==='ar'?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){setTimeout(fin,2500);}}
+function actx(){if(!AC){var C=window.AudioContext||window.webkitAudioContext;AC=new C();}if(AC.state==='suspended')AC.resume();return AC;}
+function hz(m){return 440*Math.pow(2,(m-69)/12);}
+function stopMusic(){mCur=-1;if(mIv){clearInterval(mIv);mIv=null;}try{if(mDr){mDr.stop();mDr=null;}}catch(e){}try{if(mG){mG.disconnect();mG=null;}}catch(e){}try{if(mAu){mAu.pause();mAu=null;}}catch(e){}}
+function startMusic(k){stopMusic();mCur=k;
+if(k==='f'){if(!S.mfile){toast('اختر ملفًا صوتيًا أولًا');mCur=-1;return;}try{mAu=new Audio(S.mfile);mAu.loop=true;mAu.volume=0.3;mAu.play();}catch(e){}return;}
+var a;try{a=actx();}catch(e){toast('الصوت غير مدعوم');mCur=-1;return;}
+var m=MUS[k];mG=a.createGain();mG.gain.value=1;mG.connect(a.destination);
+var d=a.createOscillator(),dg=a.createGain();d.type='sine';d.frequency.value=hz(m[4]-12);dg.gain.value=0.05;d.connect(dg);dg.connect(mG);d.start();mDr=d;
+var g=mG;
+function tick(){if(g!==mG)return;var t=a.currentTime,deg=m[3][Math.floor(Math.random()*m[3].length)],oc=Math.random()<0.3?12:0,o=a.createOscillator(),e=a.createGain(),L=m[6]/1000;
+o.type=m[5];o.frequency.value=hz(m[4]+deg+oc);e.gain.setValueAtTime(0.0001,t);e.gain.exponentialRampToValueAtTime(m[7],t+0.05);e.gain.exponentialRampToValueAtTime(0.0001,t+L*1.8);o.connect(e);e.connect(g);o.start(t);o.stop(t+L*1.9);}
+mIv=setInterval(tick,m[6]);tick();}
+function startSel(){if(!S.msel.length)return;startMusic(S.msel[Math.floor(Math.random()*S.msel.length)]);}
+function gen(){var t=S.idea.trim(),ss=t.split(/[.!?؟\n]+/).map(function(x){return x.trim();}).filter(Boolean);
+if(ss.length>=3)return ss.slice(0,10);
+var B=S.lang==='ar'?TP[tpi()]:TPE,out=[t];for(var i=0;i<S.n-1&&i<B.length;i++)out.push(B[i]);return out;}
+function prompts(){return S.scenes.map(function(x,i){return 'Scene '+(i+1)+': '+x+'. Style: '+ARTS[S.art][3]+', vertical 9:16, cinematic, no text';}).join('\n\n');}
+function render(){stopAll();
+bar.innerHTML='';for(var i=1;i<=8;i++)bar.appendChild(el('div','flex:1;height:5px;border-radius:3px;background:'+(i<=S.step?'#e8c45a':'#2a3148')));
+head.textContent='الخطوة '+S.step+' من 8 · '+T[S.step-1];
+body.innerHTML='';P[S.step-1]();foot.innerHTML='';
+foot.appendChild(el('button',GH+';flex:1',S.step>1?'→ رجوع':'✕ إغلاق',function(){if(S.step>1){S.step--;render();}else close();}));
+if(S.step<8)foot.appendChild(el('button',BT+';flex:1',(S.step===3&&!S.msel.length)?'تخطي ←':'يكمل ←',function(){
+if(S.step===1&&S.tab==='cus'&&!S.custom.trim()){toast('صف مجالك أولًا');return;}
+S.step++;render();}));
+else foot.appendChild(el('button',BT+';flex:1','✓ تم',close));}
+function sec(t,get,set){body.appendChild(el('div','font-weight:700;color:#e8c45a;margin:12px 0 6px',t));var a=el('textarea','width:100%;min-height:110px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:14px;box-sizing:border-box');a.value=get();if(set)a.oninput=function(){set(a.value);};body.appendChild(a);body.appendChild(el('button',GH+';margin-top:6px','نسخ',function(){cp(set?a.value:get());}));}
+function tabs(list,cur,f){var tb=el('div','display:flex;gap:18px;border-bottom:1px solid #2a3148;margin-bottom:12px');list.forEach(function(t){tb.appendChild(el('div','padding:10px 2px;cursor:pointer;font-weight:700;border-bottom:3px solid '+(cur===t[0]?'#e8c45a':'transparent')+';opacity:'+(cur===t[0]?1:0.6),t[1],function(){f(t[0]);}));});body.appendChild(tb);}
+function setFont(st,fs){cx.font=(st===4||st===5?'italic ':'')+(st===6?'':'bold ')+fs+'px '+(st===6?'serif':st===7?'monospace':'sans-serif');}
+function word(wd,x,y,on,st,fs){
+setFont(st,fs);var w=cx.measureText(wd).width;
+if(st===3&&on){cx.fillStyle='#7b2ff7';cx.fillRect(x-6,y-fs,w+12,fs*1.3);}
+cx.lineJoin='round';var sw=(st===0||st===5||st===7)?fs*0.28:(st===1?fs*0.18:0);
+if(sw){cx.lineWidth=sw;cx.strokeStyle='#000';cx.strokeText(wd,x,y);}
+if(st===4){cx.shadowColor='#000';cx.shadowBlur=12;}
+cx.fillStyle=(st===1&&on)?'#ff2d2d':(st===0&&on)?'#ffe14a':st===2?'rgba(255,255,255,0.75)':st===4?'#fff2c2':'#fff';
+cx.fillText(wd,x,y);cx.shadowBlur=0;}
+function caption(words,act){
+var st=S.cap,fs=st===2?30:st===5?44:38,g=Math.floor(act/3)*3,up=S.lang==='en'&&[0,1,3,5].indexOf(st)>=0;
+var gw=words.slice(g,g+3).map(function(x){return up?x.toUpperCase():x;});
+setFont(st,fs);var ws=gw.map(function(x){return cx.measureText(x).width;}),gap=fs*0.35,tot=ws.reduce(function(a,b){return a+b;},0)+gap*(gw.length-1);
+var ar=S.lang==='ar',x=ar?(W+tot)/2:(W-tot)/2,y=H*0.72;cx.textAlign='left';cx.textBaseline='alphabetic';
+for(var j=0;j<gw.length;j++){var on=(g+j===act);if(ar){x-=ws[j];word(gw[j],x,y,on,st,fs);x-=gap;}else{word(gw[j],x,y,on,st,fs);x+=ws[j]+gap;}}}
+function bg(im,i,k){var a=ARTS[S.art],hk=(i===0&&S.hook);
+if(im&&im.complete&&im.naturalWidth){var z=1.05+(hk?0.35:0.1)*k,r=Math.max(W/im.naturalWidth,H/im.naturalHeight)*z,w=im.naturalWidth*r,h=im.naturalHeight*r,pan=hk?(k-0.5)*50:0;cx.drawImage(im,(W-w)/2+pan,(H-h)/2,w,h);}
+else{var g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,a[2]);g.addColorStop(1,a[1]);cx.fillStyle=g;cx.fillRect(0,0,W,H);cx.fillStyle='rgba(255,255,255,0.85)';cx.font='bold 120px sans-serif';cx.textAlign='center';cx.fillText(String(i+1),W/2,H*0.4);}
+var s=cx.createLinearGradient(0,H*0.5,0,H);s.addColorStop(0,'rgba(0,0,0,0)');s.addColorStop(1,'rgba(0,0,0,0.65)');cx.fillStyle=s;cx.fillRect(0,0,W,H);}
+function glitch(){if(!S.glitch||Math.random()>0.25)return;for(var j=0;j<4;j++){var y=Math.random()*H,h=10+Math.random()*50,d=(Math.random()-0.5)*40;cx.drawImage(cv,0,y,W,h,d,y,W,h);}cx.fillStyle='rgba(255,0,60,0.12)';cx.fillRect(3,0,W,H);cx.fillStyle='rgba(0,255,255,0.10)';cx.fillRect(-3,0,W,H);}
+function draw(i,words,act,k){bg(S.imgs.length?S.imgs[i%S.imgs.length]:null,i,k);glitch();caption(words,act);}
+function idle(){if(!cx||!S.scenes.length)return;draw(0,S.scenes[0].split(/\s+/),0,0);}
+function play(){stopAll();var my=tok,i=0;startSel();
+function scene(){if(my!==tok)return;if(i>=S.scenes.length){stopMusic();idle();return;}
+var words=S.scenes[i].split(/\s+/),t0=Date.now(),dur=Math.max(2500,words.length*420),done=false,idx=i;
+speak(S.scenes[i],function(){done=true;});
+(function frame(){if(my!==tok)return;var e=Date.now()-t0,k=Math.min(1,e/dur);
+draw(idx,words,Math.min(words.length-1,Math.floor(k*words.length)),k);
+if((done&&e>900)||e>dur+8000){i++;scene();return;}
+requestAnimationFrame(frame);})();}
+scene();}
+function loadImgs(fl){S.imgs=[];Array.prototype.forEach.call(fl,function(f,i){var im=new Image();im.onload=idle;im.src=URL.createObjectURL(f);S.imgs[i]=im;});toast('تم اختيار '+fl.length+' صورة');}
+function tog(arr,k){var p=arr.indexOf(k);if(p>=0)arr.splice(p,1);else arr.push(k);}
+var P=[
+function(){
+tabs([['pre','الإعدادات المسبقة · Presets'],['cus','مخصص · Custom']],S.tab,function(t){S.tab=t;render();});
+if(S.tab==='pre'){N.forEach(function(n,i){var c=el('div',CD+';cursor:pointer;border:'+(S.niche===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.niche=i;render();});c.appendChild(el('div','font-size:17px;font-weight:700',n[0]));c.appendChild(el('div','font-size:13px;opacity:.7;margin-top:4px',n[2]));body.appendChild(c);});}
+else{body.appendChild(el('div','margin-bottom:8px','صف مجالك بنفسك:'));var t=el('textarea','width:100%;min-height:140px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:16px;box-sizing:border-box');t.value=S.custom;t.oninput=function(){S.custom=t.value;};body.appendChild(t);}},
+function(){
+body.appendChild(el('div','margin-bottom:6px','اللغة · Language'));
+var sl=el('select','width:100%;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:12px;font-size:16px;margin-bottom:14px');
+[['ar','🇸🇦 العربية'],['en','🇬🇧 English']].forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];if(S.lang===o[0])op.selected=true;sl.appendChild(op);});
+sl.onchange=function(){S.lang=sl.value;};body.appendChild(sl);
+body.appendChild(el('div','margin-bottom:6px','الصوت · Voice'));
+var fr=el('div','display:flex;gap:8px;margin-bottom:10px');
+[['all','الكل'],['low','غليظ'],['high','رفيع']].forEach(function(f){fr.appendChild(chip(f[1],S.vf===f[0],function(){S.vf=f[0];render();}));});body.appendChild(fr);
+var g=el('div','display:grid;grid-template-columns:1fr 1fr;gap:10px');
+VO.forEach(function(v,i){if(S.vf!=='all'&&v[2]!==S.vf)return;
+var c=el('div',CD+';margin:0;padding:10px;display:flex;align-items:center;gap:8px;cursor:pointer;border:'+(S.voice===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.voice=i;render();});
+c.appendChild(el('button',BT+';padding:8px 11px;border-radius:50%;font-size:13px','▶',function(e){e.stopPropagation();stopAll();speak(S.lang==='ar'?'مرحبًا، هذا اختبار الصوت':'Hello, this is a voice test',null,i);}));
+var tx=el('div','');tx.appendChild(el('div','font-weight:700',v[0]));tx.appendChild(el('div','font-size:11px;opacity:.7',v[1]));c.appendChild(tx);g.appendChild(c);});
+body.appendChild(g);
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:10px','الأصوات نبرات مختلفة لمحرك النطق في هاتفك، وليست 60 صوتًا حقيقيًا.'));},
+function(){
+body.appendChild(el('div','margin-bottom:8px;opacity:.8','اختر ما تشاء من المقطوعات، وسنختار واحدة عشوائيًا لكل فيديو (اختياري).'));
+tabs([['pre','موسيقى جاهزة · Preset'],['cus','مخصص · Custom']],S.mtab,function(t){S.mtab=t;render();});
+if(S.mtab==='pre'){MUS.forEach(function(m,i){var on=S.msel.indexOf(i)>=0;
+var c=el('div',CD+';display:flex;align-items:center;gap:10px;cursor:pointer;border:'+(on?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){tog(S.msel,i);render();});
+var tx=el('div','flex:1');tx.appendChild(el('div','font-weight:700',(on?'✅ ':'')+m[0]+' · '+m[1]));tx.appendChild(el('div','font-size:12px;opacity:.7;margin-top:3px',m[2]));c.appendChild(tx);
+c.appendChild(el('button',GH+';padding:8px 13px','▶',function(e){e.stopPropagation();if(mCur===i){stopMusic();}else{stopAll();startMusic(i);}}));body.appendChild(c);});
+body.appendChild(el('div','font-size:12px;opacity:.7','المقطوعات تُولَّد صوتيًا داخل التطبيق، وليست أغاني مسجلة.'));}
+else{var f=el('input','display:none');f.type='file';f.accept='audio/*';f.onchange=function(){if(f.files&&f.files[0]){S.mfile=URL.createObjectURL(f.files[0]);S.mname=f.files[0].name;if(S.msel.indexOf('f')<0)S.msel.push('f');render();}};body.appendChild(f);
+body.appendChild(el('button',BT+';width:100%','🎵 اختر أغنية من هاتفك',function(){f.click();}));
+if(S.mfile){var c=el('div',CD+';margin-top:12px;display:flex;align-items:center;gap:10px');c.appendChild(el('div','flex:1;font-size:14px','✅ '+S.mname));c.appendChild(el('button',GH+';padding:8px 13px','▶',function(){if(mCur==='f'){stopMusic();}else{stopAll();startMusic('f');}}));body.appendChild(c);}}},
+function(){var r=el('div','display:flex;gap:12px;overflow-x:auto;padding-bottom:8px');
+ARTS.forEach(function(a,i){var c=el('div','min-width:150px;height:240px;border-radius:14px;position:relative;background:linear-gradient(180deg,'+a[2]+','+a[1]+');border:'+(S.art===i?'3px solid #e8c45a':'1px solid #3a3320'),null,function(){S.art=i;render();});
+c.appendChild(el('div','position:absolute;top:70px;left:0;right:0;text-align:center;font-size:56px',a[4]));
+c.appendChild(el('div','position:absolute;bottom:0;left:0;right:0;padding:10px;background:rgba(0,0,0,.55);border-radius:0 0 12px 12px;font-weight:700;text-align:center;color:#fff',(S.art===i?'✓ ':'')+a[0]));r.appendChild(c);});
+body.appendChild(r);body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:8px','يُضاف تلقائيًا إلى أوامر الصور: '+ARTS[S.art][3]));},
+function(){var g=el('div','display:grid;grid-template-columns:1fr 1fr;gap:12px');
+CAPS.forEach(function(n,i){var c=el('div',CD+';margin:0;text-align:center;border:'+(S.cap===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.cap=i;render();});
+var p=el('div','background:#333;border-radius:10px;padding:18px 4px;margin-bottom:8px;direction:ltr;font-size:18px');p.appendChild(el('span',CCSS[i],'NOTEBOOK HIDDEN'));c.appendChild(p);c.appendChild(el('div','font-size:14px',(S.cap===i?'✓ ':'')+n));g.appendChild(c);});body.appendChild(g);},
+function(){
+var c=el('div',CD);c.appendChild(el('div','font-weight:700','Glitch effect · تأثير الخلل'+(S.glitch?' ✅':'')));c.appendChild(el('div','font-size:13px;opacity:.7;margin:6px 0 10px','اهتزاز وتشويه لوني مخيف، مناسب للرعب والإثارة.'));c.appendChild(chip(S.glitch?'مفعّل':'تفعيل',S.glitch,function(){S.glitch=!S.glitch;render();}));body.appendChild(c);
+var k=el('div',CD);k.appendChild(el('div','font-weight:700','حركة كاميرا للمشهد الأول (بديل مجاني)'+(S.hook?' ✅':'')));k.appendChild(el('div','font-size:13px;opacity:.7;margin:6px 0 10px','تقريب وتحريك سينمائي قوي على صورة المشهد الأول ليجذب المشاهد.'));k.appendChild(chip(S.hook?'مفعّل':'تفعيل',S.hook,function(){S.hook=!S.hook;render();}));body.appendChild(k);
+var h=el('div',CD+';opacity:.5');h.appendChild(el('div','font-weight:700','Animated hook · Wan 2.2 · PREMIUM'));h.appendChild(el('div','font-size:13px;margin-top:6px','توليد فيديو بالذكاء الاصطناعي يحتاج خادمًا مدفوعًا، غير متاح داخل التطبيق.'));body.appendChild(h);},
+function(){
+body.appendChild(el('div','margin-bottom:10px','اختر المنصات التي ستنشر عليها:'));
+var r=el('div','display:flex;gap:8px;flex-wrap:wrap');[['yt','YouTube'],['tt','TikTok'],['fb','Facebook']].forEach(function(p){r.appendChild(chip(p[1],!!S.pf[p[0]],function(){S.pf[p[0]]=S.pf[p[0]]?0:1;render();}));});body.appendChild(r);
+var c=el('div',CD+';margin-top:16px;opacity:.6;text-align:center');c.appendChild(el('div','','ربط الحسابات تلقائيًا غير متاح (يحتاج موافقات المنصات).'));c.appendChild(el('div','font-size:13px;margin-top:6px','يُنسخ الوصف ثم تُفتح المنصة لترفع الفيديو بنفسك.'));body.appendChild(c);},
+function(){
+body.appendChild(el('div','margin-bottom:8px','اكتب فكرة الفيديو أو القصة كاملة (كل جملة تصبح مشهدًا):'));
+var t=el('textarea','width:100%;min-height:130px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:16px;box-sizing:border-box');t.value=S.idea;t.oninput=function(){S.idea=t.value;};body.appendChild(t);
+body.appendChild(el('div','margin:12px 0 6px','عدد المشاهد (للفكرة القصيرة):'));
+var r=el('div','display:flex;gap:8px');[4,5,6].forEach(function(n){r.appendChild(chip(String(n),S.n===n,function(){S.n=n;render();}));});body.appendChild(r);
+body.appendChild(el('button',BT+';width:100%;margin-top:14px','✨ أنشئ الفيديو',function(){if(!S.idea.trim()){toast('اكتب فكرة الفيديو أولًا');return;}S.scenes=gen();S.capt=(S.scenes[0]||'')+'\n\n#shorts #reels #'+nkey()+' #fyp';render();}));
+if(!S.scenes.length)return;
+cv=el('canvas','width:100%;max-width:280px;display:block;margin:16px auto 10px;border-radius:14px;border:1px solid #3a3320;background:#000');cv.width=W;cv.height=H;cx=cv.getContext('2d');body.appendChild(cv);
+var b=el('div','display:flex;gap:8px;margin-bottom:10px');b.appendChild(el('button',BT+';flex:1','▶ معاينة بالصوت',play));b.appendChild(el('button',GH,'⏹',function(){stopAll();idle();}));body.appendChild(b);
+var f=el('input','display:none');f.type='file';f.accept='image/*';f.multiple=true;f.onchange=function(){loadImgs(f.files);};body.appendChild(f);
+body.appendChild(el('button',GH+';width:100%','🖼 اختر صورًا للمشاهد',function(){f.click();}));
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:8px','لتسجيل فيديو بالصوت: شغّل مسجل شاشة الهاتف ثم اضغط معاينة.'));
+sec('المشاهد (سطر لكل مشهد)',function(){return S.scenes.join('\n');},function(v){S.scenes=v.split('\n').map(function(x){return x.trim();}).filter(Boolean);});
+sec('أوامر الصور',prompts);
+sec('الوصف والهاشتاقات',function(){return S.capt;},function(v){S.capt=v;});
+var L=[['yt','YouTube','https://www.youtube.com/upload'],['tt','TikTok','https://www.tiktok.com/upload'],['fb','Facebook','https://www.facebook.com/']],pr=el('div','display:flex;gap:8px;flex-wrap:wrap;margin-top:14px');
+L.forEach(function(p){if(S.pf[p[0]])pr.appendChild(el('button',BT,p[1]+' ↗',function(){cp(S.capt);setTimeout(function(){window.open(p[2],'_blank');},400);}));});body.appendChild(pr);
+idle();}
+];
+function addBtn(){var as=document.querySelectorAll('#czrStVer');Array.prototype.forEach.call(as,function(a){if(a.__w2)return;a.__w2=1;var b=el('button',BT+';display:block;width:100%;margin:12px 0','🎬 استوديو متطور · Pro Studio',open);var p=a.parentNode;p.insertBefore(b,p.firstChild);});}
+setInterval(addBtn,1000);addBtn();
+})();
+</script>
 <div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
 </div></section>
 <script>
@@ -10428,6 +10598,176 @@ setTimeout(poll,250);
 if(!window.SpeechSynthesisUtterance){window.SpeechSynthesisUtterance=function(t){this.text=t;this.lang='';};}
 try{Object.defineProperty(window,'speechSynthesis',{value:sh,configurable:true,writable:true});}catch(e){try{window.speechSynthesis=sh;}catch(e2){}}
 setTimeout(function(){try{var e=document.getElementById('czrStVer');if(e&&e.textContent.indexOf('voice')<0)e.textContent=(e.textContent||'')+' · voice: '+V.state();}catch(e3){}},3000);
+})();
+</script>
+<script>
+(function(){
+if(window.__czrWiz2)return;window.__czrWiz2=1;
+var S={step:1,tab:'pre',niche:0,custom:'',lang:'ar',voice:1,vf:'all',mtab:'pre',msel:[],mfile:null,mname:'',art:0,cap:0,glitch:false,hook:false,pf:{yt:1,tt:1,fb:1},idea:'',n:6,imgs:[],scenes:[],capt:''};
+var T=['المجال','اللغة والصوت','الموسيقى','النمط الفني','نمط التعليق','التأثيرات','الحسابات','الفكرة والنتيجة'];
+var N=[['😱 Scary stories · قصص مرعبة','horror','قصص تقشعر لها الأبدان · Scary stories that give you goosebumps'],['📜 History · تاريخ','history','مقاطع عن التاريخ من القديم إلى الحديث'],['⚡ Greek Mythology · الأساطير اليونانية','myth','قصص صادمة ومثيرة من الأساطير'],['👑 Historical Figures · شخصيات تاريخية','figures','حياة أهم الشخصيات في دقيقة'],['🔥 Motivation · تحفيز','motivation','إضافة مني · فيديوهات تحفيزية قصيرة'],['🧠 Facts · حقائق','facts','إضافة مني · حقائق مدهشة']];
+var VO=[['Adam','واثق · Confident','low',0.85,1],['Jonah','راوي · Storyteller','low',0.9,0.88],['Jamal','هادئ · Chill','low',0.95,0.85],['Peter','عميق · Deep','low',0.7,0.92],['Brittney','حماسي · Energetic','high',1.3,1.15],['Hope','مشرق · Bright','high',1.2,1.05],['Zara','حواري · Conversational','high',1.1,1],['Jessa','عفوي · Casual','high',1.05,1.08]];
+var MUS=[['Creepy melody','لحن مخيف','Haunting and unsettling melody',[0,1,3,7,8],57,'triangle',520,0.06],['Horror piano','بيانو رعب','Dark and chilling piano keys',[0,3,6,9],48,'sine',700,0.09],['Unsolved mystery','لغز محير','Suspenseful and intriguing atmosphere',[0,2,3,7,10],52,'sawtooth',600,0.03],['8-bit slowed','8-بت بطيء','Eerie chiptune with a haunting retro feel',[0,3,5,7,10],60,'square',380,0.03],['Quiet before storm','هدوء قبل العاصفة','Building tension and anticipation',[0,7,12,5],45,'sine',900,0.08],['Brilliant symphony','سمفونية','Orchestral and majestic for epic reveals',[0,4,7,12,16,19],55,'sawtooth',480,0.03]];
+var ARTS=[['Comic','#1d4e89','#9ad1ff','comic book style, bold ink outlines, vivid colors','💥'],['Creepy Comic','#2b2b2b','#7a8b6f','creepy comic style, dark mood, thick outlines','👁'],['Modern Cartoon','#6b2d5c','#ff9e7a','modern cartoon style, clean lines, vibrant colors','🎨'],['Disney','#7a4b3a','#ffd6a5','3D Disney Pixar style, warm soft lighting','🏰'],['Mythology','#1b2a49','#c9b458','epic greek mythology painting, dramatic lightning','⚡'],['Pixel Art','#2d6a4f','#f4a6c0','detailed 16-bit pixel art, vibrant','👾'],['Ghibli','#3d5a40','#f2e3b3','studio ghibli style, hand-painted, soft light','🍄'],['Anime','#4a2c6b','#e0b7ff','anime style, detailed cel shading','🎌'],['Painting','#6b4a2b','#f0c987','classical oil painting, rich textures','🖼'],['Dark Fantasy','#101018','#5c3a5c','dark fantasy art, gloomy atmosphere, torch light','🕯'],['Lego','#a8321f','#ffd23f','lego minifigure scene, toy bricks, macro photo','🧱'],['Polaroid','#8a6a5a','#f7e1d0','polaroid photo, warm bokeh lights, portrait','📷'],['Realism','#8a5a2b','#ffd9a0','photorealistic, cinematic, golden hour','🌇'],['Fantastic','#0b4a6b','#5ed1e0','fantasy underwater ruins, god rays, epic scale','🌊']];
+var CAPS=['Bold Stroke','Red Highlight','Sleek','Karaoke','Majestic','Beast','Classic','Pixel'];
+var CCSS=['font-weight:900;color:#fff;-webkit-text-stroke:2px #000','font-weight:900;color:#ff2d2d;-webkit-text-stroke:1px #000','font-weight:700;color:rgba(255,255,255,.7)','font-weight:900;color:#fff;background:#7b2ff7;padding:2px 6px;border-radius:4px','font-style:italic;font-weight:900;color:#fff2c2;text-shadow:0 0 8px #000','font-style:italic;font-weight:900;color:#fff;-webkit-text-stroke:3px #000','font-family:serif;color:#fff','font-family:monospace;font-weight:900;color:#fff;-webkit-text-stroke:2px #000'];
+var TP=[['في ليلة هادئة بدأ كل شيء بصوت غريب','اقترب الصوت أكثر فأكثر','لم يكن وحيدًا في ذلك المكان','وعندما التفت رأى ما لا يصدق','ولا يزال السر مجهولًا حتى اليوم. تابعنا للمزيد'],['عاد الزمن بنا إلى أحداث غيرت العالم','كانت البداية صغيرة لا يلتفت إليها أحد','ثم تسارعت الأحداث بشكل مذهل','وتغير مصير أمم بأكملها','وما زال أثر تلك الحقبة باقيًا حتى اليوم. تابعنا للمزيد'],['في زمن الآلهة والأبطال بدأت الحكاية','غضبت الآلهة وارتجفت السماء','وخرج البطل لمواجهة قدره','فكان الثمن أغلى مما تخيل','وهكذا خلدت الأسطورة عبر القرون. تابعنا للمزيد'],['ولد في زمن لم يتوقع أحد منه شيئًا','واجه صعوبات كادت تحطمه','لكنه رفض الاستسلام','وبقراراته تغير وجه التاريخ','وما زال اسمه يذكر إلى اليوم. تابعنا للمزيد'],['كان على وشك الاستسلام','لكن فكرة واحدة غيرت كل شيء','بدأ بخطوة صغيرة كل يوم','وبعد أشهر لم يعد يعرف نفسه','ابدأ اليوم ولا تنتظر. تابعنا للمزيد'],['هل تعلم أن هناك حقيقة لا يعرفها أغلب الناس','الأمر يبدو بسيطًا في البداية','لكن العلماء اكتشفوا شيئًا مذهلًا','وهذا يغير نظرتنا لكل شيء','شارك الفيديو مع من يحب المعرفة. تابعنا للمزيد'],['وهنا تبدأ القصة الحقيقية','والتفاصيل التالية مثيرة','لكن المفاجأة كانت في النهاية','هل توقعت ذلك؟','تابعنا للمزيد']];
+var TPE=['Here is where the story begins','What happened next shocked everyone','Nobody saw the ending coming','Did you expect that?','Follow for more'];
+var BT='background:#e8c45a;color:#000;border:0;border-radius:12px;padding:12px 16px;font-weight:700;font-size:15px';
+var GH='background:#141b2d;color:#e8c45a;border:1px solid #3a3320;border-radius:12px;padding:12px 16px;font-size:15px';
+var CD='background:#111a2e;border:1px solid #3a3320;border-radius:14px;padding:14px;margin-bottom:12px';
+var W=360,H=640,cv=null,cx=null,tok=0,AC=null,mG=null,mDr=null,mIv=null,mAu=null,mCur=-1;
+function el(t,c,x,f){var e=document.createElement(t);if(c)e.style.cssText=c;if(x!=null)e.textContent=x;if(f)e.onclick=f;return e;}
+function toast(m){try{var t=el('div','position:fixed;left:50%;transform:translateX(-50%);bottom:100px;background:#e8c45a;color:#000;padding:10px 16px;border-radius:12px;font-weight:700;z-index:4500;font-size:14px;max-width:88%;text-align:center',m);document.body.appendChild(t);setTimeout(function(){t.remove();},2500);}catch(e){}}
+function cp(t){var fb=function(){try{var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove();toast('تم النسخ ✓');}catch(e){toast('تعذر النسخ');}};try{navigator.clipboard.writeText(t).then(function(){toast('تم النسخ ✓');},fb);}catch(e){fb();}}
+function chip(l,on,f){return el('button',(on?BT:GH)+';padding:9px 14px;font-size:14px',l,f);}
+function nkey(){return S.tab==='cus'?'custom':N[S.niche][1];}
+function tpi(){return S.tab==='cus'?6:S.niche;}
+var root=el('div','position:fixed;left:0;right:0;top:0;bottom:0;z-index:3500;background:#0b1020;color:#f3e7c0;display:none;flex-direction:column;font-family:sans-serif;direction:rtl');
+var bar=el('div','display:flex;gap:6px;padding:14px 16px 6px');
+var head=el('div','padding:6px 16px;font-size:19px;font-weight:700;color:#e8c45a');
+var body=el('div','flex:1;overflow-y:auto;padding:8px 16px');
+var foot=el('div','display:flex;gap:10px;padding:12px 16px 18px;border-top:1px solid #2a2a2a');
+root.appendChild(bar);root.appendChild(head);root.appendChild(body);root.appendChild(foot);
+document.body.appendChild(root);
+function open(){S.step=1;root.style.display='flex';render();}
+function close(){stopAll();try{if(window.CzrVoice&&window.CzrVoice.voiceReset)window.CzrVoice.voiceReset();}catch(e){}root.style.display='none';}
+function stopAll(){tok++;stopMusic();try{if(window.CzrVoice)window.CzrVoice.stop();}catch(e){}try{speechSynthesis.cancel();}catch(e){}}
+function speak(t,cb,vi){var my=tok,V=window.CzrVoice,v=VO[vi==null?S.voice:vi],done=false;
+function fin(){if(done)return;done=true;if(cb)cb();}
+if(V&&V.speak2){try{V.speak2(t,S.lang,v[3],v[4]);}catch(e){fin();return;}
+var t0=Date.now();(function poll(){if(my!==tok||done)return;var b=true;try{b=V.busy();}catch(e){}
+if(!b||Date.now()-t0>180000){fin();return;}setTimeout(poll,250);})();return;}
+try{var u=new SpeechSynthesisUtterance(t);u.lang=S.lang==='ar'?'ar-SA':'en-US';u.onend=fin;u.onerror=fin;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){setTimeout(fin,2500);}}
+function actx(){if(!AC){var C=window.AudioContext||window.webkitAudioContext;AC=new C();}if(AC.state==='suspended')AC.resume();return AC;}
+function hz(m){return 440*Math.pow(2,(m-69)/12);}
+function stopMusic(){mCur=-1;if(mIv){clearInterval(mIv);mIv=null;}try{if(mDr){mDr.stop();mDr=null;}}catch(e){}try{if(mG){mG.disconnect();mG=null;}}catch(e){}try{if(mAu){mAu.pause();mAu=null;}}catch(e){}}
+function startMusic(k){stopMusic();mCur=k;
+if(k==='f'){if(!S.mfile){toast('اختر ملفًا صوتيًا أولًا');mCur=-1;return;}try{mAu=new Audio(S.mfile);mAu.loop=true;mAu.volume=0.3;mAu.play();}catch(e){}return;}
+var a;try{a=actx();}catch(e){toast('الصوت غير مدعوم');mCur=-1;return;}
+var m=MUS[k];mG=a.createGain();mG.gain.value=1;mG.connect(a.destination);
+var d=a.createOscillator(),dg=a.createGain();d.type='sine';d.frequency.value=hz(m[4]-12);dg.gain.value=0.05;d.connect(dg);dg.connect(mG);d.start();mDr=d;
+var g=mG;
+function tick(){if(g!==mG)return;var t=a.currentTime,deg=m[3][Math.floor(Math.random()*m[3].length)],oc=Math.random()<0.3?12:0,o=a.createOscillator(),e=a.createGain(),L=m[6]/1000;
+o.type=m[5];o.frequency.value=hz(m[4]+deg+oc);e.gain.setValueAtTime(0.0001,t);e.gain.exponentialRampToValueAtTime(m[7],t+0.05);e.gain.exponentialRampToValueAtTime(0.0001,t+L*1.8);o.connect(e);e.connect(g);o.start(t);o.stop(t+L*1.9);}
+mIv=setInterval(tick,m[6]);tick();}
+function startSel(){if(!S.msel.length)return;startMusic(S.msel[Math.floor(Math.random()*S.msel.length)]);}
+function gen(){var t=S.idea.trim(),ss=t.split(/[.!?؟\n]+/).map(function(x){return x.trim();}).filter(Boolean);
+if(ss.length>=3)return ss.slice(0,10);
+var B=S.lang==='ar'?TP[tpi()]:TPE,out=[t];for(var i=0;i<S.n-1&&i<B.length;i++)out.push(B[i]);return out;}
+function prompts(){return S.scenes.map(function(x,i){return 'Scene '+(i+1)+': '+x+'. Style: '+ARTS[S.art][3]+', vertical 9:16, cinematic, no text';}).join('\n\n');}
+function render(){stopAll();
+bar.innerHTML='';for(var i=1;i<=8;i++)bar.appendChild(el('div','flex:1;height:5px;border-radius:3px;background:'+(i<=S.step?'#e8c45a':'#2a3148')));
+head.textContent='الخطوة '+S.step+' من 8 · '+T[S.step-1];
+body.innerHTML='';P[S.step-1]();foot.innerHTML='';
+foot.appendChild(el('button',GH+';flex:1',S.step>1?'→ رجوع':'✕ إغلاق',function(){if(S.step>1){S.step--;render();}else close();}));
+if(S.step<8)foot.appendChild(el('button',BT+';flex:1',(S.step===3&&!S.msel.length)?'تخطي ←':'يكمل ←',function(){
+if(S.step===1&&S.tab==='cus'&&!S.custom.trim()){toast('صف مجالك أولًا');return;}
+S.step++;render();}));
+else foot.appendChild(el('button',BT+';flex:1','✓ تم',close));}
+function sec(t,get,set){body.appendChild(el('div','font-weight:700;color:#e8c45a;margin:12px 0 6px',t));var a=el('textarea','width:100%;min-height:110px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:14px;box-sizing:border-box');a.value=get();if(set)a.oninput=function(){set(a.value);};body.appendChild(a);body.appendChild(el('button',GH+';margin-top:6px','نسخ',function(){cp(set?a.value:get());}));}
+function tabs(list,cur,f){var tb=el('div','display:flex;gap:18px;border-bottom:1px solid #2a3148;margin-bottom:12px');list.forEach(function(t){tb.appendChild(el('div','padding:10px 2px;cursor:pointer;font-weight:700;border-bottom:3px solid '+(cur===t[0]?'#e8c45a':'transparent')+';opacity:'+(cur===t[0]?1:0.6),t[1],function(){f(t[0]);}));});body.appendChild(tb);}
+function setFont(st,fs){cx.font=(st===4||st===5?'italic ':'')+(st===6?'':'bold ')+fs+'px '+(st===6?'serif':st===7?'monospace':'sans-serif');}
+function word(wd,x,y,on,st,fs){
+setFont(st,fs);var w=cx.measureText(wd).width;
+if(st===3&&on){cx.fillStyle='#7b2ff7';cx.fillRect(x-6,y-fs,w+12,fs*1.3);}
+cx.lineJoin='round';var sw=(st===0||st===5||st===7)?fs*0.28:(st===1?fs*0.18:0);
+if(sw){cx.lineWidth=sw;cx.strokeStyle='#000';cx.strokeText(wd,x,y);}
+if(st===4){cx.shadowColor='#000';cx.shadowBlur=12;}
+cx.fillStyle=(st===1&&on)?'#ff2d2d':(st===0&&on)?'#ffe14a':st===2?'rgba(255,255,255,0.75)':st===4?'#fff2c2':'#fff';
+cx.fillText(wd,x,y);cx.shadowBlur=0;}
+function caption(words,act){
+var st=S.cap,fs=st===2?30:st===5?44:38,g=Math.floor(act/3)*3,up=S.lang==='en'&&[0,1,3,5].indexOf(st)>=0;
+var gw=words.slice(g,g+3).map(function(x){return up?x.toUpperCase():x;});
+setFont(st,fs);var ws=gw.map(function(x){return cx.measureText(x).width;}),gap=fs*0.35,tot=ws.reduce(function(a,b){return a+b;},0)+gap*(gw.length-1);
+var ar=S.lang==='ar',x=ar?(W+tot)/2:(W-tot)/2,y=H*0.72;cx.textAlign='left';cx.textBaseline='alphabetic';
+for(var j=0;j<gw.length;j++){var on=(g+j===act);if(ar){x-=ws[j];word(gw[j],x,y,on,st,fs);x-=gap;}else{word(gw[j],x,y,on,st,fs);x+=ws[j]+gap;}}}
+function bg(im,i,k){var a=ARTS[S.art],hk=(i===0&&S.hook);
+if(im&&im.complete&&im.naturalWidth){var z=1.05+(hk?0.35:0.1)*k,r=Math.max(W/im.naturalWidth,H/im.naturalHeight)*z,w=im.naturalWidth*r,h=im.naturalHeight*r,pan=hk?(k-0.5)*50:0;cx.drawImage(im,(W-w)/2+pan,(H-h)/2,w,h);}
+else{var g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,a[2]);g.addColorStop(1,a[1]);cx.fillStyle=g;cx.fillRect(0,0,W,H);cx.fillStyle='rgba(255,255,255,0.85)';cx.font='bold 120px sans-serif';cx.textAlign='center';cx.fillText(String(i+1),W/2,H*0.4);}
+var s=cx.createLinearGradient(0,H*0.5,0,H);s.addColorStop(0,'rgba(0,0,0,0)');s.addColorStop(1,'rgba(0,0,0,0.65)');cx.fillStyle=s;cx.fillRect(0,0,W,H);}
+function glitch(){if(!S.glitch||Math.random()>0.25)return;for(var j=0;j<4;j++){var y=Math.random()*H,h=10+Math.random()*50,d=(Math.random()-0.5)*40;cx.drawImage(cv,0,y,W,h,d,y,W,h);}cx.fillStyle='rgba(255,0,60,0.12)';cx.fillRect(3,0,W,H);cx.fillStyle='rgba(0,255,255,0.10)';cx.fillRect(-3,0,W,H);}
+function draw(i,words,act,k){bg(S.imgs.length?S.imgs[i%S.imgs.length]:null,i,k);glitch();caption(words,act);}
+function idle(){if(!cx||!S.scenes.length)return;draw(0,S.scenes[0].split(/\s+/),0,0);}
+function play(){stopAll();var my=tok,i=0;startSel();
+function scene(){if(my!==tok)return;if(i>=S.scenes.length){stopMusic();idle();return;}
+var words=S.scenes[i].split(/\s+/),t0=Date.now(),dur=Math.max(2500,words.length*420),done=false,idx=i;
+speak(S.scenes[i],function(){done=true;});
+(function frame(){if(my!==tok)return;var e=Date.now()-t0,k=Math.min(1,e/dur);
+draw(idx,words,Math.min(words.length-1,Math.floor(k*words.length)),k);
+if((done&&e>900)||e>dur+8000){i++;scene();return;}
+requestAnimationFrame(frame);})();}
+scene();}
+function loadImgs(fl){S.imgs=[];Array.prototype.forEach.call(fl,function(f,i){var im=new Image();im.onload=idle;im.src=URL.createObjectURL(f);S.imgs[i]=im;});toast('تم اختيار '+fl.length+' صورة');}
+function tog(arr,k){var p=arr.indexOf(k);if(p>=0)arr.splice(p,1);else arr.push(k);}
+var P=[
+function(){
+tabs([['pre','الإعدادات المسبقة · Presets'],['cus','مخصص · Custom']],S.tab,function(t){S.tab=t;render();});
+if(S.tab==='pre'){N.forEach(function(n,i){var c=el('div',CD+';cursor:pointer;border:'+(S.niche===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.niche=i;render();});c.appendChild(el('div','font-size:17px;font-weight:700',n[0]));c.appendChild(el('div','font-size:13px;opacity:.7;margin-top:4px',n[2]));body.appendChild(c);});}
+else{body.appendChild(el('div','margin-bottom:8px','صف مجالك بنفسك:'));var t=el('textarea','width:100%;min-height:140px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:16px;box-sizing:border-box');t.value=S.custom;t.oninput=function(){S.custom=t.value;};body.appendChild(t);}},
+function(){
+body.appendChild(el('div','margin-bottom:6px','اللغة · Language'));
+var sl=el('select','width:100%;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:12px;font-size:16px;margin-bottom:14px');
+[['ar','🇸🇦 العربية'],['en','🇬🇧 English']].forEach(function(o){var op=document.createElement('option');op.value=o[0];op.textContent=o[1];if(S.lang===o[0])op.selected=true;sl.appendChild(op);});
+sl.onchange=function(){S.lang=sl.value;};body.appendChild(sl);
+body.appendChild(el('div','margin-bottom:6px','الصوت · Voice'));
+var fr=el('div','display:flex;gap:8px;margin-bottom:10px');
+[['all','الكل'],['low','غليظ'],['high','رفيع']].forEach(function(f){fr.appendChild(chip(f[1],S.vf===f[0],function(){S.vf=f[0];render();}));});body.appendChild(fr);
+var g=el('div','display:grid;grid-template-columns:1fr 1fr;gap:10px');
+VO.forEach(function(v,i){if(S.vf!=='all'&&v[2]!==S.vf)return;
+var c=el('div',CD+';margin:0;padding:10px;display:flex;align-items:center;gap:8px;cursor:pointer;border:'+(S.voice===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.voice=i;render();});
+c.appendChild(el('button',BT+';padding:8px 11px;border-radius:50%;font-size:13px','▶',function(e){e.stopPropagation();stopAll();speak(S.lang==='ar'?'مرحبًا، هذا اختبار الصوت':'Hello, this is a voice test',null,i);}));
+var tx=el('div','');tx.appendChild(el('div','font-weight:700',v[0]));tx.appendChild(el('div','font-size:11px;opacity:.7',v[1]));c.appendChild(tx);g.appendChild(c);});
+body.appendChild(g);
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:10px','الأصوات نبرات مختلفة لمحرك النطق في هاتفك، وليست 60 صوتًا حقيقيًا.'));},
+function(){
+body.appendChild(el('div','margin-bottom:8px;opacity:.8','اختر ما تشاء من المقطوعات، وسنختار واحدة عشوائيًا لكل فيديو (اختياري).'));
+tabs([['pre','موسيقى جاهزة · Preset'],['cus','مخصص · Custom']],S.mtab,function(t){S.mtab=t;render();});
+if(S.mtab==='pre'){MUS.forEach(function(m,i){var on=S.msel.indexOf(i)>=0;
+var c=el('div',CD+';display:flex;align-items:center;gap:10px;cursor:pointer;border:'+(on?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){tog(S.msel,i);render();});
+var tx=el('div','flex:1');tx.appendChild(el('div','font-weight:700',(on?'✅ ':'')+m[0]+' · '+m[1]));tx.appendChild(el('div','font-size:12px;opacity:.7;margin-top:3px',m[2]));c.appendChild(tx);
+c.appendChild(el('button',GH+';padding:8px 13px','▶',function(e){e.stopPropagation();if(mCur===i){stopMusic();}else{stopAll();startMusic(i);}}));body.appendChild(c);});
+body.appendChild(el('div','font-size:12px;opacity:.7','المقطوعات تُولَّد صوتيًا داخل التطبيق، وليست أغاني مسجلة.'));}
+else{var f=el('input','display:none');f.type='file';f.accept='audio/*';f.onchange=function(){if(f.files&&f.files[0]){S.mfile=URL.createObjectURL(f.files[0]);S.mname=f.files[0].name;if(S.msel.indexOf('f')<0)S.msel.push('f');render();}};body.appendChild(f);
+body.appendChild(el('button',BT+';width:100%','🎵 اختر أغنية من هاتفك',function(){f.click();}));
+if(S.mfile){var c=el('div',CD+';margin-top:12px;display:flex;align-items:center;gap:10px');c.appendChild(el('div','flex:1;font-size:14px','✅ '+S.mname));c.appendChild(el('button',GH+';padding:8px 13px','▶',function(){if(mCur==='f'){stopMusic();}else{stopAll();startMusic('f');}}));body.appendChild(c);}}},
+function(){var r=el('div','display:flex;gap:12px;overflow-x:auto;padding-bottom:8px');
+ARTS.forEach(function(a,i){var c=el('div','min-width:150px;height:240px;border-radius:14px;position:relative;background:linear-gradient(180deg,'+a[2]+','+a[1]+');border:'+(S.art===i?'3px solid #e8c45a':'1px solid #3a3320'),null,function(){S.art=i;render();});
+c.appendChild(el('div','position:absolute;top:70px;left:0;right:0;text-align:center;font-size:56px',a[4]));
+c.appendChild(el('div','position:absolute;bottom:0;left:0;right:0;padding:10px;background:rgba(0,0,0,.55);border-radius:0 0 12px 12px;font-weight:700;text-align:center;color:#fff',(S.art===i?'✓ ':'')+a[0]));r.appendChild(c);});
+body.appendChild(r);body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:8px','يُضاف تلقائيًا إلى أوامر الصور: '+ARTS[S.art][3]));},
+function(){var g=el('div','display:grid;grid-template-columns:1fr 1fr;gap:12px');
+CAPS.forEach(function(n,i){var c=el('div',CD+';margin:0;text-align:center;border:'+(S.cap===i?'2px solid #e8c45a':'1px solid #3a3320'),null,function(){S.cap=i;render();});
+var p=el('div','background:#333;border-radius:10px;padding:18px 4px;margin-bottom:8px;direction:ltr;font-size:18px');p.appendChild(el('span',CCSS[i],'NOTEBOOK HIDDEN'));c.appendChild(p);c.appendChild(el('div','font-size:14px',(S.cap===i?'✓ ':'')+n));g.appendChild(c);});body.appendChild(g);},
+function(){
+var c=el('div',CD);c.appendChild(el('div','font-weight:700','Glitch effect · تأثير الخلل'+(S.glitch?' ✅':'')));c.appendChild(el('div','font-size:13px;opacity:.7;margin:6px 0 10px','اهتزاز وتشويه لوني مخيف، مناسب للرعب والإثارة.'));c.appendChild(chip(S.glitch?'مفعّل':'تفعيل',S.glitch,function(){S.glitch=!S.glitch;render();}));body.appendChild(c);
+var k=el('div',CD);k.appendChild(el('div','font-weight:700','حركة كاميرا للمشهد الأول (بديل مجاني)'+(S.hook?' ✅':'')));k.appendChild(el('div','font-size:13px;opacity:.7;margin:6px 0 10px','تقريب وتحريك سينمائي قوي على صورة المشهد الأول ليجذب المشاهد.'));k.appendChild(chip(S.hook?'مفعّل':'تفعيل',S.hook,function(){S.hook=!S.hook;render();}));body.appendChild(k);
+var h=el('div',CD+';opacity:.5');h.appendChild(el('div','font-weight:700','Animated hook · Wan 2.2 · PREMIUM'));h.appendChild(el('div','font-size:13px;margin-top:6px','توليد فيديو بالذكاء الاصطناعي يحتاج خادمًا مدفوعًا، غير متاح داخل التطبيق.'));body.appendChild(h);},
+function(){
+body.appendChild(el('div','margin-bottom:10px','اختر المنصات التي ستنشر عليها:'));
+var r=el('div','display:flex;gap:8px;flex-wrap:wrap');[['yt','YouTube'],['tt','TikTok'],['fb','Facebook']].forEach(function(p){r.appendChild(chip(p[1],!!S.pf[p[0]],function(){S.pf[p[0]]=S.pf[p[0]]?0:1;render();}));});body.appendChild(r);
+var c=el('div',CD+';margin-top:16px;opacity:.6;text-align:center');c.appendChild(el('div','','ربط الحسابات تلقائيًا غير متاح (يحتاج موافقات المنصات).'));c.appendChild(el('div','font-size:13px;margin-top:6px','يُنسخ الوصف ثم تُفتح المنصة لترفع الفيديو بنفسك.'));body.appendChild(c);},
+function(){
+body.appendChild(el('div','margin-bottom:8px','اكتب فكرة الفيديو أو القصة كاملة (كل جملة تصبح مشهدًا):'));
+var t=el('textarea','width:100%;min-height:130px;background:#000;color:#f3e7c0;border:1px solid #3a3320;border-radius:12px;padding:10px;font-size:16px;box-sizing:border-box');t.value=S.idea;t.oninput=function(){S.idea=t.value;};body.appendChild(t);
+body.appendChild(el('div','margin:12px 0 6px','عدد المشاهد (للفكرة القصيرة):'));
+var r=el('div','display:flex;gap:8px');[4,5,6].forEach(function(n){r.appendChild(chip(String(n),S.n===n,function(){S.n=n;render();}));});body.appendChild(r);
+body.appendChild(el('button',BT+';width:100%;margin-top:14px','✨ أنشئ الفيديو',function(){if(!S.idea.trim()){toast('اكتب فكرة الفيديو أولًا');return;}S.scenes=gen();S.capt=(S.scenes[0]||'')+'\n\n#shorts #reels #'+nkey()+' #fyp';render();}));
+if(!S.scenes.length)return;
+cv=el('canvas','width:100%;max-width:280px;display:block;margin:16px auto 10px;border-radius:14px;border:1px solid #3a3320;background:#000');cv.width=W;cv.height=H;cx=cv.getContext('2d');body.appendChild(cv);
+var b=el('div','display:flex;gap:8px;margin-bottom:10px');b.appendChild(el('button',BT+';flex:1','▶ معاينة بالصوت',play));b.appendChild(el('button',GH,'⏹',function(){stopAll();idle();}));body.appendChild(b);
+var f=el('input','display:none');f.type='file';f.accept='image/*';f.multiple=true;f.onchange=function(){loadImgs(f.files);};body.appendChild(f);
+body.appendChild(el('button',GH+';width:100%','🖼 اختر صورًا للمشاهد',function(){f.click();}));
+body.appendChild(el('div','font-size:12px;opacity:.7;margin-top:8px','لتسجيل فيديو بالصوت: شغّل مسجل شاشة الهاتف ثم اضغط معاينة.'));
+sec('المشاهد (سطر لكل مشهد)',function(){return S.scenes.join('\n');},function(v){S.scenes=v.split('\n').map(function(x){return x.trim();}).filter(Boolean);});
+sec('أوامر الصور',prompts);
+sec('الوصف والهاشتاقات',function(){return S.capt;},function(v){S.capt=v;});
+var L=[['yt','YouTube','https://www.youtube.com/upload'],['tt','TikTok','https://www.tiktok.com/upload'],['fb','Facebook','https://www.facebook.com/']],pr=el('div','display:flex;gap:8px;flex-wrap:wrap;margin-top:14px');
+L.forEach(function(p){if(S.pf[p[0]])pr.appendChild(el('button',BT,p[1]+' ↗',function(){cp(S.capt);setTimeout(function(){window.open(p[2],'_blank');},400);}));});body.appendChild(pr);
+idle();}
+];
+function addBtn(){var as=document.querySelectorAll('#czrStVer');Array.prototype.forEach.call(as,function(a){if(a.__w2)return;a.__w2=1;var b=el('button',BT+';display:block;width:100%;margin:12px 0','🎬 استوديو متطور · Pro Studio',open);var p=a.parentNode;p.insertBefore(b,p.firstChild);});}
+setInterval(addBtn,1000);addBtn();
 })();
 </script>
 <div id='czrStVer' style='color:#5f6b7a;font-size:11px;margin-top:18px'></div>
