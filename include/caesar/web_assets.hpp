@@ -1488,7 +1488,7 @@ async function doMine(){
 
     if(d.error){log('Err: '+d.error);return;}
 
-    log('Mined! Height: '+d.height);
+    log('Mined! Height: '+(d.height!=null?d.height:(d.block_height!=null?d.block_height:'new block')));
 
     refreshStatus();refreshWallet();
 

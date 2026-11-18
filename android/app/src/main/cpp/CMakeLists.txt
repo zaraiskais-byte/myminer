@@ -21,6 +21,16 @@ target_include_directories(caesar_web PRIVATE
     "${OPENSSL_ROOT}/include"
 )
 
+add_executable(caesar_worker
+    "${REPO_ROOT}/src/pool_worker.cpp"
+)
+
+target_include_directories(caesar_worker PRIVATE
+    "${REPO_ROOT}/include"
+    "${REPO_ROOT}/third_party"
+    "${OPENSSL_ROOT}/include"
+)
+
 find_library(CRYPTO_LIB crypto PATHS "${OPENSSL_ROOT}/lib" NO_DEFAULT_PATH)
 if(NOT CRYPTO_LIB)
     set(CRYPTO_LIB "${OPENSSL_ROOT}/lib/libcrypto.a")
@@ -35,6 +45,19 @@ target_link_libraries(caesar_web PRIVATE
 )
 
 target_link_options(caesar_web PRIVATE
+    "-Wl,--gc-sections"
+    "-Wl,--exclude-libs=ALL"
+    "-Wl,-z,max-page-size=16384"
+)
+
+target_link_libraries(caesar_worker PRIVATE
+    "${CRYPTO_LIB}"
+    z
+    log
+    dl
+)
+
+target_link_options(caesar_worker PRIVATE
     "-Wl,--gc-sections"
     "-Wl,--exclude-libs=ALL"
     "-Wl,-z,max-page-size=16384"

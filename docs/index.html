@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caesar CZR</title>
+<style>
+body{background:#111;color:#d4af37;font-family:sans-serif;text-align:center;padding:60px 20px}
+a{display:inline-block;margin-top:30px;padding:14px 28px;background:#d4af37;color:#111;border-radius:10px;text-decoration:none;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>CAESAR CZR</h1>
+<p id="r"></p>
+<a href="https://github.com/zaraiskais-byte/myminer/releases/latest">تحميل التطبيق</a>
+<script>
+var ref = new URLSearchParams(location.search).get("ref");
+if (ref) document.getElementById("r").textContent = "رمز الإحالة: " + ref;
+</script>
+</body>
+</html>
